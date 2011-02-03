@@ -80,7 +80,7 @@ class MainHandler(tornado.web.RequestHandler):
     pass 
 
   def _is_safe_user_agent(self, user_agent):
-	  """Quick heuristic to tell whether we can embed the given user_agent string in a JSON document"""
+    """Quick heuristic to tell whether we can embed the given user_agent string in a JSON document"""
     for c in user_agent:
       if c == '\\' or c == '"':
         return False
@@ -88,11 +88,11 @@ class MainHandler(tornado.web.RequestHandler):
     return True            
 
   def _get_user_agent(self):
-	  """Returns the User-Agent header"""
+    """Returns the User-Agent header"""
     return self.request.headers["User-Agent"]
   
   def _parse_client_uuid(self, user_agent):
-	  """Returns the UUID value of the specified User-Agent string"""
+    """Returns the UUID value of the specified User-Agent string"""
     try:
       # E.g., "550e8400-e29b-41d4-a716-446655440000" (see also http://en.wikipedia.org/wiki/UUID)
       start_pos = user_agent.index("uuid/") + 5
@@ -104,7 +104,7 @@ class MainHandler(tornado.web.RequestHandler):
       #raise tornado.web.HTTPError(400)                
       
   def _want_jsonp(self):    
-	  """Determines whether the client has requested a JSONP response"""
+    """Determines whether the client has requested a JSONP response"""
     try:
       mime_type = self.request.headers["Accept"]
       return mime_type == "application/json-p" or mime_type == "text/javascript"
@@ -112,7 +112,7 @@ class MainHandler(tornado.web.RequestHandler):
       return False
 
   def _post(self, channel_name, data):
-	  """Handles a client submitting a new event (the data parameter)"""
+    """Handles a client submitting a new event (the data parameter)"""
     user_agent = self._get_user_agent()        
     
     # Verify that the data is valid JSON
@@ -121,26 +121,26 @@ class MainHandler(tornado.web.RequestHandler):
         
     # Insert the new event into the DB    db_ok = False 
     for i in range(2):
-    	try:
-		    self.write_db.execute(
-		      "INSERT INTO Events (data, channel, user_agent, user_agent_uuid, created_at)"
-		      "VALUES (%s, %s, %s, %s, UTC_TIMESTAMP())"
-		      ,
-		      data, 
-		      channel_name, 
-		      user_agent, 
-		      self._parse_client_uuid(user_agent))
-		
-		    break
-		
-		  except:
-			  if i == 1:
-				  raise
-				else:
-					self.write_db.reconnect() # Try to reconnect in case the problem was with our DB
+      try:
+        self.write_db.execute(
+          "INSERT INTO Events (data, channel, user_agent, user_agent_uuid, created_at)"
+          "VALUES (%s, %s, %s, %s, UTC_TIMESTAMP())"
+          ,
+          data, 
+          channel_name, 
+          user_agent, 
+          self._parse_client_uuid(user_agent))
+    
+        break
+    
+      except:
+        if i == 1:
+          raise
+        else:
+          self.write_db.reconnect() # Try to reconnect in case the problem was with our DB
          
   def get(self, channel_name):
-	  """Handles a GET events request for the specified channel (channel here includes the scope name)"""
+    """Handles a GET events request for the specified channel (channel here includes the scope name)"""
 
     # Note: case-sensitive for speed
     if self.get_argument("method", "GET") != "GET":
@@ -154,27 +154,27 @@ class MainHandler(tornado.web.RequestHandler):
      
     # Get a list of events
     for i in range(2):
-	    try:
-    		events = self.read_db.query(
-		      "SELECT id, data, user_agent, created_at FROM Events"
-		      "  WHERE id > %s"
-		      "    AND channel = %s"            
-		      "    AND user_agent_uuid != %s"            
-		      "  ORDER BY id ASC"
-		      "  LIMIT %s"
-		      ,
-		      last_known_id,
-		      channel_name,
-		      ("e" if echo else self._parse_client_uuid(self._get_user_agent())),
-		      max_events)
-		
-			break
-			
-		except:
-			if i == 1:
-				raise
-			else:
-				self.read_db.reconnect() # Try to reconnect in case the problem was with our DB
+      try:
+        events = self.read_db.query(
+          "SELECT id, data, user_agent, created_at FROM Events"
+          "  WHERE id > %s"
+          "    AND channel = %s"            
+          "    AND user_agent_uuid != %s"            
+          "  ORDER BY id ASC"
+          "  LIMIT %s"
+          ,
+          last_known_id,
+          channel_name,
+          ("e" if echo else self._parse_client_uuid(self._get_user_agent())),
+          max_events)
+    
+      break
+      
+    except:
+      if i == 1:
+        raise
+      else:
+        self.read_db.reconnect() # Try to reconnect in case the problem was with our DB
              
     # http://www.skymind.com/~ocrow/python_string/
     entries_serialized = "" if not events else ",".join([
@@ -202,7 +202,7 @@ class MainHandler(tornado.web.RequestHandler):
       self.write("{\"channel\":\"/%s\", \"events\":[%s]}" % (channel_name, entries_serialized))
             
   def post(self, channel_name):
-	  """Handle a true HTTP POST event"""
+    """Handle a true HTTP POST event"""
     self._post(channel_name, self.request.body)
 
 def main():
