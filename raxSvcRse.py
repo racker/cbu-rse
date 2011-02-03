@@ -167,14 +167,13 @@ class MainHandler(tornado.web.RequestHandler):
           channel_name,
           ("e" if echo else self._parse_client_uuid(self._get_user_agent())),
           max_events)
-    
-      break
-      
-    except:
-      if i == 1:
-        raise
-      else:
-        self.read_db.reconnect() # Try to reconnect in case the problem was with our DB
+
+        break
+      except:
+        if i == 1:
+          raise
+        else:
+          self.read_db.reconnect() # Try to reconnect in case the problem was with our DB
              
     # http://www.skymind.com/~ocrow/python_string/
     entries_serialized = "" if not events else ",".join([
