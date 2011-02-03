@@ -19,7 +19,7 @@ CREATE TABLE IF NOT EXISTS `Events` (
 -- event_scheduler=ON
 ------------------------------
 DROP EVENT IF EXISTS `evt_GarbageCollection`;
-CREATE EVENT `evt_GarbageCollection` ON SCHEDULE EVERY 1 MINUTE STARTS '2010-11-08 14:57:32' ON COMPLETION NOT PRESERVE ENABLE DO DELETE FROM Events WHERE Events.created_at < DATE_SUB(UTC_TIMESTAMP(), INTERVAL 2 MINUTE);
+CREATE EVENT `evt_GarbageCollection` ON SCHEDULE EVERY 1 MINUTE STARTS '2010-11-08 14:57:32' ON COMPLETION NOT PRESERVE ENABLE DO DELETE FROM Events WHERE Events.created_at < DATE_SUB(UTC_TIMESTAMP(), INTERVAL 5 MINUTE);
 
 create user 'rse'@'%' identified by 'insert-password-here';
 
