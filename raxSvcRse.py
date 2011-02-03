@@ -191,7 +191,7 @@ class MainHandler(tornado.web.RequestHandler):
       self.set_header("Content-Type", "text/javascript")
       
       # Security check
-      callback_name = self.request.headers["callback"]
+      callback_name = self.get_argument("callback", "")
       if not self.jsonp_callback_pattern.match(callback_name):
         raise tornado.web.HTTPError(400)    
       
