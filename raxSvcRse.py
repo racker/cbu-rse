@@ -206,10 +206,10 @@ class MainHandler(tornado.web.RequestHandler):
     self._post(channel_name, self.request.body)
 
 def main():
-    tornado.options.parse_command_line()
-    http_server = tornado.httpserver.HTTPServer(Application())
-    http_server.listen(options.port)
-    tornado.ioloop.IOLoop.instance().start()
+  tornado.options.parse_command_line()
+  http_server = tornado.httpserver.HTTPServer(Application())
+  http_server.listen(options.port)
+  tornado.ioloop.IOLoop.instance().start()
 
 # If running this script directly, execute the "main" routine
 if __name__ == "__main__":
