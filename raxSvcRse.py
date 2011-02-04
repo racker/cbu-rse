@@ -103,14 +103,6 @@ class MainHandler(tornado.web.RequestHandler):
       return "550e8400-dead-beef-dead-446655440000"
       #raise tornado.web.HTTPError(400)                
       
-  def _want_jsonp(self):    
-    """Determines whether the client has requested a JSONP response"""
-    try:
-      mime_type = self.request.headers["Accept"]
-      return mime_type == "application/json-p" or mime_type == "text/javascript"
-    except:
-      return False
-
   def _post(self, channel_name, data):
     """Handles a client submitting a new event (the data parameter)"""
     user_agent = self._get_user_agent()        
@@ -138,6 +130,18 @@ class MainHandler(tornado.web.RequestHandler):
           raise
         else:
           self.write_db.reconnect() # Try to reconnect in case the problem was with our DB
+          
+    callback_name = self.get_argument("callback", "")
+    if callback_name:
+      #self.set_header("Content-Type", "application/json-p")
+      self.set_header("Content-Type", "text/javascript")
+      
+      # Security check
+      
+      if not self.jsonp_callback_pattern.match(callback_name):
+        raise tornado.web.HTTPError(400)    
+      
+      self.write("%s({\"result\":\"OK\"});" % (callback_name, channel_name, entries_serialized))
          
   def get(self, channel_name):
     """Handles a GET events request for the specified channel (channel here includes the scope name)"""
@@ -186,12 +190,13 @@ class MainHandler(tornado.web.RequestHandler):
       for event in events])    
     
     # Write out the response
-    if self._want_jsonp():
+    callback_name = self.get_argument("callback", "")
+    if callback_name:
       #self.set_header("Content-Type", "application/json-p")
       self.set_header("Content-Type", "text/javascript")
       
       # Security check
-      callback_name = self.get_argument("callback", "")
+      
       if not self.jsonp_callback_pattern.match(callback_name):
         raise tornado.web.HTTPError(400)    
       
