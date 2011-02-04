@@ -141,7 +141,7 @@ class MainHandler(tornado.web.RequestHandler):
       if not self.jsonp_callback_pattern.match(callback_name):
         raise tornado.web.HTTPError(400)    
       
-      self.write("%s({\"result\":\"OK\"});" % (callback_name, channel_name, entries_serialized))
+      self.write("%s({\"result\":\"OK\"});")
          
   def get(self, channel_name):
     """Handles a GET events request for the specified channel (channel here includes the scope name)"""
