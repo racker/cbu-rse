@@ -136,12 +136,11 @@ class MainHandler(tornado.web.RequestHandler):
       #self.set_header("Content-Type", "application/json-p")
       self.set_header("Content-Type", "text/javascript")
       
-      # Security check
-      
+      # Security check      
       if not self.jsonp_callback_pattern.match(callback_name):
         raise tornado.web.HTTPError(400)    
       
-      self.write("%s({\"result\":\"OK\"});")
+      self.write(callback_name + "({\"result\":\"OK\"});")
          
   def get(self, channel_name):
     """Handles a GET events request for the specified channel (channel here includes the scope name)"""
