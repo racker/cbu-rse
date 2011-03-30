@@ -9,8 +9,18 @@ $Date: 2011-01-10 14:15:28 -0500 (Mon, 10 Jan 2011) $  <=== populated-by-subvers
 
 @brief
 Rackspace RSE Server. Requires Python 2.x and the Tornado framework, as well as json_validator.py. Run with --help for command-line options.
+
+@pre
+Servers have syncronized clocks (ntpd). 
+Python 2.x is installed. 
+Tornado framework and pymongo also installed. 
+ulimit -n 2048 # or better
+sysctl -w net.core.somaxconn="2048" # or better
 """
 
+import datetime
+import time
+import pymongo
 import logging
 import logging.handlers
 import tornado.escape
@@ -29,48 +39,47 @@ import json_validator
 
 # Define command-line options, including defaults and help text
 define("port", default=8888, help="run on the given port", type=int)
+
+define("mongodb_host", default="127.0.0.1", help="event mongod/mongos host")
+define("mongodb_port", default="27017", help="event mongod/mongos port")
+
 define("mysql_host_read", default="127.0.0.1:3306", help="event database host (read-only slave)")
 define("mysql_host_write", default="127.0.0.1:3306", help="event database host (write master)")
 define("mysql_database", default="pollcat", help="event database name")
 define("mysql_user", default="pollcat", help="event database user")
 define("mysql_password", default="one;crazy;kitty", help="event database password")
+
 define("log_filename", default='/var/log/pollcat.log', help="log filename")
 define("verbose", default='no', help="[yes|no] - determines logging level")
 
 # Set up a specific logger with our desired output level
-plc_logger = logging.getLogger()
+rse_logger = logging.getLogger()
 
 class Application(tornado.web.Application):
   def __init__(self):              
     # Add the log message handler to the logger
-    plc_logger.setLevel(logging.DEBUG if options.verbose == 'yes' else logging.WARNING)
+    rse_logger.setLevel(logging.DEBUG if options.verbose == 'yes' else logging.WARNING)
     handler = logging.handlers.RotatingFileHandler(options.log_filename, maxBytes=1024*1024, backupCount=5)
-    plc_logger.addHandler(handler)
-  
-    # Have one global connection to the DB across all handlers
-    read_db = tornado.database.Connection(
-      host=options.mysql_host_read, database=options.mysql_database,
-      user=options.mysql_user, password=options.mysql_password)
-
-    # Have one global connection to the DB across all handlers
-    write_db = tornado.database.Connection(
-      host=options.mysql_host_write, database=options.mysql_database,
-      user=options.mysql_user, password=options.mysql_password)
+    rse_logger.addHandler(handler)
+		
+    # Have one global connection to the DB across all handlers (pymongo manages its own connection pool)	  
+    mongo_db = pymongo.Connection(options.mongodb_host, options.mongodb_port).rse
+    mongo_db.ensure_index([('uuid', pymongo.ASCENDING), ('channel', pymongo.ASCENDING)])
         
     # Initialize Tornado with our HTTP GET and POST event handlers
     tornado.web.Application.__init__(self, [
-      (r"/([^&]+).*", MainHandler, dict(read_db=read_db, write_db=write_db))
+      (r"/([^&]+).*", MainHandler, dict(mongo_db=mongo_db))
     ])       
         
 #todo: KPIs
 #todo: Error logging for ops (with error buckets)
+#todo: Enable/test sharding + replica sets (each pair should reside on different physical boxes, can double up with masters)
 class MainHandler(tornado.web.RequestHandler):
   # Supposedly speeds up member variable access
-  __slots__ = ['read_db', 'write_db', 'jsonp_callback_pattern']
+  __slots__ = ['mongo_db', 'jsonp_callback_pattern']
 
-  def initialize(self, read_db, write_db):
-    self.read_db = read_db # Database for reads
-    self.write_db = write_db # Database for writes
+  def initialize(self, mongo_db):
+    self.mongo_db = mongo_db # MongoDB connection for storing events
     self.jsonp_callback_pattern = re.compile("\A[a-zA-Z0-9_]+\Z") # Regex for validating JSONP callback name
       
 
@@ -111,25 +120,37 @@ class MainHandler(tornado.web.RequestHandler):
     if not (json_validator.is_valid(data) and self._is_safe_user_agent(user_agent)):
       raise tornado.web.HTTPError(400) 
         
-    # Insert the new event into the DB    db_ok = False 
-    for i in range(2):
+    # Insert the new event into the DB
+    num_retries = 5
+    for i in range(num_retries):
       try:
-        self.write_db.execute(
-          "INSERT INTO Events (data, channel, user_agent, user_agent_uuid, created_at)"
-          "VALUES (%s, %s, %s, %s, UTC_TIMESTAMP())"
-          ,
-          data, 
-          channel_name, 
-          user_agent, 
-          self._parse_client_uuid(user_agent))
-    
+				# Keep retrying until we get a unique ID
+				while True:
+					self.mongo_db.events.insert({
+						"_id": time.time(),
+						"data": data,
+						"channel": channel_name,
+						"user_agent": user_agent,
+						"uuid": self._parse_client_uuid(user_agent),
+						"created_at": datetime.datetime.utcnow()
+					})
+					
+					last_error = self.mongo_db.error()
+					if not last_error:
+						break
+					elif last_error['code'] != 11000:
+            logger.error("Failed to insert event. MongoDB code: %d" % last_error['code'])
+						raise tonado.web.HTTPError(500)
+						
         break
-    
+			except pymongo.errors.AutoReconnect:
+				if i == num_retries - 1:
+					raise
+				else:
+					time.sleep(2) # Wait a moment for a new primary to be elected
+					    
       except:
-        if i == 1:
-          raise
-        else:
-          self.write_db.reconnect() # Try to reconnect in case the problem was with our DB
+				raise
           
     callback_name = self.get_argument("callback", "")
     if callback_name:
@@ -146,7 +167,7 @@ class MainHandler(tornado.web.RequestHandler):
     """Handles a GET events request for the specified channel (channel here includes the scope name)"""
 
     # Note: case-sensitive for speed
-    if self.get_argument("method", "GET") != "GET":
+    if self.get_argument("method", "GET")  "GET":
       self._post(channel_name, self.get_argument("post-data"))
       return       
     
@@ -156,37 +177,31 @@ class MainHandler(tornado.web.RequestHandler):
     echo = (self.get_argument("echo", "false") == "true")
      
     # Get a list of events
-    for i in range(2):
+		num_retries = 5
+    for i in range(num_retries):
       try:
-        events = self.read_db.query(
-          "SELECT id, data, user_agent, created_at FROM Events"
-          "  WHERE id > %s"
-          "    AND channel = %s"            
-          "    AND user_agent_uuid != %s"            
-          "  ORDER BY id ASC"
-          "  LIMIT %s"
-          ,
-          last_known_id,
-          channel_name,
-          ("e" if echo else self._parse_client_uuid(self._get_user_agent())),
-          max_events)
-
+				uuid = ("e" if echo else self._parse_client_uuid(self._get_user_agent()))
+				events = self.mongo_db.events.find(
+					{'_id': {'$gt': last_known_id}, 'channel': channel_name, 'uuid': {'$ne': uuid}}, 
+					fields=['_id', 'user_agent', 'created_at', 'data'], 
+					sort=[('_id', pymongo.ASCENDING)])
+			
         break
-      except:
-        if i == 1:
-          raise
-        else:
-          self.read_db.reconnect() # Try to reconnect in case the problem was with our DB
+			except pymongo.errors.AutoReconnect:
+				if i == num_retries - 1:
+					raise
+				else:
+					time.sleep(2) # Wait a moment for a new primary to be elected
              
     # http://www.skymind.com/~ocrow/python_string/
     entries_serialized = "" if not events else ",".join([
       '{"id":%d,"user_agent":"%s","created_at":"%s","data":%s}' 
       % (
-      event.id, 
-      event.user_agent, 
-      event.created_at, 
-      event.data) 
-      for event in events])    
+      event['_id'], 
+      event['user_agent'], 
+      event['created_at'], 
+      event['data']) 
+      for event in events.limit(max_events)])    
     
     # Write out the response
     callback_name = self.get_argument("callback", "")
@@ -195,7 +210,6 @@ class MainHandler(tornado.web.RequestHandler):
       self.set_header("Content-Type", "text/javascript")
       
       # Security check
-      
       if not self.jsonp_callback_pattern.match(callback_name):
         raise tornado.web.HTTPError(400)    
       
