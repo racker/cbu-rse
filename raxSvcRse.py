@@ -41,6 +41,7 @@ define("port", default=8888, help="run on the given port", type=int)
 
 define("mongodb_host", default="127.0.0.1", help="event mongod/mongos host")
 define("mongodb_port", default=27017, help="event mongod/mongos port", type=int)
+define("mongodb_database", default='rse', help="event mongod/mongos port")
 
 define("log_filename", default='/var/log/rse.log', help="log filename")
 define("verbose", default='no', help="[yes|no] - determines logging level")
@@ -56,8 +57,9 @@ class Application(tornado.web.Application):
     rse_logger.addHandler(handler)
     
     # Have one global connection to the DB across all handlers (pymongo manages its own connection pool)
-    mongo_db = pymongo.Connection(options.mongodb_host, options.mongodb_port).rse
-    #mongo_db.ensure_index([('uuid', pymongo.ASCENDING), ('channel', pymongo.ASCENDING)])
+    connection = pymongo.Connection(options.mongodb_host, options.mongodb_port)
+    mongo_db = connection[options.mongodb_database]
+    mongo_db.events.ensure_index([('uuid', pymongo.ASCENDING), ('channel', pymongo.ASCENDING)])
     #Shard based on the above (?)
     
     # Initialize Tornado with our HTTP GET and POST event handlers
@@ -65,11 +67,10 @@ class Application(tornado.web.Application):
       (r"/([^&]+).*", MainHandler, dict(mongo_db=mongo_db))
     ])
 
-#todo: Create index(s)
 #todo: Deal with large objects? Graceful error?
+#todo: Enable/test sharding + replica sets (each pair should reside on different physical boxes, can double up with masters)
 #todo: KPIs
 #todo: Error logging for ops (with error buckets)
-#todo: Enable/test sharding + replica sets (each pair should reside on different physical boxes, can double up with masters)
 class MainHandler(tornado.web.RequestHandler):
   # Supposedly speeds up member variable access
   __slots__ = ['mongo_db', 'jsonp_callback_pattern']
@@ -80,8 +81,9 @@ class MainHandler(tornado.web.RequestHandler):
   
   #todo: Authenticate the request
   #      -- Ask for private or session key from account server, based on public key - or, even better, say "sign this"
-  def prepare(self):
-    pass
+  #def prepare(self):
+  #  cache the authentication for 5 minutes (memcache?)
+  #  pass
   
   def _is_safe_user_agent(self, user_agent):
     """Quick heuristic to tell whether we can embed the given user_agent string in a JSON document"""
@@ -138,6 +140,9 @@ class MainHandler(tornado.web.RequestHandler):
             # It is an error other than "duplicate ID", so don't try again!
             logger.error("Failed to insert event. MongoDB code: %d" % last_error['code'])
             raise tonado.web.HTTPError(500)
+            
+        # Success! No need to retry...
+        break
 
       except pymongo.errors.AutoReconnect:
         if i == num_retries - 1: # Don't retry forever!
@@ -162,22 +167,25 @@ class MainHandler(tornado.web.RequestHandler):
   
   def get(self, channel_name):
     """Handles a GET events request for the specified channel (channel here includes the scope name)"""
+    self.write("hello world!")
+    return
     
     # Note: case-sensitive for speed
-    if self.get_argument("method", "GET") == "GET":
+    if self.get_argument("method", None) == "POST":
       self._post(channel_name, self.get_argument("post-data"))
       return
-    
+
     # Parse query params
     last_known_id = long(self.get_argument("last-known-id", 0))
     max_events = min(500, int(self.get_argument("max-events", 200)))
     echo = (self.get_argument("echo", "false") == "true")
-    
+        
     # Get a list of events
-    num_retries = 5
+    num_retries = 10
     for i in range(num_retries):
       try:
         uuid = ("e" if echo else self._parse_client_uuid(self._get_user_agent()))
+        
         events = self.mongo_db.events.find(
           {'_id': {'$gt': last_known_id}, 'channel': channel_name, 'uuid': {'$ne': uuid}},
           fields=['_id', 'user_agent', 'created_at', 'data'],
@@ -190,7 +198,7 @@ class MainHandler(tornado.web.RequestHandler):
           raise
         else:
           time.sleep(2) # Wait a moment for a new primary to be elected
-    
+
     # http://www.skymind.com/~ocrow/python_string/
     entries_serialized = "" if not events else ",".join([
       '{"id":%d,"user_agent":"%s","created_at":"%s","data":%s}'
