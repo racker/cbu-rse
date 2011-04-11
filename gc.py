@@ -15,7 +15,8 @@ import pymongo
 import argparse
 import time
 
-def collect_garbage(host, port, db_name, ttl_sec):
+# Removes events from the specified database that have expired based on ttl_sec
+def remove_expired_events(host, port, db_name, ttl_sec):
   connection = pymongo.Connection(host, port)
   db = connection[db_name]
   
@@ -25,6 +26,7 @@ def collect_garbage(host, port, db_name, ttl_sec):
   db.events.remove(
     {'_id': {'$lt': timeout}}, True)
 
+# Parse arguments and call collect_garbage
 def main():
   parser = argparse.ArgumentParser(description="RSE Garbage Collector")
   parser.add_argument('--mongodb-host', type=str, default="127.0.0.1", help="mongod/mongos host (127.0.0.1)")
@@ -33,7 +35,7 @@ def main():
   parser.add_argument('--ttl', type=int, default=5*60, help="TTL, in seconds, for events (300)")
   
   args = parser.parse_args()
-  collect_garbage(args.mongodb_host, args.mongodb_port, args.mongodb_database, args.ttl)
+  remove_expired_events(args.mongodb_host, args.mongodb_port, args.mongodb_database, args.ttl)
 
 # If running this script directly, execute the "main" routine
 if __name__ == "__main__":
