@@ -167,7 +167,7 @@ class MainHandler(tornado.web.RequestHandler):
   
   def get(self, channel_name):
     """Handles a GET events request for the specified channel (channel here includes the scope name)"""
-    
+
     # Note: case-sensitive for speed
     if self.get_argument("method", None) == "POST":
       self._post(channel_name, self.get_argument("post-data"))
