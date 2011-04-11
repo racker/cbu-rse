@@ -130,6 +130,7 @@ class MainHandler(tornado.web.RequestHandler):
         while True:
           # Convert floating point timestamp to a long with plenty of headroom.
           # Note: 1302000000 is an arbitrary epoch/offset used to free up some bits
+          # Warning: If you change this formula, don't forget to update gc.py
           self.mongo_db.events.insert({
             "_id": long((time.time() - 1302000000) * 100000),
             "data": data,

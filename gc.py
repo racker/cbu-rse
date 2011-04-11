@@ -20,7 +20,7 @@ def remove_expired_events(host, port, db_name, ttl_sec):
   connection = pymongo.Connection(host, port)
   db = connection[db_name]
   
-  timeout = time.time() - ttl_sec 
+  timeout = long((time.time() - 1302000000) * 100000) - ttl_sec 
   print timeout
   
   db.events.remove(
