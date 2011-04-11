@@ -64,9 +64,14 @@ class Application(tornado.web.Application):
     
     # Initialize Tornado with our HTTP GET and POST event handlers
     tornado.web.Application.__init__(self, [
+      (r"/hello", HealthHandler),
       (r"/([^&]+).*", MainHandler, dict(mongo_db=mongo_db))
     ])
 
+class HealthHandler(tornado.web.RequestHandler):
+  def get(self):
+    self.write("Hello world!")
+    
 #todo: Deal with large objects? Graceful error?
 #todo: Enable/test sharding + replica sets (each pair should reside on different physical boxes, can double up with masters)
 #todo: KPIs
