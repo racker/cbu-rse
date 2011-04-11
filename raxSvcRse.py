@@ -128,8 +128,10 @@ class MainHandler(tornado.web.RequestHandler):
       try:
         # Keep retrying until we get a unique ID
         while True:
+          # Convert floating point timestamp to a long with plenty of headroom.
+          # Note: 1302000000 is an arbitrary epoch/offset used to free up some bits
           self.mongo_db.events.insert({
-            "_id": time.time(),
+            "_id": long((time.time() - 1302000000) * 100000),
             "data": data,
             "channel": channel_name,
             "user_agent": user_agent,
