@@ -20,6 +20,7 @@ def remove_expired_events(host, port, db_name, ttl_sec):
   connection = pymongo.Connection(host, port)
   db = connection[db_name]
   
+  # Use the same formula that raxSvcRse.py uses to create IDs
   timeout = long((time.time() - 1302000000) * 100000) - ttl_sec 
   print timeout
   
