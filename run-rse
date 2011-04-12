@@ -1,7 +1,0 @@
-#!/bin/bash
-./raxSvcRse.py --port=8000 --mysql_host_read=184.106.149.187:3306 --mysql_host_write=184.106.149.187:3306 &
-./raxSvcRse.py --port=8001 --mysql_host_read=184.106.149.187:3306 --mysql_host_write=184.106.149.187:3306 &
-./raxSvcRse.py --port=8002 --mysql_host_read=184.106.149.187:3306 --mysql_host_write=184.106.149.187:3306 &
-./raxSvcRse.py --port=8003 --mysql_host_read=184.106.149.187:3306 --mysql_host_write=184.106.149.187:3306 &
-exit 0
-
