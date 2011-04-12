@@ -3,9 +3,9 @@
 """
 @file raxSvcRse.py
 @author Kurt Griffiths
-$Author: kurt $  <=== populated-by-subversion
-$Revision: 835 $  <=== populated-by-subversion
-$Date: 2011-01-10 14:15:28 -0500 (Mon, 10 Jan 2011) $  <=== populated-by-subversion
+$Author$  <=== populated-by-subversion
+$Revision$  <=== populated-by-subversion
+$Date$  <=== populated-by-subversion
 
 @brief
 Rackspace RSE Server. Requires Python 2.x and the Tornado framework, as well as json_validator.py. Run with --help for command-line options.
@@ -31,6 +31,7 @@ import tornado.web
 import os.path
 import uuid
 import re
+import rseutils
 from tornado.options import define, options
 
 # We got this off the web somewhere - put in the same dir as raxSvcRse.py
@@ -70,7 +71,7 @@ class Application(tornado.web.Application):
 
 class HealthHandler(tornado.web.RequestHandler):
   def get(self):
-    self.write("Hello world!")
+    self.write("Hello world!\n")
     
 #todo: Deal with large objects? Graceful error?
 #todo: Enable/test sharding + replica sets (each pair should reside on different physical boxes, can double up with masters)
@@ -132,7 +133,7 @@ class MainHandler(tornado.web.RequestHandler):
           # Note: 1302000000 is an arbitrary epoch/offset used to free up some bits
           # Warning: If you change this formula, don't forget to update gc.py
           self.mongo_db.events.insert({
-            "_id": long((time.time() - 1302000000) * 100000),
+            "_id": rseutils.time_id(),
             "data": data,
             "channel": channel_name,
             "user_agent": user_agent,
