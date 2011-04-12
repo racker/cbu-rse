@@ -3,9 +3,9 @@
 """
 @file gc.py
 @author Kurt Griffiths
-$Author: kurt $  <=== populated-by-subversion
-$Revision: 835 $  <=== populated-by-subversion
-$Date: 2011-01-10 14:15:28 -0500 (Mon, 10 Jan 2011) $  <=== populated-by-subversion
+$Author$  <=== populated-by-subversion
+$Revision$  <=== populated-by-subversion
+$Date$  <=== populated-by-subversion
 
 @brief
 RSE garbage collector. Requires Python 2.7 or better, argparse, and pymongo
@@ -13,7 +13,7 @@ RSE garbage collector. Requires Python 2.7 or better, argparse, and pymongo
 
 import pymongo
 import argparse
-import time
+import rseutils
 
 # Removes events from the specified database that have expired based on ttl_sec
 def remove_expired_events(host, port, db_name, ttl_sec):
@@ -21,7 +21,7 @@ def remove_expired_events(host, port, db_name, ttl_sec):
   db = connection[db_name]
   
   # Use the same formula that raxSvcRse.py uses to create IDs
-  timeout = long((time.time() - 1302000000) * 100000) - ttl_sec 
+  timeout = rseutils.time_id() - ttl_sec 
   print timeout
   
   db.events.remove(
