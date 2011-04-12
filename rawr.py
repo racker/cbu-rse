@@ -16,6 +16,9 @@ Turn this into an installable package (?) so it can be shared between components
 
 @todo
 Add routing
+
+@todo
+Convert to comments to python-style
 """
 
 import webob
@@ -40,24 +43,24 @@ class Request(webob.Request):
   
   # Returns the specified query string paramter, or a default value if the 
   # paramter was not specified in the URL.
-  def optional_param(self, param_name, default_value):
+  def get_optional_param(self, param_name, default_value = None):
     # Note: This approach should be more efficient than handling exceptions...
     # but only if it is common to not have this param  
     return self.GET[param_name] if self.GET.has_key(param_name) else default_value
     
   # Returns the specified query string parameter or throws an HttpException if not found
-  def param(self, param_name):
+  def get_param(self, param_name):
     try:
       return self.GET[param_name]
     except:
       raise HttpBadRequest('Missing query parameter: %s' % param_name)
     
   # Faster than handling exceptions if common to not have this header
-  def optional_header(self, header_name, default_value):
+  def get_optional_header(self, header_name, default_value = None):
     return self.headers[header_name] if self.headers.has_key(header_name) else default_value
   
   # Returns a required header (throws HttpException if header not found)
-  def header(self, header_name):
+  def get_header(self, header_name):
     try:
        return self.headers[header_name]
     except:
@@ -88,6 +91,8 @@ class Response:
 # To use, inherit from this class and implement methods corresponding to the
 # HTTP verbs you want to handle (e.g., get, put, post, delete, head)
 #
+# Define a prepare method to run code before every request.
+#
 # Inside your child class, you can access self.request and self.response in
 # order to parse the client request and build a response, respectively.
 #
@@ -112,9 +117,9 @@ class Controller:
       getattr(self, 'prepare')()
       getattr(self, self.request.method.lower())()
 
-    except HttpError, e:
-      start_response(e.status(), [('Content-type','text/plain')])
-      return [e.info]
+    except HttpError as ex:
+      start_response(ex.status(), [('Content-type','text/plain')])
+      return [ex.info]
 
     if self.response.stream == None:
       self.response.stream = [self.response.response_body]
@@ -160,14 +165,12 @@ class HelloTest(Controller):
   
   def get(self):
     self.response.write_header('Content-type','text/plain')
-    self.response.write(self.request.optional_param('foo', 'Once upon a time...\n'))
+    self.response.write(self.request.get_optional_param('foo', 'Once upon a time...\n'))
     self.response.write('Hello world!\n')
     
 class GoFishTest(Controller):
   def get(self):
-    self.response.write(self.request.optional_param('foo', 'Once upon a time...\n'))
-    self.response.write('Hello world!\n')
-    
+    self.response.write('Hello world!\n')    
     raise HttpError(404, 'Go fish!')
       
 class StreamTest(Controller):
@@ -183,6 +186,7 @@ testapp_go_fish = Rawr(GoFishTest)
 testapp_stream = Rawr(StreamTest)      
 
 # @todo: What is the standard unit testing framework for Python? Use that!
+# @todo: Test all self.request helper functions
 if __name__ == "__main__":
   from wsgiref.simple_server import make_server
   
