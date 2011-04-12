@@ -10,6 +10,9 @@ HTTP exceptions
 
 @pre
 Requires Python 2.x (tested with 2.7)
+
+@todo
+Convert class comments to python-style 
 """
 
 import httplib
@@ -28,55 +31,56 @@ class HttpError(Exception):
 
 # 404 Not Found    
 class HttpNotFound(HttpError):
-  def __init__(self, message = ''):
+  def __init__(self, info = ''):
     HttpError.__init__(self, 404, message)
     
 # 204 No Content
 class HttpNoContent(HttpError):
-  def __init__(self, message = ''):
+  def __init__(self, info = ''):
     HttpError.__init__(self, 204, message)
     
 # 400 Bad Request
 class HttpBadRequest(HttpError):
-  def __init__(self, message = ''):
+  def __init__(self, info = ''):
     HttpError.__init__(self, 400, message)
     
 # 403 Forbidden
 class HttpForbidden(HttpError):
-  def __init__(self, message = ''):
-    HttpError.__init__(self, 403, message)
+  # Don't return a reason (security best practice)
+  def __init__(self):
+    HttpError.__init__(self, 403)
     
 # 405 Method Not Allowed
 class HttpMethodNotAllowed(HttpError):
-  def __init__(self, message = ''):
+  def __init__(self, info = ''):
     HttpError.__init__(self, 405, message)
         
 # 412 Precondition Failed
 class HttpPreconditionFailed(HttpError):
-  def __init__(self, message = ''):
+  def __init__(self, info = ''):
     HttpError.__init__(self, 412, message)
 
 # 415 Unsupported Media Type
 class HttpUnsupportedMediaType(HttpError):
-  def __init__(self, message = ''):
+  def __init__(self, info = ''):
     HttpError.__init__(self, 415, message)    
     
 # 409 Conflict
 class HttpConflict(HttpError):
-  def __init__(self, message = ''):
+  def __init__(self, info = ''):
     HttpError.__init__(self, 409, message)
 
 # 500 Internal Server Error
 class HttpInternalServerError(HttpError):
-  def __init__(self, message = ''):
-    HttpError.__init__(self, 500, message)
+  def __init__(self):
+    HttpError.__init__(self, 500)
     
 # 201 Created    
 class HttpCreated(HttpError):
-  def __init__(self, message = ''):
+  def __init__(self, info = ''):
     HttpError.__init__(self, 201, message)
     
 # 202 Accepted    
 class HttpAccepted(HttpError):
-  def __init__(self, message = ''):
+  def __init__(self, info = ''):
     HttpError.__init__(self, 202, message)
