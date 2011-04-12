@@ -23,16 +23,17 @@ from httpex import *
 
 # Responsible for routing (set in initialization as a dictionary)
 class Rawr:
-  # Speeds up member variable access
-  __slots__ = ['web_service', 'kwargs' 'prepare']
+  # Speeds up member variable access and reduces memory usage
+  __slots__ = ['controller', 'controller_kwargs']
 
-  def __init__(self, web_service, kwargs = {}):
-    self.web_service = web_service
-    self.kwargs = kwargs
+  def __init__(self, controller, kwargs = {}):
+    self.controller = web_service
+    self.controller_kwargs = kwargs
     
   def __call__(self, environ, start_response):
-    return self.web_service(**self.kwargs)(environ, start_response)
+    return self.controller(**self.controller_kwargs)(environ, start_response)
     
+# Represents an incoming web request. Adds some helpers to webob.Request.
 class Request(webob.Request):
   def __init__(self, environ):
     webob.Request.__init__(self, environ)
@@ -62,9 +63,9 @@ class Request(webob.Request):
     except:
       raise HttpBadRequest('Missing header: %s' % header_name)
    
-    
+# Represents the outgoing web service response
 class Response:
-  # Speeds up member variable access
+  # Speeds up member variable access and reduces memory usage
   __slots__ = ['response_body', 'response_headers', 'status', 'stream', 'stream_length']
   
   def __init__(self):
@@ -82,8 +83,25 @@ class Response:
     self.response_headers.append((header, value))
     pass
     
+# Base class for Rawr controllers.
+#
+# To use, inherit from this class and implement methods corresponding to the
+# HTTP verbs you want to handle (e.g., get, put, post, delete, head)
+#
+# Inside your child class, you can access self.request and self.response in
+# order to parse the client request and build a response, respectively.
+#
+# self.request inherits from webob.Request and adds some helper functions. On
+# the other hand, self.response does NOT inherit from webob.Response for 
+# performance reasons.
+#
+# Raise one of the httpex.* exception classes within your code to return an
+# HTTP status other than "200 OK"
+# 
+# Note: Content-Length is automatically set for you unless using self.request.stream,
+# in which case you will need to set self.request.stream_length yourself.
 class Controller:
-  # Speeds up member variable access
+  # Speeds up member variable access and reduces memory usage
   __slots__ = ['request', 'response']
     
   def __call__(self, environ, start_response):
@@ -135,10 +153,6 @@ class Controller:
   def options(self):
     raise HttpMethodNotAllowed("OPTIONS")
 
-# Usage
-# 
-# Content-Length is automatically set
-# Request inherits from webob.Request - Just adds some helper methods
 
 class HelloTest(Controller):
   def __init__(self, foo):
