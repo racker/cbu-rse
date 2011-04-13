@@ -15,8 +15,9 @@ import pymongo
 import argparse
 import rseutils
 
-# Removes events from the specified database that have expired based on ttl_sec
 def remove_expired_events(host, port, db_name, ttl_sec):
+  """Removes events from the specified database that have expired based on ttl_sec"""
+  
   connection = pymongo.Connection(host, port)
   db = connection[db_name]
   
@@ -27,8 +28,9 @@ def remove_expired_events(host, port, db_name, ttl_sec):
   db.events.remove(
     {'_id': {'$lt': timeout}}, True)
 
-# Parse arguments and call collect_garbage
 def main():
+  """Parse arguments and call collect_garbage"""
+  
   parser = argparse.ArgumentParser(description="RSE Garbage Collector")
   parser.add_argument('--mongodb-host', type=str, default="127.0.0.1", help="mongod/mongos host (127.0.0.1)")
   parser.add_argument('--mongodb-port', type=int, default=27017, help="mongod/mongos port (27017)")
