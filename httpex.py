@@ -21,10 +21,13 @@ import httplib
 # predefined child classes to return a status other than "200 OK"
 # from a Rawr controller
 class HttpError(Exception):
+  __slots__ = ['status_code', 'info']
+  
   def __init__(self, status_code, info = ''):
     self.status_code = status_code
     self.info = info
-    self.info += '\n'
+    if info:
+      self.info += '\n'
     
   def status(self):
     return '%d %s' % (self.status_code, httplib.responses[self.status_code])

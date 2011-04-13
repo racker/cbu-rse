@@ -15,11 +15,9 @@ Servers have syncronized clocks (ntpd).
 Python 2.7 with the following installed: pymongo, webob, and argparse
 ulimit -n 4096 # or better
 sysctl -w net.core.somaxconn="4096" # or better
-
-@todo
-Finish porting to Rawr
 """
 
+import os
 import datetime
 import time
 import logging
@@ -27,6 +25,8 @@ import logging.handlers
 import os.path
 import uuid
 import re
+import ConfigParser
+import io
 
 import pymongo
 import argparse
@@ -38,44 +38,24 @@ import rseutils
 from httpex import *
 import rawr
 
-# Define command-line options, including defaults and help text
-define("port", default=8888, help="run on the given port", type=int)
-
-define("mongodb_host", default="127.0.0.1", help="event mongod/mongos host")
-define("mongodb_port", default=27017, help="event mongod/mongos port", type=int)
-define("mongodb_database", default='rse', help="event mongod/mongos port")
-
-define("log_filename", default='/var/log/rse.log', help="log filename")
-define("verbose", default='no', help="[yes|no] - determines logging level")
-
 # Set up a specific logger with our desired output level
 rse_logger = logging.getLogger()
 
-class Application(tornado.web.Application):
-  def __init__(self):
-    # Add the log message handler to the logger
-    rse_logger.setLevel(logging.DEBUG if options.verbose == 'yes' else logging.WARNING)
-    handler = logging.handlers.RotatingFileHandler(options.log_filename, maxBytes=1024*1024, backupCount=5)
-    rse_logger.addHandler(handler)
-    
-    # Have one global connection to the DB across all handlers (pymongo manages its own connection pool)
-    connection = pymongo.Connection(options.mongodb_host, options.mongodb_port)
-    mongo_db = connection[options.mongodb_database]
-    mongo_db.events.ensure_index([('uuid', pymongo.ASCENDING), ('channel', pymongo.ASCENDING)])
-    #Shard based on the above (?)
-    
-    # Initialize Tornado with our HTTP GET and POST event handlers
-    tornado.web.Application.__init__(self, [
-      (r"/hello", HealthHandler),
-      (r"/([^&]+).*", MainHandler, dict(mongo_db=mongo_db))
-    ])
+# Initialize config paths
+path = os.path.abspath(__file__)
+dir_path = os.path.dirname(path)
+config_path = os.path.join(dir_path, 'rse.conf')
+default_config_path = os.path.join(dir_path, 'rse.default.conf')
 
-# @todo
-class HealthHandler(rawr.Controller):
+class HealthController(rawr.Controller):
+  """Provides web service health info"""
+  
   def get(self):
-    self.write("Hello world!\n")
+    self.response.write("Alive and kicking!\n")
     
-class RseController(rawr.Controller):
+class MainController(rawr.Controller):
+  """Provides all RSE functionality"""
+  
   # Speeds up member variable access
   __slots__ = ['mongo_db', 'test_mode', 'jsonp_callback_pattern']
   
@@ -84,11 +64,11 @@ class RseController(rawr.Controller):
     self.jsonp_callback_pattern = re.compile("\A[a-zA-Z0-9_]+\Z") # Regex for validating JSONP callback name
     self.test_mode = test_mode 
   
-  #todo: Authenticate the request
-  #      -- Ask for private or session key from account server, based on public key - or, even better, say "sign this"
-  #def prepare(self):
-  #  cache the authentication for 5 minutes (memcache?)
-  #  pass
+  # @todo: Authenticate the request
+  def prepare(self):
+    # @todo cache the authentication result for a few minutes
+    if not self.test_mode:
+      pass
   
   def _is_safe_user_agent(self, user_agent):
     """Quick heuristic to tell whether we can embed the given user_agent string in a JSON document"""
@@ -126,7 +106,7 @@ class RseController(rawr.Controller):
       try:
         # Keep retrying until we get a unique ID
         while True:
-           self.mongo_db.events.insert({
+          self.mongo_db.events.insert({
             "_id": rseutils.time_id(),
             "data": data,
             "channel": channel_name,
@@ -159,17 +139,17 @@ class RseController(rawr.Controller):
         raise ex
     
     # If this is a JSON-P request, we need to return a response to the callback
-    callback_name = self.get_optional_param("callback")
+    callback_name = self.request.get_optional_param("callback")
     if callback_name:
-      #self.write_header("Content-Type", "application/json-p")
-      self.write_header("Content-Type", "text/javascript")
+      #self.response.write_header("Content-Type", "application/json-p")
+      self.response.write_header("Content-Type", "text/javascript")
       
       # Security check
       if not self.jsonp_callback_pattern.match(callback_name):
         raise HttpBadRequest('Invalid callback name')
       
-      self.write(callback_name)
-      self.write('({"result":"OK"});')
+      self.response.write(callback_name)
+      self.response.write('({"result":"OK"});')
   
   def get(self):
     """Handles a GET events request for the specified channel (channel here includes the scope name)"""
@@ -182,9 +162,9 @@ class RseController(rawr.Controller):
       return
 
     # Parse query params
-    last_known_id = long(self.get_optional_param("last-known-id", 0))
-    max_events = min(500, int(self.get_optional_param("max-events", 200)))
-    echo = (self.get_optional_param("echo") == "true")
+    last_known_id = long(self.request.get_optional_param("last-known-id", 0))
+    max_events = min(500, int(self.request.get_optional_param("max-events", 200)))
+    echo = (self.request.get_optional_param("echo") == "true")
         
     # Get a list of events
     num_retries = 10
@@ -217,31 +197,64 @@ class RseController(rawr.Controller):
       for event in events.limit(max_events)])
     
     # Write out the response
-    callback_name = self.get_optional_param("callback")
+    callback_name = self.request.get_optional_param("callback")
     if callback_name:
-      #self.write_header("Content-Type", "application/json-p")
-      self.write_header("Content-Type", "text/javascript")
+      # JSON-P
+      self.response.write_header("Content-Type", "text/javascript")
       
       # Security check
       if not self.jsonp_callback_pattern.match(callback_name):
         raise HttpBadRequest('Invalid callback name')
       
-      self.write("%s({\"channel\":\"/%s\", \"events\":[%s]});" % (callback_name, channel_name, entries_serialized))
+      self.response.write("%s({\"channel\":\"/%s\", \"events\":[%s]});" % (callback_name, channel_name, entries_serialized))
     else:
-      self.write_header("Content-Type", "application/json")
-      self.write("{\"channel\":\"/%s\", \"events\":[%s]}" % (channel_name, entries_serialized))
+      if not entries_serialized:
+        self.response.set_status(204)
+      else:
+        self.response.write_header("Content-Type", "application/json")
+        self.response.write("{\"channel\":\"/%s\", \"events\":[%s]}" % (channel_name, entries_serialized))
   
   def post(self):
     """Handle a true HTTP POST event"""
     self._post(self.request.path, self.request.body)
 
-def main():
-  tornado.options.parse_command_line()
-  http_server = tornado.httpserver.HTTPServer(Application())
-  http_server.listen(options.port)
-  tornado.ioloop.IOLoop.instance().start()
 
-# If running this script directly, execute the "main" routine
+class RseApplication(rawr.Rawr):
+  """RSE app for encapsulating initialization"""
+  
+  def __init__(self): 
+    rawr.Rawr.__init__(self)
+    
+    # Parse options
+    config = ConfigParser.ConfigParser()
+    config.read(default_config_path)
+    
+    if os.path.exists(config_path):
+       config.read(config_path)
+  
+    # Add the log message handler to the logger
+    rse_logger.setLevel(logging.DEBUG if config.get('rse', 'verbose') else logging.WARNING)
+    handler = logging.handlers.RotatingFileHandler(config.get('rse', 'log-path'), maxBytes=1024*1024, backupCount=5)
+    rse_logger.addHandler(handler)
+  
+    # Have one global connection to the DB across all handlers (pymongo manages its own connection pool)
+    connection = pymongo.Connection(config.get('mongodb', 'host'), config.getint('mongodb', 'port'))
+    mongo_db = connection[config.get('mongodb', 'database')]
+    mongo_db.events.ensure_index([('uuid', pymongo.ASCENDING), ('channel', pymongo.ASCENDING)])
+    # @todo Shard based on uuid, maybe channel as well?
+  
+    # Setup routes
+    self.add_route(r"/health$", HealthController),
+    self.add_route(r"/.+", MainController, dict(mongo_db=mongo_db, test_mode=config.getboolean('rse', 'test')))
+
+# WSGI app
+app = RseApplication() 
+
+# If running this script directly, startup a basic WSGI server for testing
 if __name__ == "__main__":
-  main()
+  from wsgiref.simple_server import make_server
+
+  httpd = make_server('', 8000, app)
+  print "Serving on port 8000..."
+  httpd.serve_forever()
 

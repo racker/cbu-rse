@@ -15,6 +15,7 @@ Requires Python 2.7 and webob
 Turn this into an installable package (?) so it can be shared between components
 """
 
+import httplib
 import re
 import webob
 from httpex import *
@@ -110,6 +111,9 @@ class Response:
   def write_header(self, header, value):
     self.response_headers.append((header, value))
     pass
+    
+  def set_status(self, status_code):
+    self.status = '%d %s' % (status_code, httplib.responses[status_code])
     
 class Controller:
   """
@@ -214,7 +218,7 @@ testapp.add_route(re.compile('/stream', re.IGNORECASE), StreamTest)
 if __name__ == "__main__":
   from wsgiref.simple_server import make_server
   
-  httpd = make_server('', 8000, testapp_hello)
+  httpd = make_server('', 8000, testapp)
   print "Serving on port 8000..."
   httpd.serve_forever()    
 
