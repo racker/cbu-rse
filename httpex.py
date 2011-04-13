@@ -32,17 +32,17 @@ class HttpError(Exception):
 # 404 Not Found    
 class HttpNotFound(HttpError):
   def __init__(self, info = ''):
-    HttpError.__init__(self, 404, message)
+    HttpError.__init__(self, 404, info)
     
 # 204 No Content
 class HttpNoContent(HttpError):
   def __init__(self, info = ''):
-    HttpError.__init__(self, 204, message)
+    HttpError.__init__(self, 204, info)
     
 # 400 Bad Request
 class HttpBadRequest(HttpError):
   def __init__(self, info = ''):
-    HttpError.__init__(self, 400, message)
+    HttpError.__init__(self, 400, info)
     
 # 403 Forbidden
 class HttpForbidden(HttpError):
@@ -53,22 +53,22 @@ class HttpForbidden(HttpError):
 # 405 Method Not Allowed
 class HttpMethodNotAllowed(HttpError):
   def __init__(self, info = ''):
-    HttpError.__init__(self, 405, message)
+    HttpError.__init__(self, 405, info)
         
 # 412 Precondition Failed
 class HttpPreconditionFailed(HttpError):
   def __init__(self, info = ''):
-    HttpError.__init__(self, 412, message)
+    HttpError.__init__(self, 412, info)
 
 # 415 Unsupported Media Type
 class HttpUnsupportedMediaType(HttpError):
   def __init__(self, info = ''):
-    HttpError.__init__(self, 415, message)    
+    HttpError.__init__(self, 415, info)    
     
 # 409 Conflict
 class HttpConflict(HttpError):
   def __init__(self, info = ''):
-    HttpError.__init__(self, 409, message)
+    HttpError.__init__(self, 409, info)
 
 # 500 Internal Server Error
 class HttpInternalServerError(HttpError):
@@ -78,9 +78,9 @@ class HttpInternalServerError(HttpError):
 # 201 Created    
 class HttpCreated(HttpError):
   def __init__(self, info = ''):
-    HttpError.__init__(self, 201, message)
+    HttpError.__init__(self, 201, info)
     
 # 202 Accepted    
 class HttpAccepted(HttpError):
   def __init__(self, info = ''):
-    HttpError.__init__(self, 202, message)
+    HttpError.__init__(self, 202, info)
