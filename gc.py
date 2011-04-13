@@ -25,7 +25,7 @@ def remove_expired_events(host, port, db_name, ttl_sec):
   db = connection[db_name]
   
   # Use the same formula that raxSvcRse.py uses to create IDs
-  timeout = rseutils.time_id() - ttl_sec 
+  timeout = rseutils.time_id(-1 * ttl_sec)  
   
   db.events.remove(
     {'_id': {'$lt': timeout}}, True)

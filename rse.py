@@ -28,6 +28,7 @@ import re
 import ConfigParser
 import io
 
+# These need to be installed (easy_install)
 import pymongo
 import argparse
 
