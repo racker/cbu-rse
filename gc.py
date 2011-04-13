@@ -9,6 +9,9 @@ $Date$  <=== populated-by-subversion
 
 @brief
 RSE garbage collector. Requires Python 2.7 or better, argparse, and pymongo
+
+@todo
+Should this share configuration with RseApplication?
 """
 
 import pymongo
@@ -23,10 +26,11 @@ def remove_expired_events(host, port, db_name, ttl_sec):
   
   # Use the same formula that raxSvcRse.py uses to create IDs
   timeout = rseutils.time_id() - ttl_sec 
-  print timeout
   
   db.events.remove(
     {'_id': {'$lt': timeout}}, True)
+    
+  print "Removed items older than: %d" % timeout
 
 def main():
   """Parse arguments and call collect_garbage"""
