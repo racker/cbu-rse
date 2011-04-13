@@ -1,0 +1,2 @@
+cd /opt/rse
+/opt/python2.7/bin/gunicorn -b unix:/tmp/rse.sock  -k eventlet -w 8 -D --preload --backlog 4096 --max-requests 10000 rse:app
