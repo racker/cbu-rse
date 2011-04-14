@@ -45,7 +45,8 @@ rse_logger = logging.getLogger()
 # Initialize config paths
 path = os.path.abspath(__file__)
 dir_path = os.path.dirname(path)
-config_path = os.path.join(dir_path, 'rse.conf')
+local_config_path = os.path.join(dir_path, 'rse.conf')
+global_config_path = '/etc/rse.conf'
 default_config_path = os.path.join(dir_path, 'rse.default.conf')
 
 class HealthController(rawr.Controller):
@@ -230,9 +231,11 @@ class RseApplication(rawr.Rawr):
     config = ConfigParser.ConfigParser()
     config.read(default_config_path)
     
-    if os.path.exists(config_path):
-       config.read(config_path)
-  
+    if os.path.exists(local_config_path):
+       config.read(local_config_path)
+    elif os.path.exists(global_config_path):
+       config.read(global_config_path)
+
     # Add the log message handler to the logger
     rse_logger.setLevel(logging.DEBUG if config.get('rse', 'verbose') else logging.WARNING)
     handler = logging.handlers.RotatingFileHandler(config.get('rse', 'log-path'), maxBytes=1024*1024, backupCount=5)
