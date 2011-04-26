@@ -39,7 +39,7 @@ def main():
   parser.add_argument('--mongodb-host', type=str, default="127.0.0.1", help="mongod/mongos host (127.0.0.1)")
   parser.add_argument('--mongodb-port', type=int, default=27017, help="mongod/mongos port (27017)")
   parser.add_argument('--mongodb-database', type=str, default="rse", help="Name of event database (rse)")
-  parser.add_argument('--ttl', type=int, default=5*60, help="TTL, in seconds, for events (300)")
+  parser.add_argument('--ttl', type=int, default=2*60 + 10, help="TTL, in seconds, for events. Should be just over 2x slowest client polling frequency (2 mins, 10 secs)")
   
   args = parser.parse_args()
   remove_expired_events(args.mongodb_host, args.mongodb_port, args.mongodb_database, args.ttl)
