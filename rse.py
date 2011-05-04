@@ -208,13 +208,13 @@ class MainController(rawr.Controller):
       if not self.jsonp_callback_pattern.match(callback_name):
         raise HttpBadRequest('Invalid callback name')
       
-      self.response.write("%s({\"channel\":\"/%s\", \"events\":[%s]});" % (callback_name, channel_name, entries_serialized))
+      self.response.write("%s({\"channel\":\"%s\", \"events\":[%s]});" % (callback_name, channel_name, entries_serialized))
     else:
       if not entries_serialized:
         self.response.set_status(204)
       else:
         self.response.write_header("Content-Type", "application/json")
-        self.response.write("{\"channel\":\"/%s\", \"events\":[%s]}" % (channel_name, entries_serialized))
+        self.response.write("{\"channel\":\"%s\", \"events\":[%s]}" % (channel_name, entries_serialized))
   
   def post(self):
     """Handle a true HTTP POST event"""
