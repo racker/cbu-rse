@@ -27,6 +27,7 @@ import uuid
 import re
 import ConfigParser
 import io
+import httplib
 
 # These need to be installed (easy_install)
 import pymongo
@@ -59,18 +60,49 @@ class MainController(rawr.Controller):
   """Provides all RSE functionality"""
   
   # Speeds up member variable access
-  __slots__ = ['mongo_db', 'test_mode', 'jsonp_callback_pattern']
+  __slots__ = ['accountsvc_host', 'accountsvc_https', 'mongo_db', 'test_mode', 'jsonp_callback_pattern']
   
-  def __init__(self, mongo_db, test_mode = False):
+  def __init__(self, accountsvc_host, accountsvc_https, mongo_db, test_mode = False):
+    self.accountsvc_host = accountsvc_host # Account services host for authenticating requests
+    self.accountsvc_https = accountsvc_https # Whether to use HTTPS for account services
     self.mongo_db = mongo_db # MongoDB connection for storing events
     self.jsonp_callback_pattern = re.compile("\A[a-zA-Z0-9_]+\Z") # Regex for validating JSONP callback name
-    self.test_mode = test_mode 
+    self.test_mode = test_mode # If true, relax auth/uuid requirements
   
-  # @todo: Authenticate the request
   def prepare(self):
     # @todo cache the authentication result for a few minutes
-    if not self.test_mode:
-      pass
+    
+    auth_token = self.request.get_optional_header('X-Auth-Token');
+    if not auth_token:
+      if self.test_mode:
+        # Missing auth is OK in test mode
+        return
+      else:
+        # Auth token required in live mode
+        logger.error("Missing X-Auth-Token header (required in live mode)")
+        raise HttpUnauthorized()
+      
+    try:     
+      headers = {
+        'X-Agent-Key': self.reqest.get_header('X-Agent-Key'),
+        'X-MachineName': self.reqest.get_header('X-MachineName'),
+        'X-Architecture': self.reqest.get_header('X-Architecture'),
+        'X-OperatingSystem': self.reqest.get_header('X-OperatingSystem'),
+        'X-OperatingSystemVersion': self.reqest.get_header('X-OperatingSystemVersion'),
+      }
+      
+      accountsvc = httplib.HTTPSConnection(self.accountsvc_host) if self.accountsvc_https else httplib.HTTPConnection(self.accountsvc_host) 
+      accountsvc.request('GET', '/authentication/isauthenticated', None, headers)
+      response = accountsvc.getresponse()
+      
+      if response.status != 200:
+        logger.warning('Could not authorize request. Server returned HTTP %d. Unauthorized agent key: %s', response.status, agent_key)
+        raise HttpUnauthorized()
+        
+    except Exception as ex:
+      logger.error(ex)
+      raise HttpUnauthorized()
+    
   
   def _is_safe_user_agent(self, user_agent):
     """Quick heuristic to tell whether we can embed the given user_agent string in a JSON document"""
@@ -100,7 +132,7 @@ class MainController(rawr.Controller):
     
     # Verify that the data is valid JSON
     if not (json_validator.is_valid(data) and self._is_safe_user_agent(user_agent)):
-      raise HttpForbidden()
+      raise HttpBadRequest('Invalid JSON')
     
     # Insert the new event into the DB
     num_retries = 50
@@ -245,11 +277,14 @@ class RseApplication(rawr.Rawr):
     connection = pymongo.Connection(config.get('mongodb', 'host'), config.getint('mongodb', 'port'))
     mongo_db = connection[config.get('mongodb', 'database')]
     mongo_db.events.ensure_index([('uuid', pymongo.ASCENDING), ('channel', pymongo.ASCENDING)])
-    # @todo Shard based on uuid, maybe channel as well?
+    
+    accountsvc_host = config.get('account-services', 'host')
+    accountsvc_https = config.getboolean('account-services', 'https')
+    test_mode = config.getboolean('rse', 'test')
   
     # Setup routes
     self.add_route(r"/health$", HealthController),
-    self.add_route(r"/.+", MainController, dict(mongo_db=mongo_db, test_mode=config.getboolean('rse', 'test')))
+    self.add_route(r"/.+", MainController, dict(accountsvc_host=auth_url, accountsvc_https=accountsvc_https, mongo_db=mongo_db, test_mode=test_mode))
 
 # WSGI app
 app = RseApplication() 

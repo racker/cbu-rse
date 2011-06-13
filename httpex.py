@@ -47,6 +47,12 @@ class HttpBadRequest(HttpError):
   def __init__(self, info = ''):
     HttpError.__init__(self, 400, info)
     
+# 401 Unauthorized
+class HttpUnauthorized(HttpError):
+  # Don't return a reason (security best practice)
+  def __init__(self):
+    HttpError.__init__(self, 401)
+    
 # 403 Forbidden
 class HttpForbidden(HttpError):
   # Don't return a reason (security best practice)
