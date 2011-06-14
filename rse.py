@@ -83,12 +83,15 @@ class MainController(rawr.Controller):
         raise HttpUnauthorized()
       
     try:     
+      agent_key = self.request.get_header('X-Agent-Key')
+      
       headers = {
-        'X-Agent-Key': self.reqest.get_header('X-Agent-Key'),
-        'X-MachineName': self.reqest.get_header('X-MachineName'),
-        'X-Architecture': self.reqest.get_header('X-Architecture'),
-        'X-OperatingSystem': self.reqest.get_header('X-OperatingSystem'),
-        'X-OperatingSystemVersion': self.reqest.get_header('X-OperatingSystemVersion'),
+        'X-Agent-Key': agent_key,
+        'X-Auth-Token': auth_token,
+        'X-MachineName': self.request.get_header('X-MachineName'),
+        'X-Architecture': self.request.get_header('X-Architecture'),
+        'X-OperatingSystem': self.request.get_header('X-OperatingSystem'),
+        'X-OperatingSystemVersion': self.request.get_header('X-OperatingSystemVersion'),
       }
       
       accountsvc = httplib.HTTPSConnection(self.accountsvc_host) if self.accountsvc_https else httplib.HTTPConnection(self.accountsvc_host) 
