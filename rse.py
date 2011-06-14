@@ -79,7 +79,7 @@ class MainController(rawr.Controller):
         return
       else:
         # Auth token required in live mode
-        logger.error("Missing X-Auth-Token header (required in live mode)")
+        rse_logger.error("Missing X-Auth-Token header (required in live mode)")
         raise HttpUnauthorized()
       
     try:     
@@ -96,11 +96,11 @@ class MainController(rawr.Controller):
       response = accountsvc.getresponse()
       
       if response.status != 200:
-        logger.warning('Could not authorize request. Server returned HTTP %d. Unauthorized agent key: %s', response.status, agent_key)
+        rse_logger.warning('Could not authorize request. Server returned HTTP %d. Unauthorized agent key: %s', response.status, agent_key)
         raise HttpUnauthorized()
         
     except Exception as ex:
-      logger.error(ex)
+      rse_logger.error(ex)
       raise HttpUnauthorized()
     
   
@@ -155,7 +155,7 @@ class MainController(rawr.Controller):
             break
           elif last_error['code'] != 11000:
             # It is an error other than "duplicate ID", so don't try again!
-            logger.error("Failed to insert event. MongoDB code: %d" % last_error['code'])
+            rse_logger.error("Failed to insert event. MongoDB code: %d" % last_error['code'])
             raise HttpInternalServerError()
             
         # Success! No need to retry...
@@ -169,7 +169,7 @@ class MainController(rawr.Controller):
 
       except Exception as ex:
         # Critical error (retry probably won't help)
-        logger.error(ex)
+        rse_logger.error(ex)
         raise ex
     
     # If this is a JSON-P request, we need to return a response to the callback
