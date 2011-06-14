@@ -284,7 +284,7 @@ class RseApplication(rawr.Rawr):
   
     # Setup routes
     self.add_route(r"/health$", HealthController),
-    self.add_route(r"/.+", MainController, dict(accountsvc_host=auth_url, accountsvc_https=accountsvc_https, mongo_db=mongo_db, test_mode=test_mode))
+    self.add_route(r"/.+", MainController, dict(accountsvc_host=accountsvc_host, accountsvc_https=accountsvc_https, mongo_db=mongo_db, test_mode=test_mode))
 
 # WSGI app
 app = RseApplication() 
