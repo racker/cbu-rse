@@ -95,7 +95,7 @@ class MainController(rawr.Controller):
       }
 
       accountsvc = httplib.HTTPSConnection(self.accountsvc_host) if self.accountsvc_https else httplib.HTTPConnection(self.accountsvc_host) 
-      accountsvc.request('GET', '/v1.0/authentication/isauthenticated', None, headers)
+      accountsvc.request('GET', '/v1.0/auth/isauthenticated', None, headers)
       response = accountsvc.getresponse()
       
       if response.status != 200:
@@ -274,6 +274,8 @@ class RseApplication(rawr.Rawr):
     # Add the log message handler to the logger
     rse_logger.setLevel(logging.DEBUG if config.get('rse', 'verbose') else logging.WARNING)
     handler = logging.handlers.RotatingFileHandler(config.get('rse', 'log-path'), maxBytes=1024*1024, backupCount=5)
+    formatter = logging.Formatter('%(asctime)s - %(funcName)s:%(lineno)d - %(levelname)s - %(message)s')
+    handler.setFormatter(formatter);
     rse_logger.addHandler(handler)
   
     # Have one global connection to the DB across all handlers (pymongo manages its own connection pool)
