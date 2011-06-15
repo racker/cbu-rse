@@ -93,9 +93,9 @@ class MainController(rawr.Controller):
         'X-OperatingSystem': self.request.get_header('X-OperatingSystem'),
         'X-OperatingSystemVersion': self.request.get_header('X-OperatingSystemVersion'),
       }
-      
+
       accountsvc = httplib.HTTPSConnection(self.accountsvc_host) if self.accountsvc_https else httplib.HTTPConnection(self.accountsvc_host) 
-      accountsvc.request('GET', '/authentication/isauthenticated', None, headers)
+      accountsvc.request('GET', '/v1.0/authentication/isauthenticated', None, headers)
       response = accountsvc.getresponse()
       
       if response.status != 200:
