@@ -17,6 +17,7 @@ Should this share configuration with RseApplication?
 import pymongo
 import argparse
 import rseutils
+import time
 
 def remove_expired_events(host, port, db_name, ttl_sec):
   """Removes events from the specified database that have expired based on ttl_sec"""
