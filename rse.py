@@ -88,10 +88,10 @@ class MainController(rawr.Controller):
       agent_key = self.request.get_header('X-Agent-Key')
       
       # Check for non-expired, cached authentication
-      auth_records = self.mongo_db.authcache.find_one(
+      auth_record = self.mongo_db.authcache.find_one(
         {'auth_token': auth_token, 'agent_key': agent_key, 'expires': {'$gt': time.time()}})
 
-      if auth_records.count() == 1:
+      if auth_record:
         # They are OK for the moment
         return
       
