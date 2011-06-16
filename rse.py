@@ -50,6 +50,8 @@ local_config_path = os.path.join(dir_path, 'rse.conf')
 global_config_path = '/etc/rse.conf'
 default_config_path = os.path.join(dir_path, 'rse.default.conf')
 
+auth_ttl_sec = 30
+
 class HealthController(rawr.Controller):
   """Provides web service health info"""
   
@@ -70,7 +72,7 @@ class MainController(rawr.Controller):
     self.test_mode = test_mode # If true, relax auth/uuid requirements
   
   def prepare(self):
-    # @todo cache the authentication result for a few minutes
+    # @todo Cache the authentication result for a few minutes
     
     auth_token = self.request.get_optional_header('X-Auth-Token');
     if not auth_token:
@@ -81,9 +83,17 @@ class MainController(rawr.Controller):
         # Auth token required in live mode
         rse_logger.error("Missing X-Auth-Token header (required in live mode)")
         raise HttpUnauthorized()
-      
+            
     try:     
       agent_key = self.request.get_header('X-Agent-Key')
+      
+      # Check for non-expired, cached authentication
+      auth_records = self.mongo_db.authcache.find_one(
+        {'auth_token': auth_token, 'agent_key': agent_key, 'expires': {'$gt': time.time()}})
+
+      if auth_records.count() == 1:
+        # They are OK for the moment
+        return
       
       headers = {
         'X-Agent-Key': agent_key,
@@ -101,6 +111,9 @@ class MainController(rawr.Controller):
       if response.status != 200:
         rse_logger.warning('Could not authorize request. Server returned HTTP %d. Unauthorized agent key: %s', response.status, agent_key)
         raise HttpUnauthorized()
+        
+      self.mongo_db.authcache.insert(
+          {'auth_token': auth_token, 'agent_key': agent_key, 'expires': time.time() + auth_ttl_sec})
         
     except Exception as ex:
       rse_logger.error(ex)
