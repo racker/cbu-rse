@@ -83,7 +83,8 @@ class MainController(rawr.Controller):
         # Auth token required in live mode
         rse_logger.error("Missing X-Auth-Token header (required in live mode)")
         raise HttpUnauthorized()
-            
+     
+    # Read X-* headers
     try:     
       agent_key = self.request.get_header('X-Agent-Key')
       
@@ -103,22 +104,29 @@ class MainController(rawr.Controller):
         'X-OperatingSystem': self.request.get_header('X-OperatingSystem'),
         'X-OperatingSystemVersion': self.request.get_header('X-OperatingSystemVersion'),
       }
-
-      accountsvc = httplib.HTTPSConnection(self.accountsvc_host) if self.accountsvc_https else httplib.HTTPConnection(self.accountsvc_host) 
-      accountsvc.request('GET', '/v1.0/auth/isauthenticated', None, headers)
-      response = accountsvc.getresponse()
       
-      if response.status != 200:
-        rse_logger.warning('Could not authorize request. Server returned HTTP %d. Unauthorized agent key: %s', response.status, agent_key)
-        raise HttpUnauthorized()
-        
-      self.mongo_db.authcache.insert(
-          {'auth_token': auth_token, 'agent_key': agent_key, 'expires': time.time() + auth_ttl_sec})
-        
     except Exception as ex:
       rse_logger.error(ex)
       raise HttpUnauthorized()
-    
+
+    # Proxy authentication to the Account Services API
+    try:
+      accountsvc = httplib.HTTPSConnection(self.accountsvc_host) if self.accountsvc_https else httplib.HTTPConnection(self.accountsvc_host) 
+      accountsvc.request('GET', '/v1.0/auth/isauthenticated', None, headers)
+      response = accountsvc.getresponse()
+    except Exception as ex:
+      rse_logger.error(ex)
+      raise HttpBadGateway()
+      
+    # Check whether the auth token was good
+    if response.status != 200:
+      rse_logger.warning('Could not authorize request. Server returned HTTP %d. Agent key: %s', response.status, agent_key)
+      raise HttpUnauthorized() if (response.status / 100) == 4 else HttpBadGateway()
+      
+    # Cache good token to increase performance and reduce the load on Account Services
+    self.mongo_db.authcache.insert(
+        {'auth_token': auth_token, 'agent_key': agent_key, 'expires': time.time() + auth_ttl_sec})
+           
   
   def _is_safe_user_agent(self, user_agent):
     """Quick heuristic to tell whether we can embed the given user_agent string in a JSON document"""
