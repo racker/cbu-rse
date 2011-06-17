@@ -6,7 +6,7 @@ $Revision: 835 $  <=== populated-by-subversion
 $Date: 2011-01-10 14:15:28 -0500 (Mon, 10 Jan 2011) $  <=== populated-by-subversion
 
 @brief
-HTTP exceptions
+HTTP exceptions (see also http://en.wikipedia.org/wiki/List_of_HTTP_status_codes)
 
 @pre
 Requires Python 2.x (tested with 2.7)
@@ -31,16 +31,21 @@ class HttpError(Exception):
     
   def status(self):
     return '%d %s' % (self.status_code, httplib.responses[self.status_code])
-
-# 404 Not Found    
-class HttpNotFound(HttpError):
-  def __init__(self, info = ''):
-    HttpError.__init__(self, 404, info)
-    
+   
 # 204 No Content
 class HttpNoContent(HttpError):
   def __init__(self, info = ''):
     HttpError.__init__(self, 204, info)
+    
+# 201 Created    
+class HttpCreated(HttpError):
+  def __init__(self, info = ''):
+    HttpError.__init__(self, 201, info)
+    
+# 202 Accepted    
+class HttpAccepted(HttpError):
+  def __init__(self, info = ''):
+    HttpError.__init__(self, 202, info)
     
 # 400 Bad Request
 class HttpBadRequest(HttpError):
@@ -58,6 +63,11 @@ class HttpForbidden(HttpError):
   # Don't return a reason (security best practice)
   def __init__(self):
     HttpError.__init__(self, 403)
+    
+# 404 Not Found    
+class HttpNotFound(HttpError):
+  def __init__(self, info = ''):
+    HttpError.__init__(self, 404, info)
     
 # 405 Method Not Allowed
 class HttpMethodNotAllowed(HttpError):
@@ -84,12 +94,9 @@ class HttpInternalServerError(HttpError):
   def __init__(self):
     HttpError.__init__(self, 500)
     
-# 201 Created    
-class HttpCreated(HttpError):
-  def __init__(self, info = ''):
-    HttpError.__init__(self, 201, info)
-    
-# 202 Accepted    
-class HttpAccepted(HttpError):
-  def __init__(self, info = ''):
-    HttpError.__init__(self, 202, info)
+# 502 Bad Gateway
+# The server was acting as a gateway or proxy and received an invalid response from the upstream server.
+class HttpBadGateway(HttpError):
+  def __init__(self):
+    HttpError.__init__(self, 502)
+
