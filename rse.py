@@ -106,7 +106,7 @@ class MainController(rawr.Controller):
       }
       
     except Exception as ex:
-      rse_logger.error(ex)
+      rse_logger.error(str(ex))
       raise HttpUnauthorized()
 
     # Proxy authentication to the Account Services API
@@ -115,7 +115,7 @@ class MainController(rawr.Controller):
       accountsvc.request('GET', '/v1.0/auth/isauthenticated', None, headers)
       response = accountsvc.getresponse()
     except Exception as ex:
-      rse_logger.error(ex)
+      rse_logger.error(str(ex))
       raise HttpBadGateway()
       
     # Check whether the auth token was good
@@ -193,7 +193,7 @@ class MainController(rawr.Controller):
 
       except Exception as ex:
         # Critical error (retry probably won't help)
-        rse_logger.error(ex)
+        rse_logger.error(str(x))
         raise ex
     
     # If this is a JSON-P request, we need to return a response to the callback
