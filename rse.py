@@ -37,8 +37,9 @@ import argparse
 import json_validator
 
 import rseutils
-from httpex import *
-import rawr
+
+from rax.http.exceptions import *
+from rax.http import rawr
 
 # Set up a specific logger with our desired output level
 rse_logger = logging.getLogger()
