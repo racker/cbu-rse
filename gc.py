@@ -16,8 +16,8 @@ Should this share configuration with RseApplication?
 
 import pymongo
 import argparse
-import rseutils
 import time
+import datetime
 
 def remove_expired_events(host, port, db_name, ttl_sec):
   """Removes events from the specified database that have expired based on ttl_sec"""
@@ -25,13 +25,13 @@ def remove_expired_events(host, port, db_name, ttl_sec):
   connection = pymongo.Connection(host, port)
   db = connection[db_name]
   
-  # Use the same formula that raxSvcRse.py uses to create IDs
-  timeout = rseutils.time_id(-1 * ttl_sec)  
+  # Create a date line to figure out the maximum event age
+  max_age = datetime.datetime.utcnow() - datetime.timedelta(seconds = ttl_sec)
   
   db.events.remove(
-    {'_id': {'$lt': timeout}}, True)
+    {'created_at': {'$lt': max_age}}, True)
     
-  print "Removed events older than: %d" % timeout
+  print "Removed events older than: %s" % str(max_age)
   
   now = time.time()
   db.authcache.remove(
