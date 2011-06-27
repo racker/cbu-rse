@@ -28,6 +28,7 @@ import re
 import ConfigParser
 import io
 import httplib
+import pylibmc
 
 # These need to be installed (easy_install)
 import pymongo
@@ -48,8 +49,6 @@ dir_path = os.path.dirname(path)
 local_config_path = os.path.join(dir_path, 'rse.conf')
 global_config_path = '/etc/rse.conf'
 default_config_path = os.path.join(dir_path, 'rse.default.conf')
-
-auth_ttl_sec = 30
 
 class HealthController(rawr.Controller):
   """Provides web service health info"""
@@ -80,24 +79,26 @@ class MainController(rawr.Controller):
         # Auth token required in live mode
         rse_logger.error("Missing X-Auth-Token header (required in live mode)")
         raise HttpUnauthorized()
-     
+    
+    auth_token_with_namespace = 'rse:auth_token:' + auth_token
+    
     # Read X-* headers
     try:     
       # Check for non-expired, cached authentication
-      auth_record = self.mongo_db.authcache.find_one(
-        {'auth_token': auth_token, 'expires': {'$gt': time.time()}})
-
-      if auth_record:
-        # They are OK for the moment
+      # @todo Use shared/thread-pooled connections
+      mc = pylibmc(['127.0.0.1'], binary=True)
+      mc.behaviors = { 'tcp_nodelay': True, 'ketama': True }
+      if mc.get(auth_token_with_namespace):
+        # Assume authenticated for now
         return
-      
-      headers = {
-        'X-Auth-Token': auth_token
-      }
-      
+            
     except Exception as ex:
+      # memcached down? Log and continue on without the memcached optimization.
       rse_logger.error(str(ex))
-      raise HttpUnauthorized()
+
+    headers = {
+      'X-Auth-Token': auth_token
+    }
 
     # Proxy authentication to the Account Services API
     try:
@@ -114,9 +115,14 @@ class MainController(rawr.Controller):
       raise HttpUnauthorized() if (response.status / 100) == 4 else HttpBadGateway()
       
     # Cache good token to increase performance and reduce the load on Account Services
-    self.mongo_db.authcache.insert(
-        {'auth_token': auth_token, 'expires': time.time() + auth_ttl_sec})
-           
+    try:
+      # Remember this authorization for 60 seconds
+      mc.set(auth_token_with_namespace, 0, 60)
+    except Exception as ex:
+      # memcached down? Log and continue on without the memcached optimization.
+      rse_logger.error(str(ex))
+      
+    return           
   
   def _is_safe_user_agent(self, user_agent):
     """Quick heuristic to tell whether we can embed the given user_agent string in a JSON document"""
@@ -234,7 +240,7 @@ class MainController(rawr.Controller):
       event['created_at'],
       event['data'])
       for event in events.limit(max_events)])
-    
+          
     # Write out the response
     callback_name = self.request.get_optional_param("callback")
     if callback_name:
@@ -251,7 +257,9 @@ class MainController(rawr.Controller):
         self.response.set_status(204)
       else:
         self.response.write_header("Content-Type", "application/json")
-        self.response.write("{\"channel\":\"%s\", \"events\":[%s]}" % (channel_name, entries_serialized))
+        self.response.write('{"channel":"%s", "events":[%s]}' % (channel_name, entries_serialized)
+        
+    return
   
   def post(self):
     """Handle a true HTTP POST event"""

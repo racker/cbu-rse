@@ -32,12 +32,6 @@ def remove_expired_events(host, port, db_name, ttl_sec):
     {'created_at': {'$lt': max_age}}, True)
     
   print "Removed events older than: %s" % str(max_age)
-  
-  now = time.time()
-  db.authcache.remove(
-    {'expires': {'$lt': now}}, True)
-    
-  print "Removed cached auth tokens older than: %d" % now
 
 def main():
   """Parse arguments and call collect_garbage"""
