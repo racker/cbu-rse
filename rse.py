@@ -73,8 +73,6 @@ class MainController(rawr.Controller):
     self.test_mode = test_mode # If true, relax auth/uuid requirements
   
   def prepare(self):
-    # @todo Cache the authentication result for a few minutes
-    
     auth_token = self.request.get_optional_header('X-Auth-Token');
     if not auth_token:
       if self.test_mode:
@@ -87,23 +85,16 @@ class MainController(rawr.Controller):
      
     # Read X-* headers
     try:     
-      agent_key = self.request.get_header('X-Agent-Key')
-      
       # Check for non-expired, cached authentication
       auth_record = self.mongo_db.authcache.find_one(
-        {'auth_token': auth_token, 'agent_key': agent_key, 'expires': {'$gt': time.time()}})
+        {'auth_token': auth_token, 'expires': {'$gt': time.time()}})
 
       if auth_record:
         # They are OK for the moment
         return
       
       headers = {
-        'X-Agent-Key': agent_key,
-        'X-Auth-Token': auth_token,
-        'X-MachineName': self.request.get_header('X-MachineName'),
-        'X-Architecture': self.request.get_header('X-Architecture'),
-        'X-OperatingSystem': self.request.get_header('X-OperatingSystem'),
-        'X-OperatingSystemVersion': self.request.get_header('X-OperatingSystemVersion'),
+        'X-Auth-Token': auth_token
       }
       
     except Exception as ex:
@@ -121,12 +112,12 @@ class MainController(rawr.Controller):
       
     # Check whether the auth token was good
     if response.status != 200:
-      rse_logger.warning('Could not authorize request. Server returned HTTP %d. Agent key: %s', response.status, agent_key)
+      rse_logger.warning('Could not authorize request. Server returned HTTP %d.', response.status)
       raise HttpUnauthorized() if (response.status / 100) == 4 else HttpBadGateway()
       
     # Cache good token to increase performance and reduce the load on Account Services
     self.mongo_db.authcache.insert(
-        {'auth_token': auth_token, 'agent_key': agent_key, 'expires': time.time() + auth_ttl_sec})
+        {'auth_token': auth_token, 'expires': time.time() + auth_ttl_sec})
            
   
   def _is_safe_user_agent(self, user_agent):
