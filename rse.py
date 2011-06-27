@@ -36,8 +36,6 @@ import argparse
 # We got this off the web somewhere - put in the same dir as raxSvcRse.py
 import json_validator
 
-import rseutils
-
 from rax.http.exceptions import *
 from rax.http import rawr
 
@@ -154,25 +152,16 @@ class MainController(rawr.Controller):
     num_retries = 50
     for i in range(num_retries):
       try:
-        # Keep retrying until we get a unique ID
-        while True:
-          self.mongo_db.events.insert({
-            "_id": rseutils.time_id(),
-            "data": data,
-            "channel": channel_name,
-            "user_agent": user_agent,
-            "uuid": self._parse_client_uuid(user_agent),
-            "created_at": datetime.datetime.utcnow()
-          })
-      
-          last_error = self.mongo_db.error()
-          if not last_error:
-            # Success! Bail out!
-            break
-          elif last_error['code'] != 11000:
-            # It is an error other than "duplicate ID", so don't try again!
-            rse_logger.error("Failed to insert event. MongoDB code: %d" % last_error['code'])
-            raise HttpInternalServerError()
+        counter = self.mongo_db.counters.find_and_modify({'_id': 'event_id'}, {'$inc': {'c': 1}})
+        
+        self.mongo_db.events.insert({
+          "_id": counter['c'],
+          "data": data,
+          "channel": channel_name,
+          "user_agent": user_agent,
+          "uuid": self._parse_client_uuid(user_agent),
+          "created_at": datetime.datetime.utcnow()
+        })
             
         # Success! No need to retry...
         break
@@ -185,7 +174,7 @@ class MainController(rawr.Controller):
 
       except Exception as ex:
         # Critical error (retry probably won't help)
-        rse_logger.error(str(x))
+        rse_logger.error(str(ex))
         raise ex
     
     # If this is a JSON-P request, we need to return a response to the callback
@@ -202,7 +191,7 @@ class MainController(rawr.Controller):
       self.response.write('({"result":"OK"});')
   
   def get(self):
-    """Handles a GET events request for the specified channel (channel here includes the scope name)"""
+    """Handles a "GET events" request for the specified channel (channel here includes the scope name)"""
 
     channel_name = self.request.path
 
@@ -294,7 +283,11 @@ class RseApplication(rawr.Rawr):
     # Have one global connection to the DB across all handlers (pymongo manages its own connection pool)
     connection = pymongo.Connection(config.get('mongodb', 'host'), config.getint('mongodb', 'port'))
     mongo_db = connection[config.get('mongodb', 'database')]
+    
+    # Initialize collections
     mongo_db.events.ensure_index([('uuid', pymongo.ASCENDING), ('channel', pymongo.ASCENDING)])
+    if not mongo_db.counters.find_one({'_id': 'event_id'}):
+      mongo_db.counters.insert({'_id': 'event_id', 'c': 0})
     
     accountsvc_host = config.get('account-services', 'host')
     accountsvc_https = config.getboolean('account-services', 'https')
