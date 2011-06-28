@@ -274,11 +274,19 @@ class RseApplication(rawr.Rawr):
        config.read(global_config_path)
 
     # Add the log message handler to the logger
-    rse_logger.setLevel(logging.DEBUG if config.get('rse', 'verbose') else logging.WARNING)
-    handler = logging.handlers.RotatingFileHandler(config.get('rse', 'log-path'), maxBytes=1024*1024, backupCount=5)
-    formatter = logging.Formatter('%(asctime)s - %(funcName)s:%(lineno)d - %(levelname)s - %(message)s')
-    handler.setFormatter(formatter);
-    rse_logger.addHandler(handler)
+    rse_logger.setLevel(logging.DEBUG if config.get('logging', 'verbose') else logging.WARNING)
+    
+    if config.getboolean('logging', 'filelog'):
+      handler = logging.handlers.RotatingFileHandler(config.get('logging', 'filelog-path'), maxBytes=5 * 1024*1024, backupCount=5)    
+      formatter = logging.Formatter('%(asctime)s - %(funcName)s:%(lineno)d - %(levelname)s - %(message)s')
+      handler.setFormatter(formatter);
+      rse_logger.addHandler(handler)
+    
+    if config.getboolean('logging', 'syslog'):
+      handler = logging.handlers.SysLogHandler(address=config.get('logging', 'syslog-address'))    
+      formatter = logging.Formatter('%(asctime)s - %(funcName)s:%(lineno)d - %(levelname)s - %(message)s')
+      handler.setFormatter(formatter);
+      rse_logger.addHandler(handler)
   
     # Have one global connection to the DB across all handlers (pymongo manages its own connection pool)
     connection = pymongo.Connection(config.get('mongodb', 'uri'))
