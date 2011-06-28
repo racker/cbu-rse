@@ -28,7 +28,6 @@ import re
 import ConfigParser
 import io
 import httplib
-import pylibmc
 
 # These need to be installed (easy_install)
 import pymongo
@@ -49,6 +48,8 @@ dir_path = os.path.dirname(path)
 local_config_path = os.path.join(dir_path, 'rse.conf')
 global_config_path = '/etc/rse.conf'
 default_config_path = os.path.join(dir_path, 'rse.default.conf')
+
+auth_ttl_sec = 60
 
 class HealthController(rawr.Controller):
   """Provides web service health info"""
@@ -79,23 +80,21 @@ class MainController(rawr.Controller):
         # Auth token required in live mode
         rse_logger.error("Missing X-Auth-Token header (required in live mode)")
         raise HttpUnauthorized()
-    
-    auth_token_with_namespace = 'rse:auth_token:' + auth_token
-    
+     
     # Read X-* headers
     try:     
       # Check for non-expired, cached authentication
-      # @todo Use shared/thread-pooled connections
-      mc = pylibmc(['127.0.0.1'], binary=True)
-      mc.behaviors = { 'tcp_nodelay': True, 'ketama': True }
-      if mc.get(auth_token_with_namespace):
-        # Assume authenticated for now
-        return
-            
+      auth_record = self.mongo_db.authcache.find_one(
+        {'auth_token': auth_token, 'expires': {'$gt': time.time()}})
+     
     except Exception as ex:
-      # memcached down? Log and continue on without the memcached optimization.
+      # Oh well. Log the error and proceed as if no cached authentication
       rse_logger.error(str(ex))
 
+    if auth_record:
+      # They are OK for the moment
+      return
+    
     headers = {
       'X-Auth-Token': auth_token
     }
@@ -115,14 +114,9 @@ class MainController(rawr.Controller):
       raise HttpUnauthorized() if (response.status / 100) == 4 else HttpBadGateway()
       
     # Cache good token to increase performance and reduce the load on Account Services
-    try:
-      # Remember this authorization for 60 seconds
-      mc.set(auth_token_with_namespace, 0, 60)
-    except Exception as ex:
-      # memcached down? Log and continue on without the memcached optimization.
-      rse_logger.error(str(ex))
-      
-    return           
+    self.mongo_db.authcache.insert(
+        {'auth_token': auth_token, 'expires': time.time() + auth_ttl_sec})
+           
   
   def _is_safe_user_agent(self, user_agent):
     """Quick heuristic to tell whether we can embed the given user_agent string in a JSON document"""
@@ -155,7 +149,7 @@ class MainController(rawr.Controller):
       raise HttpBadRequest('Invalid JSON')
     
     # Insert the new event into the DB
-    num_retries = 50
+    num_retries = 30
     for i in range(num_retries):
       try:
         counter = self.mongo_db.counters.find_and_modify({'_id': 'event_id'}, {'$inc': {'c': 1}})
@@ -167,7 +161,7 @@ class MainController(rawr.Controller):
           "user_agent": user_agent,
           "uuid": self._parse_client_uuid(user_agent),
           "created_at": datetime.datetime.utcnow()
-        })
+        }, safe=True)
             
         # Success! No need to retry...
         break
@@ -179,9 +173,9 @@ class MainController(rawr.Controller):
           time.sleep(2) # Wait a moment for a new primary to be elected
 
       except Exception as ex:
-        # Critical error (retry probably won't help)
+        # Critical error (retrying probably won't help)
         rse_logger.error(str(ex))
-        raise ex
+        raise HttpInternalServerError()
     
     # If this is a JSON-P request, we need to return a response to the callback
     callback_name = self.request.get_optional_param("callback")
@@ -240,7 +234,7 @@ class MainController(rawr.Controller):
       event['created_at'],
       event['data'])
       for event in events.limit(max_events)])
-          
+    
     # Write out the response
     callback_name = self.request.get_optional_param("callback")
     if callback_name:
@@ -257,9 +251,7 @@ class MainController(rawr.Controller):
         self.response.set_status(204)
       else:
         self.response.write_header("Content-Type", "application/json")
-        self.response.write('{"channel":"%s", "events":[%s]}' % (channel_name, entries_serialized)
-        
-    return
+        self.response.write("{\"channel\":\"%s\", \"events\":[%s]}" % (channel_name, entries_serialized))
   
   def post(self):
     """Handle a true HTTP POST event"""
@@ -289,7 +281,7 @@ class RseApplication(rawr.Rawr):
     rse_logger.addHandler(handler)
   
     # Have one global connection to the DB across all handlers (pymongo manages its own connection pool)
-    connection = pymongo.Connection(config.get('mongodb', 'host'), config.getint('mongodb', 'port'))
+    connection = pymongo.Connection(config.get('mongodb', 'uri'))
     mongo_db = connection[config.get('mongodb', 'database')]
     
     # Initialize collections
