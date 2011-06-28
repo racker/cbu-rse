@@ -40,7 +40,7 @@ from rax.http.exceptions import *
 from rax.http import rawr
 
 # Set up a specific logger with our desired output level
-rse_logger = logging.getLogger()
+rse_logger = logging.getLogger(__name__)
 
 # Initialize config paths
 path = os.path.abspath(__file__)
@@ -276,18 +276,18 @@ class RseApplication(rawr.Rawr):
     # Add the log message handler to the logger
     rse_logger.setLevel(logging.DEBUG if config.get('logging', 'verbose') else logging.WARNING)
     
+    formatter = logging.Formatter('%(asctime)s - RSE - PID %(process)d - %(funcName)s:%(lineno)d - %(levelname)s - %(message)s')
+   
     if config.getboolean('logging', 'filelog'):
       handler = logging.handlers.RotatingFileHandler(config.get('logging', 'filelog-path'), maxBytes=5 * 1024*1024, backupCount=5)    
-      formatter = logging.Formatter('%(asctime)s - %(funcName)s:%(lineno)d - %(levelname)s - %(message)s')
       handler.setFormatter(formatter);
       rse_logger.addHandler(handler)
     
     if config.getboolean('logging', 'syslog'):
       handler = logging.handlers.SysLogHandler(address=config.get('logging', 'syslog-address'))    
-      formatter = logging.Formatter('%(asctime)s - %(funcName)s:%(lineno)d - %(levelname)s - %(message)s')
       handler.setFormatter(formatter);
       rse_logger.addHandler(handler)
-  
+    
     # Have one global connection to the DB across all handlers (pymongo manages its own connection pool)
     connection = pymongo.Connection(config.get('mongodb', 'uri'))
     mongo_db = connection[config.get('mongodb', 'database')]
