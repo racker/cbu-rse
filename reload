@@ -1,2 +1,2 @@
-kill -HUP `cat server.pid`
+kill -HUP `cat gunicorn.pid`
 
