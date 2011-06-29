@@ -1,2 +1,2 @@
 cd /opt/rse
-/opt/python2.7/bin/gunicorn -b unix:/tmp/rse.sock  -k eventlet -w 8 -D --backlog 4096 --max-requests 10000 rse:app -p gunicorn.pid --log-level debug
+/opt/python2.7/bin/gunicorn -b unix:/tmp/rse.sock -w 8 -D --backlog 4096 --max-requests 10000 rse:app -p gunicorn.pid --log-level debug
