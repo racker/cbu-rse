@@ -204,6 +204,9 @@ class MainController(rawr.Controller):
     last_known_id = long(self.request.get_optional_param("last-known-id", 0))
     max_events = min(500, int(self.request.get_optional_param("max-events", 200)))
     echo = (self.request.get_optional_param("echo") == "true")
+    pullall = (self.request.get_optional_param("pullall") == "false")
+    if pullall != "false":
+      channel_name = "/^" + channel_name + "/"
         
     # Get a list of events
     num_retries = 10
@@ -216,7 +219,6 @@ class MainController(rawr.Controller):
           {'_id': {'$gt': last_known_id}, 'channel': channel_name, 'uuid': {'$ne': uuid}},
           fields=['_id', 'user_agent', 'created_at', 'data'],
           sort=[('_id', pymongo.ASCENDING)])
-          
         break
       
       except pymongo.errors.AutoReconnect:
