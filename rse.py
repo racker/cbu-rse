@@ -204,8 +204,8 @@ class MainController(rawr.Controller):
     last_known_id = long(self.request.get_optional_param("last-known-id", 0))
     max_events = min(500, int(self.request.get_optional_param("max-events", 200)))
     echo = (self.request.get_optional_param("echo") == "true")
-    pullall = (self.request.get_optional_param("pullall") == "false")
-    if pullall != "false":
+    pullall = (self.request.get_optional_param("pullall") == "true")
+    if pullall == "true":
       channel_name = "/^" + channel_name + "/"
         
     # Get a list of events
