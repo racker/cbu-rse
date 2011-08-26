@@ -204,9 +204,16 @@ class MainController(rawr.Controller):
     last_known_id = long(self.request.get_optional_param("last-known-id", 0))
     max_events = min(500, int(self.request.get_optional_param("max-events", 200)))
     echo = (self.request.get_optional_param("echo") == "true")
-    pullall = (self.request.get_optional_param("pullall") == "true")
-    if pullall:
+    # Different values for "events" argument
+    #    all
+    #    parent
+    #    exact 
+    eventsfilter = self.request.get_optional_param("events") 
+    if eventsfilter == "all":
       channel_name = re.compile("^" + channel_name + "/.+")
+    #elif eventsfilter == "parent":
+    #elif eventsfilter == "exact":
+    
         
     # Get a list of events
     num_retries = 10
