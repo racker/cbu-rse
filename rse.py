@@ -205,8 +205,8 @@ class MainController(rawr.Controller):
     max_events = min(500, int(self.request.get_optional_param("max-events", 200)))
     echo = (self.request.get_optional_param("echo") == "true")
     pullall = (self.request.get_optional_param("pullall") == "true")
-    if pullall == "true":
-      channel_name = "/^" + channel_name + "/"
+    if pullall:
+      channel_name = re.compile("^" + channel_name + "(/.+)?")
         
     # Get a list of events
     num_retries = 10
