@@ -206,7 +206,7 @@ class MainController(rawr.Controller):
     echo = (self.request.get_optional_param("echo") == "true")
     pullall = (self.request.get_optional_param("pullall") == "true")
     if pullall:
-      channel_name = re.compile("^" + channel_name + "(/.+)?")
+      channel_name = re.compile("^" + channel_name + "/.+")
         
     # Get a list of events
     num_retries = 10
