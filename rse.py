@@ -210,9 +210,11 @@ class MainController(rawr.Controller):
     #    exact 
     eventsfilter = self.request.get_optional_param("events") 
     if eventsfilter == "all":
-      channel_name = re.compile("^" + channel_name + "/.+")
+      channel_req = re.compile("^" + channel_name + "/.+")
     #elif eventsfilter == "parent":
     #elif eventsfilter == "exact":
+    else:
+      channel_req = channel_name
     
         
     # Get a list of events
@@ -223,7 +225,7 @@ class MainController(rawr.Controller):
         uuid = ("e" if echo else self._parse_client_uuid(user_agent))
         
         events = self.mongo_db.events.find(
-          {'_id': {'$gt': last_known_id}, 'channel': channel_name, 'uuid': {'$ne': uuid}},
+          {'_id': {'$gt': last_known_id}, 'channel': channel_req, 'uuid': {'$ne': uuid}},
           fields=['_id', 'user_agent', 'created_at', 'data'],
           sort=[('_id', pymongo.ASCENDING)])
         break
