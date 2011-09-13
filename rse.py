@@ -142,15 +142,16 @@ class MainController(rawr.Controller):
         raise HttpBadRequest('Missing UUID in User-Agent header')
   
   def _get_active_nodes(self):
-    repl_status = self.mongo_admin_db.command({'replGetStatus': 1})
-    if repl_status:
-      active_nodes = 1
-    else:      
-      members = repl_status['members']
-      active_nodes = 0
-      for m in members:
-        if m['health'] == 1.0:
-          active_nodes += 1         
+    try:
+      repl_status = self.mongo_admin_db.command({'replSetGetStatus': 1})
+    except:
+      return 1
+    
+    members = repl_status['members']
+    active_nodes = 0
+    for m in members:
+      if m['health'] == 1.0:
+        active_nodes += 1         
     
     return active_nodes
   
