@@ -2,7 +2,7 @@
 
 """
 @file rse.py
-@author Kurt Griffiths
+@author Kurt Griffiths, Xuan Yu, et al.
 $Author$  <=== populated-by-subversion
 $Revision$  <=== populated-by-subversion
 $Date$  <=== populated-by-subversion
