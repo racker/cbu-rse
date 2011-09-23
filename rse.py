@@ -154,7 +154,25 @@ class MainController(rawr.Controller):
         active_nodes += 1         
     
     return active_nodes
-  
+    
+  def _debug_dump(self):
+    events = self.mongo_db.events.find(
+      fields=['_id', 'user_agent', 'created_at', 'data'],
+      sort=[('_id', pymongo.DESCENDING)])
+      
+    entries_serialized = "" if not events else "\n".join([
+      '{"id":%d,"user_agent":"%s","created_at":"%s","data":%s}'
+      % (
+      event['_id'],
+      event['user_agent'],
+      event['created_at'],
+      event['data'])
+      for event in events.limit(max_events)])
+      
+    self.response.write_header("Content-Type", "text/plain")
+    self.response.write(entries_serialized)
+    return
+
   def _post(self, channel_name, data):
     """Handles a client submitting a new event (the data parameter)"""
     user_agent = self.request.get_header("User-Agent")
@@ -206,6 +224,10 @@ class MainController(rawr.Controller):
     """Handles a "GET events" request for the specified channel (channel here includes the scope name)"""
 
     channel_name = self.request.path
+    
+    if self.test_mode and channel_name == "debug":
+      self._debug_dump
+      return;        
 
     # Note: case-sensitive for speed
     if self.request.get_optional_param("method") == "POST":
