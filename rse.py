@@ -160,17 +160,17 @@ class MainController(rawr.Controller):
       fields=['_id', 'user_agent', 'created_at', 'data'],
       sort=[('_id', pymongo.DESCENDING)])
       
-    entries_serialized = "" if not events else "\n".join([
+    entries_serialized = "\"No events\"" if not events else ",\n".join([
       '{"id":%d,"user_agent":"%s","created_at":"%s","data":%s}'
       % (
       event['_id'],
       event['user_agent'],
       event['created_at'],
       event['data'])
-      for event in events.limit(max_events)])
+      for event in events])
       
-    self.response.write_header("Content-Type", "text/plain")
-    self.response.write(entries_serialized)
+    self.response.write_header("Content-Type", "text/javascript")
+    self.response.write("[%s]" % entries_serialized)
     return
 
   def _post(self, channel_name, data):
@@ -225,9 +225,9 @@ class MainController(rawr.Controller):
 
     channel_name = self.request.path
     
-    if self.test_mode and channel_name == "debug":
-      self._debug_dump
-      return;        
+    if self.test_mode and channel_name == "/debug":
+      self._debug_dump()
+      return        
 
     # Note: case-sensitive for speed
     if self.request.get_optional_param("method") == "POST":
