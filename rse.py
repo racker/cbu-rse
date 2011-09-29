@@ -165,7 +165,7 @@ class MainController(rawr.Controller):
       % (
       event['_id'],
       event['user_agent'],
-      event['created_at'],
+      event['created_at'].strftime("%Y-%M-%d %H:%M:%SZ"),
       event['data'])
       for event in events])
       
@@ -278,7 +278,7 @@ class MainController(rawr.Controller):
       % (
       event['_id'],
       event['user_agent'],
-      event['created_at'],
+      event['created_at'].strftime("%Y-%M-%d %H:%M:%SZ"),
       event['data'])
       for event in events.limit(max_events)])
     
