@@ -61,13 +61,12 @@ class MainController(rawr.Controller):
   """Provides all RSE functionality"""
   
   # Speeds up member variable access
-  __slots__ = ['accountsvc_host', 'accountsvc_https', 'mongo_db', 'mongo_admin_db', 'test_mode', 'jsonp_callback_pattern']
+  __slots__ = ['accountsvc_host', 'accountsvc_https', 'mongo_db', 'test_mode', 'jsonp_callback_pattern']
   
-  def __init__(self, accountsvc_host, accountsvc_https, mongo_db, mongo_admin_db, test_mode = False):
+  def __init__(self, accountsvc_host, accountsvc_https, mongo_db, test_mode = False):
     self.accountsvc_host = accountsvc_host # Account services host for authenticating requests
     self.accountsvc_https = accountsvc_https # Whether to use HTTPS for account services
     self.mongo_db = mongo_db # MongoDB connection for storing events
-    self.mongo_admin_db = mongo_admin_db # MongoDB connection for admin commands
     self.jsonp_callback_pattern = re.compile("\A[a-zA-Z0-9_]+\Z") # Regex for validating JSONP callback name
     self.test_mode = test_mode # If true, relax auth/uuid requirements
   
@@ -140,20 +139,6 @@ class MainController(rawr.Controller):
         return "550e8400-dead-beef-dead-446655440000"
       else:
         raise HttpBadRequest('Missing UUID in User-Agent header')
-  
-  def _get_active_nodes(self):
-    try:
-      repl_status = self.mongo_admin_db.command({'replSetGetStatus': 1})
-    except:
-      return 1
-    
-    members = repl_status['members']
-    active_nodes = 0
-    for m in members:
-      if m['health'] == 1.0:
-        active_nodes += 1         
-    
-    return active_nodes
     
   def _debug_dump(self):
     events = self.mongo_db.events.find(
@@ -176,33 +161,59 @@ class MainController(rawr.Controller):
   def _post(self, channel_name, data):
     """Handles a client submitting a new event (the data parameter)"""
     user_agent = self.request.get_header("User-Agent")
-    
+        
     # Verify that the data is valid JSON
     if not (json_validator.is_valid(data) and self._is_safe_user_agent(user_agent)):
       raise HttpBadRequest('Invalid JSON')
-    
+        
     # Insert the new event into the DB
     num_retries = 30 # 30 seconds
     for i in range(num_retries):
       try:
-        counter = self.mongo_db.counters.find_and_modify({'_id': 'event_id'}, {'$inc': {'c': 1}})
+        # Don't use this approach - a POST going to a different instance
+        # may get the next counter, but end up inserting before we do (race 
+        # condition). This could lead to a client getting the larger _id and
+        # using it for last-known-id, effectively skipping the other event.
+        #counter = self.mongo_db.counters.find_and_modify({'_id': 'event_id'}, {'$inc': {'c': 1}})
         
-        self.mongo_db.events.insert({
-          "_id": counter['c'],
-          "data": data,
-          "channel": channel_name,
-          "user_agent": user_agent,
-          "uuid": self._parse_client_uuid(user_agent),
-          "created_at": datetime.datetime.utcnow()
-        }, safe=True, w=self._get_active_nodes(), wtimeout=5000)
+        while (True):
+          last_id_record = self.mongo_db.events.find(
+            fields=['_id'],
+            sort=[('_id', pymongo.DESCENDING)],
+            limit=1, slave_okay=False) # Get from master to reduce chance of race condition
+        
+          try:
+            next_id = last_id_record.next()['_id'] + 1
+          except:
+            # No records found (basis case)
+            next_id = 1
+        
+          # Most of the time this will succeed, unless a different instance
+          # beat us to the bunch, in which case, we'll just try again
+          try:
+            self.mongo_db.events.insert({
+              "_id": next_id, 
+              "data": data,
+              "channel": channel_name,
+              "user_agent": user_agent,
+              "uuid": self._parse_client_uuid(user_agent),
+              "created_at": datetime.datetime.utcnow()
+            }, safe=True)
+            
+            # Don't retry
+            break
+          except pymongo.errors.DuplicateKeyError:
+            # Retry
+            pass
             
         # Success! No need to retry...
         break
 
       except Exception as ex:
+        rse_logger.error(str(ex))
+        
         if i == num_retries - 1: # Don't retry forever!
           # Critical error (retrying probably won't help)
-          rse_logger.error(str(ex))
           raise HttpInternalServerError()
         else:
           time.sleep(1) # Wait 1 second for a new primary to be elected
@@ -250,7 +261,6 @@ class MainController(rawr.Controller):
     else:
       channel_req = channel_name
     
-        
     # Get a list of events
     num_retries = 10
     for i in range(num_retries):
@@ -261,13 +271,15 @@ class MainController(rawr.Controller):
         events = self.mongo_db.events.find(
           {'_id': {'$gt': last_known_id}, 'channel': channel_req, 'uuid': {'$ne': uuid}},
           fields=['_id', 'user_agent', 'created_at', 'data'],
-          sort=[('_id', pymongo.ASCENDING)])
+          sort=[('_id', pymongo.ASCENDING)],
+          limit=max_events)
         break
       
       except Exception as ex:
+        rse_logger.error(str(ex))
+
         if i == num_retries - 1: # Don't retry forever!
           # Critical error (retrying probably won't help)
-          rse_logger.error(str(ex))
           raise HttpInternalServerError()
         else:
           time.sleep(1) # Wait a moment for a new primary to be elected
@@ -280,8 +292,8 @@ class MainController(rawr.Controller):
       event['user_agent'],
       event['created_at'].strftime("%Y-%m-%d %H:%M:%SZ"),
       event['data'])
-      for event in events.limit(max_events)])
-    
+      for event in events])
+
     # Write out the response
     callback_name = self.request.get_optional_param("callback")
     if callback_name:
@@ -292,13 +304,13 @@ class MainController(rawr.Controller):
       if not self.jsonp_callback_pattern.match(callback_name):
         raise HttpBadRequest('Invalid callback name')
       
-      self.response.write("%s({\"channel\":\"%s\", \"events\":[%s]});" % (callback_name, channel_name, entries_serialized))
+      self.response.write("%s({\"channel\":\"%s\", \"events\":[%s]});" % (callback_name, channel_name, str(entries_serialized)))
     else:
       if not entries_serialized:
         self.response.set_status(204)
       else:
         self.response.write_header("Content-Type", "application/json")
-        self.response.write("{\"channel\":\"%s\", \"events\":[%s]}" % (channel_name, entries_serialized))
+        self.response.write("{\"channel\":\"%s\", \"events\":[%s]}" % (channel_name, str(entries_serialized)))
   
   def post(self):
     """Handle a true HTTP POST event"""
@@ -336,9 +348,8 @@ class RseApplication(rawr.Rawr):
       rse_logger.addHandler(handler)
     
     # Have one global connection to the DB across all handlers (pymongo manages its own connection pool)
-    connection = pymongo.Connection(config.get('mongodb', 'uri'))
+    connection = pymongo.Connection(config.get('mongodb', 'uri'), slave_okay=True)
     mongo_db = connection[config.get('mongodb', 'database')]
-    mongo_admin_db = connection['admin']
     
     # Initialize collections
     mongo_db.events.ensure_index([('uuid', pymongo.ASCENDING), ('channel', pymongo.ASCENDING)])
@@ -351,7 +362,7 @@ class RseApplication(rawr.Rawr):
   
     # Setup routes
     self.add_route(r"/health$", HealthController),
-    self.add_route(r"/.+", MainController, dict(accountsvc_host=accountsvc_host, accountsvc_https=accountsvc_https, mongo_db=mongo_db, mongo_admin_db=mongo_admin_db, test_mode=test_mode))
+    self.add_route(r"/.+", MainController, dict(accountsvc_host=accountsvc_host, accountsvc_https=accountsvc_https, mongo_db=mongo_db, test_mode=test_mode))
 
 # WSGI app
 app = RseApplication() 
