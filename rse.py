@@ -180,7 +180,7 @@ class MainController(rawr.Controller):
           last_id_record = self.mongo_db.events.find(
             fields=['_id'],
             sort=[('_id', pymongo.DESCENDING)],
-            limit=1) # Get from master to reduce chance of race condition
+            limit=1, slave_okay=False) # Get from master to reduce chance of race condition
         
           try:
             next_id = last_id_record.next()['_id'] + 1
@@ -348,7 +348,7 @@ class RseApplication(rawr.Rawr):
       rse_logger.addHandler(handler)
     
     # Have one global connection to the DB across all handlers (pymongo manages its own connection pool)
-    connection = pymongo.Connection(config.get('mongodb', 'uri'), slave_okay=True)
+    connection = pymongo.Connection(config.get('mongodb', 'uri'))
     mongo_db = connection[config.get('mongodb', 'database')]
     
     # Initialize collections
