@@ -154,7 +154,7 @@ class MainController(rawr.Controller):
       event['data'])
       for event in events])
       
-    self.response.write_header("Content-Type", "application/json;charset=utf-8")
+    self.response.write_header("Content-Type", "application/json; charset=utf-8")
     self.response.write("[%s]" % entries_serialized)
     return
 
@@ -222,7 +222,7 @@ class MainController(rawr.Controller):
     callback_name = self.request.get_optional_param("callback")
     if callback_name:
       #self.response.write_header("Content-Type", "application/json-p")
-      self.response.write_header("Content-Type", "application/json;charset=utf-8")
+      self.response.write_header("Content-Type", "application/json; charset=utf-8")
       
       # Security check
       if not self.jsonp_callback_pattern.match(callback_name):
@@ -298,7 +298,7 @@ class MainController(rawr.Controller):
     callback_name = self.request.get_optional_param("callback")
     if callback_name:
       # JSON-P
-      self.response.write_header("Content-Type", "application/json;charset=utf-8")
+      self.response.write_header("Content-Type", "application/json; charset=utf-8")
       
       # Security check
       if not self.jsonp_callback_pattern.match(callback_name):
@@ -309,7 +309,7 @@ class MainController(rawr.Controller):
       if not entries_serialized:
         self.response.set_status(204)
       else:
-        self.response.write_header("Content-Type", "application/json;charset=utf-8")
+        self.response.write_header("Content-Type", "application/json; charset=utf-8")
         self.response.write("{\"channel\":\"%s\", \"events\":[%s]}" % (channel_name, str(entries_serialized)))
   
   def post(self):
