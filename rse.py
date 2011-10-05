@@ -141,9 +141,12 @@ class MainController(rawr.Controller):
         raise HttpBadRequest('Missing UUID in User-Agent header')
     
   def _debug_dump(self):
+
+    sort_order = long(self.request.get_optional_param("sort", pymongo.ASCENDING))
+
     events = self.mongo_db.events.find(
       fields=['_id', 'user_agent', 'created_at', 'data'],
-      sort=[('_id', pymongo.DESCENDING)])
+      sort=[('_id', sort_order)])
       
     entries_serialized = "\"No events\"" if not events else ",\n".join([
       '{"id":%d,"user_agent":"%s","created_at":"%s","data":%s}'
@@ -222,7 +225,7 @@ class MainController(rawr.Controller):
     callback_name = self.request.get_optional_param("callback")
     if callback_name:
       #self.response.write_header("Content-Type", "application/json-p")
-      self.response.write_header("Content-Type", "application/json; charset=utf-8")
+      self.response.write_header("Content-Type", "text/javascript")
       
       # Security check
       if not self.jsonp_callback_pattern.match(callback_name):
@@ -247,6 +250,7 @@ class MainController(rawr.Controller):
 
     # Parse query params
     last_known_id = long(self.request.get_optional_param("last-known-id", 0))
+    sort_order = long(self.request.get_optional_param("sort", pymongo.ASCENDING))
     max_events = min(500, int(self.request.get_optional_param("max-events", 200)))
     echo = (self.request.get_optional_param("echo") == "true")
     # Different values for "events" argument
@@ -271,7 +275,8 @@ class MainController(rawr.Controller):
         events = self.mongo_db.events.find(
           {'_id': {'$gt': last_known_id}, 'channel': channel_req, 'uuid': {'$ne': uuid}},
           fields=['_id', 'user_agent', 'created_at', 'data'],
-          sort=[('_id', pymongo.ASCENDING)],
+          sort=[('_id', sort_order)],
+
           limit=max_events)
         break
       
@@ -298,7 +303,7 @@ class MainController(rawr.Controller):
     callback_name = self.request.get_optional_param("callback")
     if callback_name:
       # JSON-P
-      self.response.write_header("Content-Type", "application/json; charset=utf-8")
+      self.response.write_header("Content-Type", "text/javascript")
       
       # Security check
       if not self.jsonp_callback_pattern.match(callback_name):
