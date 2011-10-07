@@ -113,7 +113,7 @@ class MainController(rawr.Controller):
       rse_logger.warning('Could not authorize request. Server returned HTTP %d.', response.status)
       if (response.status / 100) == 4:
         raise HttpUnauthorized()
-      else
+      else:
         raise HttpBadGateway()
       
     # Cache good token to increase performance and reduce the load on Account Services
