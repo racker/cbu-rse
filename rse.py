@@ -111,7 +111,10 @@ class MainController(rawr.Controller):
     # Check whether the auth token was good
     if response.status != 200:
       rse_logger.warning('Could not authorize request. Server returned HTTP %d.', response.status)
-      raise HttpUnauthorized() if (response.status / 100) == 4 else HttpBadGateway()
+      if (response.status / 100) == 4:
+        raise HttpUnauthorized()
+      else
+        raise HttpBadGateway()
       
     # Cache good token to increase performance and reduce the load on Account Services
     self.mongo_db.authcache.insert(
