@@ -186,7 +186,7 @@ class MainController(rawr.Controller):
           last_id_record = self.mongo_db.events.find(
             fields=['_id'],
             sort=[('_id', pymongo.DESCENDING)],
-            limit=1, slave_okay=False) # Get from master to reduce chance of race condition
+            limit=1)
         
           try:
             next_id = last_id_record.next()['_id'] + 1
@@ -211,13 +211,16 @@ class MainController(rawr.Controller):
           except pymongo.errors.DuplicateKeyError:
             # Retry
             pass
+          except pymongo.errors.AutoReconnect:
+            rse_logger.error("AutoReconnect caught from insert")
+            raise
             
         # Success! No need to retry...
         break
 
       except Exception as ex:
         rse_logger.error(str(ex))
-        
+        rse_logger.error("Retry %d of %d. Details: %s" % (i, num_retries, str(ex))) 
         if i == num_retries - 1: # Don't retry forever!
           # Critical error (retrying probably won't help)
           raise HttpInternalServerError()
@@ -356,7 +359,8 @@ class RseApplication(rawr.Rawr):
       rse_logger.addHandler(handler)
     
     # Have one global connection to the DB across all handlers (pymongo manages its own connection pool)
-    connection = pymongo.Connection(config.get('mongodb', 'uri'))
+    # WARNING: Even if you set slaveok in the URI, you must also set the param in the Connection constructor
+    connection = pymongo.Connection(config.get('mongodb', 'uri'), slaveok=True)
     mongo_db = connection[config.get('mongodb', 'database')]
     
     # Initialize collections
