@@ -110,7 +110,7 @@ class MainController(rawr.Controller):
       
     # Check whether the auth token was good
     if response.status != 200:
-      rse_logger.warning('Could not authorize request. Server returned HTTP %d.', response.status)
+      rse_logger.warning('Could not authorize request. Server returned HTTP %d for "%s".' % (response.status, auth_token))
       if (response.status / 100) == 4:
         raise HttpUnauthorized()
       else:
