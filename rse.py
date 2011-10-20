@@ -360,7 +360,13 @@ class RseApplication(rawr.Rawr):
     mongo_db = connection[config.get('mongodb', 'database')]
     
     # Initialize collections
-    mongo_db.events.ensure_index([('uuid', pymongo.ASCENDING), ('channel', pymongo.ASCENDING)])
+    for i in range(10):
+      try:
+        mongo_db.events.ensure_index([('uuid', pymongo.ASCENDING), ('channel', pymongo.ASCENDING)])
+        break
+      except pymongo.errors.AutoReconnect:
+        time.sleep(1)
+
     if not mongo_db.counters.find_one({'_id': 'event_id'}):
       mongo_db.counters.insert({'_id': 'event_id', 'c': 0})
     
