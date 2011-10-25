@@ -148,14 +148,15 @@ class MainController(rawr.Controller):
     sort_order = long(self.request.get_optional_param("sort", pymongo.ASCENDING))
 
     events = self.mongo_db.events.find(
-      fields=['_id', 'user_agent', 'created_at', 'data'],
+      fields=['_id', 'user_agent', 'created_at', 'data', 'channel'],
       sort=[('_id', sort_order)])
       
     entries_serialized = "\"No events\"" if not events else ",\n".join([
-      '{"id":%d,"user_agent":"%s","created_at":"%s","data":%s}'
+      '{"id":%d,"user_agent":"%s","channel":"%s","created_at":"%s","data":%s}'
       % (
       event['_id'],
       event['user_agent'],
+      event['channel'],
       event['created_at'].strftime("%Y-%m-%d %H:%M:%SZ"),
       event['data'])
       for event in events])
