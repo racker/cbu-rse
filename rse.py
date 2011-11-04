@@ -69,27 +69,6 @@ class HealthController(rawr.Controller):
     self.mongo_db_connection = mongo_db.connection # MongoDB connection for storing events
     self.test_mode = test_mode # If true, relax auth/uuid requirements
 
-    self.report_template = '''{
-  "health": {
-    "auth_api": {
-      "url": "%s/v1.0/auth/isauthenticated",
-      "status": "%s"
-    },
-    "db": {
-      "host": "%s",
-      "port": "%d",
-      "nodes": "%s",
-      "slave_okay": 
-    =============
-Health Report
-=============
-[PASS] Auth API: %s
-[FAIL] Mongo DB: %s
-
-{
-  
-}
-'''
   def _basic_health_check(self):
     # Check our auth endpoint    
     try:
@@ -148,7 +127,7 @@ Health Report
       "rse": {
         "test_mode": self.test_mode,
         "events": active_events
-      }
+      },
       "auth": {
         "url": "%s://%s/v1.0/auth/isauthenticated" % ("https" if self.accountsvc_https else "http", self.accountsvc_host),        
         "online": auth_online,
@@ -158,22 +137,24 @@ Health Report
       "mongodb": {
         "host": self.mongo_db_connection.host,
         "port": self.mongo_db_connection.port,
-        "nodes": self.mongo_db_connection.nodes,
+        "nodes": [n for n in self.mongo_db_connection.nodes],
         "online": db_online,
         "error": db_error_message,
         "database": self.mongo_db.name,
         "collection": {
           "name": "events",
-          "integrity": validation_info
+          "integrity": validation_info,
+          #"profiling": profile_info
         },
         "slave_okay": self.mongo_db_connection.slave_okay,
         "safe": self.mongo_db_connection.safe,
-        "server_info": self.mongo_db_connection.server_info
+        "server_info": self.mongo_db_connection.server_info()
       }
     })
   
   def get(self):
-    if self.request.get_optional_param("echo") == "true":
+    if self.request.get_optional_param("verbose") == "true":
+      self.response.write_header("Content-Type", "application/json; charset=utf-8")
       self.response.write(self._create_report(self.request.get_optional_param("profile_db") == "true"))
     elif self._basic_health_check():
       self.response.write("OK\n")
@@ -184,7 +165,7 @@ class MainController(rawr.Controller):
   """Provides all RSE functionality"""
   
   # Speeds up member variable access
-  __slots__ = ['accountsvc_host', 'accountsvc_https', 'mongo_db', 'test_mode', 'jsonp_callback_pattern']
+  __slots__ = ['accountsvc_host', 'accountsvc_https', 'mongo_db', 'test_mode']
   
   def __init__(self, accountsvc_host, accountsvc_https, mongo_db, test_mode = False):
     self.accountsvc_host = accountsvc_host # Account services host for authenticating requests
@@ -284,7 +265,7 @@ class MainController(rawr.Controller):
       for event in events])
       
     self.response.write_header("Content-Type", "application/json; charset=utf-8")
-    self.response.write("[%s]" % entries_serialized)
+    self.response.write("[%s]" % str(entries_serialized))
     return
 
   def _post(self, channel_name, data):
@@ -357,7 +338,7 @@ class MainController(rawr.Controller):
       self.response.write_header("Content-Type", "text/javascript")
       
       # Security check
-      if not self.jsonp_callback_pattern.match(callback_name):
+      if not jsonp_callback_pattern.match(callback_name):
         raise HttpBadRequest('Invalid callback name')
       
       self.response.write(callback_name)
