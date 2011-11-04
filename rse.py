@@ -29,6 +29,9 @@ import ConfigParser
 import io
 import httplib
 
+# Requires python 2.6 or better
+import json
+
 # These need to be installed (easy_install)
 import pymongo
 import argparse
@@ -49,13 +52,133 @@ local_config_path = os.path.join(dir_path, 'rse.conf')
 global_config_path = '/etc/rse.conf'
 default_config_path = os.path.join(dir_path, 'rse.default.conf')
 
-auth_ttl_sec = 60
+jsonp_callback_pattern = re.compile("\A[a-zA-Z0-9_]+\Z") # Regex for validating JSONP callback name
+auth_ttl_sec = 90
+
+health_auth_headers = {
+  'X-Auth-Token': 'HealthCheck'
+}
 
 class HealthController(rawr.Controller):
   """Provides web service health info"""
+
+  def __init__(self, accountsvc_host, accountsvc_https, mongo_db, test_mode):
+    self.accountsvc_host = accountsvc_host # Account services host for authenticating requests
+    self.accountsvc_https = accountsvc_https # Whether to use HTTPS for account services
+    self.mongo_db = mongo_db # MongoDB database for storing events
+    self.mongo_db_connection = mongo_db.connection # MongoDB connection for storing events
+    self.test_mode = test_mode # If true, relax auth/uuid requirements
+
+    self.report_template = '''{
+  "health": {
+    "auth_api": {
+      "url": "%s/v1.0/auth/isauthenticated",
+      "status": "%s"
+    },
+    "db": {
+      "host": "%s",
+      "port": "%d",
+      "nodes": "%s",
+      "slave_okay": 
+    =============
+Health Report
+=============
+[PASS] Auth API: %s
+[FAIL] Mongo DB: %s
+
+{
+  
+}
+'''
+  def _basic_health_check(self):
+    # Check our auth endpoint    
+    try:
+      accountsvc = httplib.HTTPSConnection(self.accountsvc_host) if self.accountsvc_https else httplib.HTTPConnection(self.accountsvc_host) 
+      accountsvc.request('GET', '/v1.0/auth/isauthenticated', None, health_auth_headers)
+      auth_response = accountsvc.getresponse()
+      if auth_response.status != 401:
+        return False
+    except Exception as ex:
+      return False
+    
+    try:
+      self.mongo_db.events.count()
+    except Exception as ex:
+      return False
+    
+    return True
+
+  def _create_report(self, profile_db):
+    # Check our auth endpoint
+   
+    auth_online = False
+    try:
+      accountsvc = httplib.HTTPSConnection(self.accountsvc_host) if self.accountsvc_https else httplib.HTTPConnection(self.accountsvc_host) 
+      accountsvc.request('GET', '/v1.0/auth/isauthenticated', None, health_auth_headers)
+      auth_response = accountsvc.getresponse()
+      if auth_response.status == 401:
+        auth_online = True
+        auth_error_message = "None"
+      else:
+        auth_error_message = "Auth endpoint returned HTTP %d instead of HTTP 401" % auth_response.status
+    except Exception as ex:
+      auth_error_message = str(ex)     
+    
+    validation_info = "N/A"
+    profile_info = "Pass profile_db=true to enable."
+    try:
+      active_events = self.mongo_db.events.count()
+      db_online = True
+      db_error_message = "None"     
+      
+      validation_info = self.mongo_db.validate_collection("events")
+
+      if profile_db:
+        self.mongo_db.set_profiling_level(pymongo.ALL)
+        time.sleep(2)
+        profile_info = self.mongo_db.profiling_info()
+        self.mongo_db.set_profiling_level(pymongo.OFF)
+
+    except Exception as ex:
+      active_events = -1
+      db_online = False
+      db_error_message = str(ex)     
+  
+    return json.dumps({
+      "rse": {
+        "test_mode": self.test_mode,
+        "events": active_events
+      }
+      "auth": {
+        "url": "%s://%s/v1.0/auth/isauthenticated" % ("https" if self.accountsvc_https else "http", self.accountsvc_host),        
+        "online": auth_online,
+        "error": auth_error_message,
+        "ttl": auth_ttl_sec
+      },
+      "mongodb": {
+        "host": self.mongo_db_connection.host,
+        "port": self.mongo_db_connection.port,
+        "nodes": self.mongo_db_connection.nodes,
+        "online": db_online,
+        "error": db_error_message,
+        "database": self.mongo_db.name,
+        "collection": {
+          "name": "events",
+          "integrity": validation_info
+        },
+        "slave_okay": self.mongo_db_connection.slave_okay,
+        "safe": self.mongo_db_connection.safe,
+        "server_info": self.mongo_db_connection.server_info
+      }
+    })
   
   def get(self):
-    self.response.write("Alive and kicking!\n")
+    if self.request.get_optional_param("echo") == "true":
+      self.response.write(self._create_report(self.request.get_optional_param("profile_db") == "true"))
+    elif self._basic_health_check():
+      self.response.write("OK\n")
+    else:
+      raise HttpError(503)    
     
 class MainController(rawr.Controller):
   """Provides all RSE functionality"""
@@ -66,8 +189,7 @@ class MainController(rawr.Controller):
   def __init__(self, accountsvc_host, accountsvc_https, mongo_db, test_mode = False):
     self.accountsvc_host = accountsvc_host # Account services host for authenticating requests
     self.accountsvc_https = accountsvc_https # Whether to use HTTPS for account services
-    self.mongo_db = mongo_db # MongoDB connection for storing events
-    self.jsonp_callback_pattern = re.compile("\A[a-zA-Z0-9_]+\Z") # Regex for validating JSONP callback name
+    self.mongo_db = mongo_db # MongoDB database for storing events
     self.test_mode = test_mode # If true, relax auth/uuid requirements
   
   def prepare(self):
@@ -246,7 +368,7 @@ class MainController(rawr.Controller):
 
     channel_name = self.request.path
     
-    if self.test_mode and channel_name == "/debug":
+    if self.test_mode and channel_name == "/all":
       self._debug_dump()
       return        
 
@@ -313,7 +435,7 @@ class MainController(rawr.Controller):
       self.response.write_header("Content-Type", "text/javascript")
       
       # Security check
-      if not self.jsonp_callback_pattern.match(callback_name):
+      if not jsonp_callback_pattern.match(callback_name):
         raise HttpBadRequest('Invalid callback name')
       
       self.response.write("%s({\"channel\":\"%s\", \"events\":[%s]});" % (callback_name, channel_name, str(entries_serialized)))
@@ -372,16 +494,18 @@ class RseApplication(rawr.Rawr):
       except pymongo.errors.AutoReconnect:
         time.sleep(1)
 
-    if not mongo_db.counters.find_one({'_id': 'event_id'}):
-      mongo_db.counters.insert({'_id': 'event_id', 'c': 0})
+    # No longer used since this method is prone to race conditions    
+    #if not mongo_db.counters.find_one({'_id': 'event_id'}):
+    #  mongo_db.counters.insert({'_id': 'event_id', 'c': 0})
     
     accountsvc_host = config.get('account-services', 'host')
     accountsvc_https = config.getboolean('account-services', 'https')
     test_mode = config.getboolean('rse', 'test')
   
     # Setup routes
-    self.add_route(r"/health$", HealthController),
-    self.add_route(r"/.+", MainController, dict(accountsvc_host=accountsvc_host, accountsvc_https=accountsvc_https, mongo_db=mongo_db, test_mode=test_mode))
+    options = dict(accountsvc_host=accountsvc_host, accountsvc_https=accountsvc_https, mongo_db=mongo_db, test_mode=test_mode)
+    self.add_route(r"/health$", HealthController, options)
+    self.add_route(r"/.+", MainController, options)
 
 # WSGI app
 app = RseApplication() 
