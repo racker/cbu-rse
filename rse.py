@@ -143,7 +143,7 @@ class HealthController(rawr.Controller):
         "database": self.mongo_db.name,
         "collection": {
           "name": "events",
-          "integrity": validation_info,
+          "integrity": validation_info
           #"profiling": profile_info
         },
         "slave_okay": self.mongo_db_connection.slave_okay,
