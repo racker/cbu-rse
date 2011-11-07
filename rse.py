@@ -157,8 +157,9 @@ class HealthController(rawr.Controller):
     if self.request.get_optional_param("verbose") == "true":
       self.response.write_header("Content-Type", "application/json; charset=utf-8")
       self.response.write(
-        self._create_report(self.request.get_optional_param("profile_db") == "true")
-        self._create_report(self.request.get_optional_param("validate_db") == "true"))
+        self._create_report(
+          self.request.get_optional_param("profile_db") == "true",
+          self.request.get_optional_param("validate_db") == "true"))
     elif self._basic_health_check():
       self.response.write("OK\n")
     else:
