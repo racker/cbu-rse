@@ -87,7 +87,7 @@ class HealthController(rawr.Controller):
     
     return True
 
-  def _create_report(self, profile_db):
+  def _create_report(self, profile_db, validate_db):
     # Check our auth endpoint
    
     auth_online = False
@@ -103,14 +103,15 @@ class HealthController(rawr.Controller):
     except Exception as ex:
       auth_error_message = str(ex)     
     
-    validation_info = "N/A"
-    profile_info = "Pass profile_db=true to enable."
+    validation_info = "N/A. Pass validate_db=true to enable."
+    profile_info = "N/A. Pass profile_db=true to enable."
     try:
       active_events = self.mongo_db.events.count()
       db_online = True
       db_error_message = "None"     
       
-      validation_info = self.mongo_db.validate_collection("events")
+      if validate_db:
+        validation_info = self.mongo_db.validate_collection("events")
 
       if profile_db:
         self.mongo_db.set_profiling_level(pymongo.ALL)
@@ -155,7 +156,9 @@ class HealthController(rawr.Controller):
   def get(self):
     if self.request.get_optional_param("verbose") == "true":
       self.response.write_header("Content-Type", "application/json; charset=utf-8")
-      self.response.write(self._create_report(self.request.get_optional_param("profile_db") == "true"))
+      self.response.write(
+        self._create_report(self.request.get_optional_param("profile_db") == "true")
+        self._create_report(self.request.get_optional_param("validate_db") == "true"))
     elif self._basic_health_check():
       self.response.write("OK\n")
     else:
