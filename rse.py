@@ -245,7 +245,7 @@ class MainController(rawr.Controller):
         return "550e8400-dead-beef-dead-446655440000"
       else:
         raise HttpBadRequest('Missing UUID in User-Agent header')
-    
+  
   def _debug_dump(self):
 
     sort_order = long(self.request.get_optional_param("sort", pymongo.ASCENDING))
@@ -255,12 +255,13 @@ class MainController(rawr.Controller):
       sort=[('_id', sort_order)])
       
     entries_serialized = "\"No events\"" if not events else ",\n".join([
-      '{"id":%d,"user_agent":"%s","channel":"%s","created_at":"%s","data":%s}'
+      '{"id":%d,"user_agent":"%s","channel":"%s","created_at":"%s","age":%d,"data":%s}'
       % (
       event['_id'],
       event['user_agent'],
       event['channel'],
       event['created_at'].strftime("%Y-%m-%d %H:%M:%SZ"),
+      (datetime.datetime.utcnow() - event['created_at']).seconds, #<--- Assumes nothing is older than a day
       event['data'])
       for event in events])
       
@@ -401,11 +402,12 @@ class MainController(rawr.Controller):
 
     # http://www.skymind.com/~ocrow/python_string/
     entries_serialized = "" if not events else ",".join([
-      '{"id":%d,"user_agent":"%s","created_at":"%s","data":%s}'
+      '{"id":%d,"user_agent":"%s","created_at":"%s","age":%d,"data":%s}'
       % (
       event['_id'],
       event['user_agent'],
       event['created_at'].strftime("%Y-%m-%d %H:%M:%SZ"),
+      (datetime.datetime.utcnow() - event['created_at']).seconds, #<--- Assumes nothing is older than a day
       event['data'])
       for event in events])
 
