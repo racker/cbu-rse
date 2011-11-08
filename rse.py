@@ -72,8 +72,8 @@ class HealthController(rawr.Controller):
   def _basic_health_check(self):
     # Check our auth endpoint    
     try:
-      accountsvc = httplib.HTTPSConnection(self.accountsvc_host) if self.accountsvc_https else httplib.HTTPConnection(self.accountsvc_host) 
-      accountsvc.request('GET', '/v1.0/auth/isauthenticated', None, health_auth_headers)
+      accountsvc = httplib.HTTPSConnection(self.accountsvc_host, timeout=2) if self.accountsvc_https else httplib.HTTPConnection(self.accountsvc_host, timeout=2) 
+      accountsvc.request('GET', '/v1.0/help/developerguide', None, health_auth_headers)
       auth_response = accountsvc.getresponse()
       if auth_response.status != 401:
         return False
@@ -90,26 +90,38 @@ class HealthController(rawr.Controller):
   def _create_report(self, profile_db, validate_db):
     # Check our auth endpoint
    
+    auth_error_message = "N/A"
     auth_online = False
     try:
+      auth_test_start = datetime.datetime.utcnow()
+
       accountsvc = httplib.HTTPSConnection(self.accountsvc_host) if self.accountsvc_https else httplib.HTTPConnection(self.accountsvc_host) 
       accountsvc.request('GET', '/v1.0/auth/isauthenticated', None, health_auth_headers)
       auth_response = accountsvc.getresponse()
+
       if auth_response.status == 401:
         auth_online = True
-        auth_error_message = "None"
+
+        auth_test_duration = (datetime.datetime.utcnow() - auth_test_start).seconds          
+        if auth_test_duration > 2:
+          auth_error_message = "WARNING: Auth endpoint is slow (%d seconds)" % auth_test_duration
       else:
         auth_error_message = "Auth endpoint returned HTTP %d instead of HTTP 401" % auth_response.status
     except Exception as ex:
-      auth_error_message = str(ex)     
+      auth_error_message = str(ex)          
     
     validation_info = "N/A. Pass validate_db=true to enable."
     profile_info = "N/A. Pass profile_db=true to enable."
+    db_error_message = "N/A"
     try:
+      db_test_start = datetime.datetime.utcnow()
       active_events = self.mongo_db.events.count()
+      db_test_duration = (datetime.datetime.utcnow() - db_test_start).seconds          
+
       db_online = True
-      db_error_message = "None"     
-      
+      if db_test_duration > 1:
+          db_error_message = "WARNING: DB is slow (%d seconds)" % db_test_duration
+          
       if validate_db:
         validation_info = self.mongo_db.validate_collection("events")
 
@@ -118,6 +130,10 @@ class HealthController(rawr.Controller):
         time.sleep(2)
         profile_info = self.mongo_db.profiling_info()
         self.mongo_db.set_profiling_level(pymongo.OFF)
+
+    auth_test_duration = (datetime.datetime.utcnow() - auth_test_start).seconds  
+    if auth_test_duration > 2:
+      auth_error_message = "WARNING: Auth endpoint is slow (%d seconds)" % auth_test_duration
 
     except Exception as ex:
       active_events = -1
