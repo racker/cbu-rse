@@ -51,7 +51,8 @@ dir_path = os.path.dirname(path)
 local_config_path = os.path.join(dir_path, 'rse.conf')
 global_config_path = '/etc/rse.conf'
 default_config_path = os.path.join(dir_path, 'rse.default.conf')
-
+auth_endpoint = '/v1.0/auth/isauthenticated'
+auth_health_endpoint = '/v1.0/help/developerguide'
 jsonp_callback_pattern = re.compile("\A[a-zA-Z0-9_]+\Z") # Regex for validating JSONP callback name
 auth_ttl_sec = 90
 
@@ -73,9 +74,9 @@ class HealthController(rawr.Controller):
     # Check our auth endpoint    
     try:
       accountsvc = httplib.HTTPSConnection(self.accountsvc_host, timeout=2) if self.accountsvc_https else httplib.HTTPConnection(self.accountsvc_host, timeout=2) 
-      accountsvc.request('GET', '/v1.0/help/developerguide', None, health_auth_headers)
+      accountsvc.request('GET', auth_health_endpoint, None, health_auth_headers)
       auth_response = accountsvc.getresponse()
-      if auth_response.status != 401:
+      if auth_response.status != 200:
         return False
     except Exception as ex:
       return False
@@ -96,7 +97,7 @@ class HealthController(rawr.Controller):
       auth_test_start = datetime.datetime.utcnow()
 
       accountsvc = httplib.HTTPSConnection(self.accountsvc_host) if self.accountsvc_https else httplib.HTTPConnection(self.accountsvc_host) 
-      accountsvc.request('GET', '/v1.0/auth/isauthenticated', None, health_auth_headers)
+      accountsvc.request('GET', auth_endpoint, None, health_auth_headers)
       auth_response = accountsvc.getresponse()
 
       if auth_response.status == 401:
@@ -131,10 +132,6 @@ class HealthController(rawr.Controller):
         profile_info = self.mongo_db.profiling_info()
         self.mongo_db.set_profiling_level(pymongo.OFF)
 
-    auth_test_duration = (datetime.datetime.utcnow() - auth_test_start).seconds  
-    if auth_test_duration > 2:
-      auth_error_message = "WARNING: Auth endpoint is slow (%d seconds)" % auth_test_duration
-
     except Exception as ex:
       active_events = -1
       db_online = False
@@ -146,7 +143,7 @@ class HealthController(rawr.Controller):
         "events": active_events
       },
       "auth": {
-        "url": "%s://%s/v1.0/auth/isauthenticated" % ("https" if self.accountsvc_https else "http", self.accountsvc_host),        
+        "url": "%s://%s%s" % ("https" if self.accountsvc_https else "http", self.accountsvc_host, auth_endpoint),        
         "online": auth_online,
         "error": auth_error_message,
         "ttl": auth_ttl_sec
@@ -225,7 +222,7 @@ class MainController(rawr.Controller):
     # Proxy authentication to the Account Services API
     try:
       accountsvc = httplib.HTTPSConnection(self.accountsvc_host) if self.accountsvc_https else httplib.HTTPConnection(self.accountsvc_host) 
-      accountsvc.request('GET', '/v1.0/auth/isauthenticated', None, headers)
+      accountsvc.request('GET', auth_endpoint, None, headers)
       response = accountsvc.getresponse()
     except Exception as ex:
       rse_logger.error(str(ex))
