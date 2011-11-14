@@ -294,15 +294,19 @@ class MainController(rawr.Controller):
     if not (json_validator.is_valid(data) and self._is_safe_user_agent(user_agent)):
       raise HttpBadRequest('Invalid JSON')
         
-    # Insert the new event into the DB
+    # Increment our fallback counter (don't use normally, because it's prone to race conditions)
+    self.mongo_db.counters.modify({'_id': 'last_known_id'}, {'$inc': {'c': 1}})
+        
+    # Insert the new event into the DB        
     num_retries = 30 # 30 seconds
     for i in range(num_retries):
       try:
-        # Don't use this approach - a POST going to a different instance
-        # may get the next counter, but end up inserting before we do (race 
-        # condition). This could lead to a client getting the larger _id and
-        # using it for last-known-id, effectively skipping the other event.
-        #counter = self.mongo_db.counters.find_and_modify({'_id': 'event_id'}, {'$inc': {'c': 1}})
+        # Don't use this approach for normal ID creation.
+        # A POST going to a different instance may get the next counter, but 
+        # end up inserting before we do (race condition). This could lead to 
+        # a client getting the larger _id and using it for last-known-id, 
+        # effectively skipping the other event.
+        # counter = self.mongo_db.counters.find_and_modify({'_id': 'event_id'}, {'$inc': {'c': 1}})
         
         while (True):
           last_id_record = self.mongo_db.events.find(
@@ -314,7 +318,8 @@ class MainController(rawr.Controller):
             next_id = last_id_record.next()['_id'] + 1
           except:
             # No records found (basis case)
-            next_id = 1
+            rse_logger.warning("No events. Falling back to global counter.")
+            next_id = self.mongo_db.counters.find({'_id': 'last_known_id'})['c']
         
           # Most of the time this will succeed, unless a different instance
           # beat us to the bunch, in which case, we'll just try again
@@ -494,9 +499,9 @@ class RseApplication(rawr.Rawr):
       except pymongo.errors.AutoReconnect:
         time.sleep(1)
 
-    # No longer used since this method is prone to race conditions    
-    #if not mongo_db.counters.find_one({'_id': 'event_id'}):
-    #  mongo_db.counters.insert({'_id': 'event_id', 'c': 0})
+    # Only used for fallback if we don't have any events to use for the ID
+    if not mongo_db.counters.find_one({'_id': 'last_known_id'}):
+      mongo_db.counters.insert({'_id': 'last_known_id', 'c': 1})
     
     accountsvc_host = config.get('account-services', 'host')
     accountsvc_https = config.getboolean('account-services', 'https')
