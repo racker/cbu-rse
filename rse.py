@@ -295,7 +295,7 @@ class MainController(rawr.Controller):
       raise HttpBadRequest('Invalid JSON')
         
     # Increment our fallback counter (don't use normally, because it's prone to race conditions)
-    self.mongo_db.counters.modify({'_id': 'last_known_id'}, {'$inc': {'c': 1}})
+    self.mongo_db.counters.update({'_id': 'last_known_id'}, {'$inc': {'c': 1}})
         
     # Insert the new event into the DB        
     num_retries = 30 # 30 seconds
@@ -309,20 +309,20 @@ class MainController(rawr.Controller):
         # counter = self.mongo_db.counters.find_and_modify({'_id': 'event_id'}, {'$inc': {'c': 1}})
         
         while (True):
-          last_id_record = self.mongo_db.events.find(
+          last_id_record = self.mongo_db.events.find_one(
             fields=['_id'],
             sort=[('_id', pymongo.DESCENDING)],
             limit=1)
         
           try:
-            next_id = last_id_record.next()['_id'] + 1
+            next_id = last_id_record['_id'] + 1
           except:
             # No records found (basis case)
             rse_logger.warning("No events. Falling back to global counter.")
-            next_id = self.mongo_db.counters.find({'_id': 'last_known_id'})['c']
+            next_id = self.mongo_db.counters.find_one({'_id': 'last_known_id'})['c']
         
           # Most of the time this will succeed, unless a different instance
-          # beat us to the bunch, in which case, we'll just try again
+          # beat us to the punch, in which case, we'll just try again
           try:
             self.mongo_db.events.insert({
               "_id": next_id, 
