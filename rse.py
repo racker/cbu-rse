@@ -289,7 +289,8 @@ class MainController(rawr.Controller):
   def _create_parent_pattern(self, channel):
     channel_fixed = channel.replace("/", "(/")[1:]
     channel_fixed += ")?" * channel_fixed.count("(")
-    return re.compile(channel_fixed)
+    channel_fixed += "$"
+    return re.compile("^" + channel_fixed)
 
   def _post(self, channel_name, data):
     """Handles a client submitting a new event (the data parameter)"""
