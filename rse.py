@@ -285,6 +285,11 @@ class MainController(rawr.Controller):
     self.response.write_header("Content-Type", "application/json; charset=utf-8")
     self.response.write("[%s]" % str(entries_serialized))
     return
+    
+  def _create_parent_pattern(self, channel):
+    channel_fixed = channel.replace("/", "(/")[1:]
+    channel_fixed += ")?" * channel_fixed.count("(")
+    return re.compile(channel_fixed)
 
   def _post(self, channel_name, data):
     """Handles a client submitting a new event (the data parameter)"""
@@ -387,16 +392,16 @@ class MainController(rawr.Controller):
     max_events = min(500, int(self.request.get_optional_param("max-events", 200)))
     echo = (self.request.get_optional_param("echo") == "true")
     # Different values for "events" argument
-    #    all
-    #    parent
-    #    exact 
-    eventsfilter = self.request.get_optional_param("events") 
-    if eventsfilter == "all":
-      channel_req = re.compile("^" + channel_name + "/.+")
-    #elif eventsfilter == "parent":
-    #elif eventsfilter == "exact":
-    else:
-      channel_req = channel_name
+    #    all - Get all events for both main and sub channels (@todo Lock this down for Retail Release)
+    #    parent - Get anything that exactly matches the given sub channel, and each parent channel
+    #    exact - Only get events that exactly match the given channel (default)
+    filter_type = self.request.get_optional_param("events", "exact") 
+    if filter_type == "parent": # most common case first for speed
+      channel_pattern = self._create_parent_pattern(channel_name)
+    elif filter_type == "all":
+      channel_pattern = re.compile("^" + channel_name + "/.+")
+    else: # force "exact"
+      channel_pattern = channel_name
     
     # Get a list of events
     num_retries = 10
@@ -406,7 +411,7 @@ class MainController(rawr.Controller):
         uuid = ("e" if echo else self._parse_client_uuid(user_agent))
         
         events = self.mongo_db.events.find(
-          {'_id': {'$gt': last_known_id}, 'channel': channel_req, 'uuid': {'$ne': uuid}},
+          {'_id': {'$gt': last_known_id}, 'channel': channel_pattern, 'uuid': {'$ne': uuid}},
           fields=['_id', 'user_agent', 'created_at', 'data'],
           sort=[('_id', sort_order)],
 
@@ -500,6 +505,7 @@ class RseApplication(rawr.Rawr):
         time.sleep(1)
 
     # Only used for fallback if we don't have any events to use for the ID
+    # WARNING: Counter must start at a value greater than 0 per the RSE spec!
     if not mongo_db.counters.find_one({'_id': 'last_known_id'}):
       mongo_db.counters.insert({'_id': 'last_known_id', 'c': 1})
     
