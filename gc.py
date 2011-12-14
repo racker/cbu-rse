@@ -49,7 +49,12 @@ def main():
   parser.add_argument('--ttl', type=int, default=2*60 + 10, help="TTL, in seconds, for events. Should be just over 2x slowest client polling frequency (2 mins, 10 secs)")
   
   args = parser.parse_args()
-  remove_expired_events(args.mongodb_host, args.mongodb_port, args.mongodb_database, args.ttl)
+  for i in range(10):
+    try:
+      remove_expired_events(args.mongodb_host, args.mongodb_port, args.mongodb_database, args.ttl)
+      break
+    except pymongo.errors.AutoReconnect:
+      time.sleep(1)
 
 # If running this script directly, execute the "main" routine
 if __name__ == "__main__":
