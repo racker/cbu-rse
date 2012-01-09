@@ -114,6 +114,23 @@ class HealthController(rawr.Controller):
     validation_info = "N/A. Pass validate_db=true to enable."
     profile_info = "N/A. Pass profile_db=true to enable."
     db_error_message = "N/A"
+
+    try:
+      dbstats = self.mongo_db.command("serverStatus")
+      stat_uptime = dbstats['uptime']
+      stat_glLock_currQ_total = dbstats['globalLock']['currentQueue']['total']
+      stat_glLock_activeCli_total = dbstats['globalLock']['activeClients']['total']
+
+      stat_conns_curr = dbstats['connections']['current']
+      stat_net_numreq = dbstats['network']['numRequests']
+      stat_opcnters_cmd = dbstats['opcounters']['command']
+      
+      
+      
+    except Exception as ex:
+      db_error_message = str(ex)     
+
+
     try:
       db_test_start = datetime.datetime.utcnow()
       active_events = self.mongo_db.events.count()
@@ -149,6 +166,14 @@ class HealthController(rawr.Controller):
         "ttl": auth_ttl_sec
       },
       "mongodb": {
+        "DB_DEBUG_Stats": str(dbstats),
+        "DB_Uptime": str(stat_uptime),
+        "DB_Globallock_CurrQ_Total": str(stat_glLock_currQ_total),
+        "DB_Globallock_ActiveCli_Total": str(stat_glLock_activeCli_total),
+        "DB_Conns_Curr": str(stat_conns_curr),
+        "DB_Net_Numreq": str(stat_net_numreq),
+        "DB_Opcnters_Cmd": str(stat_opcnters_cmd),
+
         "host": self.mongo_db_connection.host,
         "port": self.mongo_db_connection.port,
         "nodes": [n for n in self.mongo_db_connection.nodes],
