@@ -118,6 +118,12 @@ class HealthController(rawr.Controller):
     try:
       #dbstats is in JSON format. Retrieve individual item like dbstats['globalLock']['currentQueue']
       dbstats = self.mongo_db.command("serverStatus")
+
+      #Collection stats is in JSON format. docu on stat items:
+      # http://www.mongodb.org/display/DOCS/collStats+Command
+      collstats_events = self.mongo_db.command({"collStats":"events"})
+
+
       db_test_start = datetime.datetime.utcnow()
       active_events = self.mongo_db.events.count()
       db_test_duration = (datetime.datetime.utcnow() - db_test_start).seconds          
@@ -153,7 +159,7 @@ class HealthController(rawr.Controller):
       },
       "mongodb": {
         "DB_Stats": str(dbstats),
-
+        "Coll_events_Stats": str(collstats_events),
         "host": self.mongo_db_connection.host,
         "port": self.mongo_db_connection.port,
         "nodes": [n for n in self.mongo_db_connection.nodes],
