@@ -116,21 +116,8 @@ class HealthController(rawr.Controller):
     db_error_message = "N/A"
 
     try:
+      #dbstats is in JSON format. Retrieve individual item like dbstats['globalLock']['currentQueue']
       dbstats = self.mongo_db.command("serverStatus")
-#      stat_uptime = dbstats['uptime']
-#      stat_glLock_currQ_total = dbstats['globalLock']['currentQueue']['total']
-#      stat_glLock_activeCli_total = dbstats['globalLock']['activeClients']['total']
-#      stat_conns_curr = dbstats['connections']['current']
-#      stat_net_numreq = dbstats['network']['numRequests']
-#      stat_opcnters_cmd = dbstats['opcounters']['command']
-      
-      
-      
-    except Exception as ex:
-      db_error_message = str(ex)     
-
-
-    try:
       db_test_start = datetime.datetime.utcnow()
       active_events = self.mongo_db.events.count()
       db_test_duration = (datetime.datetime.utcnow() - db_test_start).seconds          
@@ -166,12 +153,6 @@ class HealthController(rawr.Controller):
       },
       "mongodb": {
         "DB_Stats": str(dbstats),
-#        "DB_Uptime": str(stat_uptime),
-#        "DB_Globallock_CurrQ_Total": str(stat_glLock_currQ_total),
-#        "DB_Globallock_ActiveCli_Total": str(stat_glLock_activeCli_total),
-#        "DB_Conns_Curr": str(stat_conns_curr),
-#        "DB_Net_Numreq": str(stat_net_numreq),
-#        "DB_Opcnters_Cmd": str(stat_opcnters_cmd),
 
         "host": self.mongo_db_connection.host,
         "port": self.mongo_db_connection.port,
