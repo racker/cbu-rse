@@ -158,8 +158,113 @@ class HealthController(rawr.Controller):
         "ttl": auth_ttl_sec
       },
       "mongodb": {
-        "DB_Stats": str(dbstats),
-        "Coll_events_Stats": str(collstats_events),
+        "stats": {
+          "backgroundFlushing" : {
+            "last_finished" : str(dbstats['backgroundFlushing']['last_finished']),
+            "last_ms" : str (dbstats['backgroundFlushing']['last_ms']),
+            "flushes" : str (dbstats['backgroundFlushing']['flushes']),
+            "average_ms" : str (dbstats['backgroundFlushing']['average_ms']),
+            "total_ms" : str (dbstats['backgroundFlushing']['total_ms'])
+          },
+          "connections" : {
+            "current" : str(dbstats['connections']['current']),
+            "available" : str(dbstats['connections']['available'])
+          },
+          "uptime" : str(dbstats['uptime']),
+          "ok" : str(dbstats['ok']),
+          "network" : {
+            "numRequests" : str(dbstats['network']['numRequests']),
+            "bytesOut" : str(dbstats['network']['bytesOut']),
+            "bytesIn" : str(dbstats['network']['bytesIn'])
+          },
+          "opcounters" : {
+            "getmore" : str(dbstats['opcounters']['getmore']),
+            "insert" : str(dbstats['opcounters']['insert']),
+            "update" : str(dbstats['opcounters']['update']),
+            "command" : str(dbstats['opcounters']['command']),
+            "query" : str(dbstats['opcounters']['query']),
+            "delete" : str(dbstats['opcounters']['delete'])
+          },
+          "process" : str(dbstats['process']),
+          "asserts" : {
+            "msg" : str(dbstats['asserts']['msg']),
+            "rollovers" : str(dbstats['asserts']['rollovers']),
+            "regular" : str(dbstats['asserts']['regular']),
+            "warning" : str(dbstats['asserts']['warning']),
+            "user" : str(dbstats['asserts']['user'])
+          },
+          "uptimeEstimate" : str(dbstats['uptimeEstimate']),
+          "mem" : {
+            "resident" : str(dbstats['mem']['resident']),
+            "supported" : str(dbstats['mem']['supported']),
+            "virtual" : str(dbstats['mem']['virtual']),
+            "mappedWithJournal" : str(dbstats['mem']['mappedWithJournal']),
+            "mapped" : str(dbstats['mem']['mapped']),
+            "bits" : str(dbstats['mem']['bits'])
+          },
+          "host" : str(dbstats['host']),
+          "version" : str(dbstats['version']),
+          "cursors" : {
+            "clientCursors_size" : str(dbstats['cursors']['clientCursors_size']),
+            "timedOut" : str(dbstats['cursors']['timedOut']),
+            "totalOpen" : str(dbstats['cursors']['totalOpen'])
+          },
+          "writeBacksQueued" : str(dbstats['writeBacksQueued']),
+          "globalLock" : {
+            "totalTime" : str(dbstats['globalLock']['totalTime']),
+            "currentQueue" : {
+              "total" : str(dbstats['globalLock']['currentQueue']['total']),
+              "writers" : str(dbstats['globalLock']['currentQueue']['writers']),
+              "readers" : str(dbstats['globalLock']['currentQueue']['readers'])
+            },
+            "lockTime" : str(dbstats['globalLock']['lockTime']),
+            "ratio" : str(dbstats['globalLock']['ratio']),
+            "activeClients" : {
+              "total" : str(dbstats['globalLock']['activeClients']['total']),
+              "writers" : str(dbstats['globalLock']['activeClients']['writers']),
+              "readers" : str(dbstats['globalLock']['activeClients']['readers'])
+            }
+          },
+          "extra_info" : {
+            "note" : str(dbstats['extra_info']['note']),
+            "page_faults" : str(dbstats['extra_info']['page_faults']),
+            "heap_usage_bytes" : str(dbstats['extra_info']['heap_usage_bytes'])
+          },
+          "dur" : {
+            "compression" : str(dbstats['dur']['compression']),
+            "journaledMB" : str(dbstats['dur']['journaledMB']),
+            "commits" : str(dbstats['dur']['commits']),
+            "writeToDataFilesMB" : str(dbstats['dur']['writeToDataFilesMB']),
+            "commitsInWriteLock" : str(dbstats['dur']['commitsInWriteLock']),
+            "earlyCommits" : str(dbstats['dur']['earlyCommits']),
+            "timeMs" : {
+              "writeToJournal" : str(dbstats['dur']['timeMs']['writeToJournal']),
+              "dt" : str(dbstats['dur']['timeMs']['dt']),
+              "remapPrivateView" : str(dbstats['dur']['timeMs']['remapPrivateView']),
+              "prepLogBuffer" : str(dbstats['dur']['timeMs']['prepLogBuffer']),
+              "writeToDataFiles" : str(dbstats['dur']['timeMs']['writeToDataFiles'])
+            }
+          },
+          "localTime" : str(dbstats['localTime'])
+        },
+        "Coll_events_Stats": {
+          "count" : str(collstats_events['count']),
+          "ns" : str(collstats_events['ns']),
+          "ok" : str(collstats_events['ok']),
+          "lastExtentSize" : str(collstats_events['lastExtentSize']),
+          "avgObjSize" : str(collstats_events['avgObjSize']),
+          "totalIndexSize" : str(collstats_events['totalIndexSize']),
+          "flags" : str(collstats_events['flags']),
+          "numExtents" : str(collstats_events['numExtents']),
+          "nindexes" : str(collstats_events['nindexes']),
+          "storageSize" : str(collstats_events['storageSize']),
+          "paddingFactor" : str(collstats_events['paddingFactor']),
+          "indexSizes" : {
+            "_id_" : str(collstats_events['indexSizes']['_id_']),
+            "uuid_1_channel_1" : str(collstats_events['indexSizes']['uuid_1_channel_1'])
+          },
+          "size" : str(collstats_events['size'])
+        },
         "host": self.mongo_db_connection.host,
         "port": self.mongo_db_connection.port,
         "nodes": [n for n in self.mongo_db_connection.nodes],
