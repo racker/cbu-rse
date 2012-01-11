@@ -123,6 +123,20 @@ class HealthController(rawr.Controller):
       # http://www.mongodb.org/display/DOCS/collStats+Command
       collstats_events = self.mongo_db.command({"collStats":"events"})
 
+      self.mongo_db.events.ensure_index('created_at', pymongo.ASCENDING)
+      find_retval = self.mongo_db.events.find(
+        sort = [('created_at',pymongo.ASCENDING)],
+        limit = 1)
+      collstats_events_max = "none"
+      if find_retval:
+        collstats_events_max = find_retval[0]
+
+      find_retval = self.mongo_db.events.find(
+        sort = [('created_at',pymongo.DESCENDING)],
+        limit = 1)
+      collstats_events_min = "none"
+      if find_retval:
+        collstats_events_min = find_retval[0]
 
       db_test_start = datetime.datetime.utcnow()
       active_events = self.mongo_db.events.count()
@@ -265,6 +279,8 @@ class HealthController(rawr.Controller):
           },
           "size" : str(collstats_events['size'])
         },
+        "Age_Max" : str(collstats_events_max), 
+        "Age_Min" : str(collstats_events_min), 
         "host": self.mongo_db_connection.host,
         "port": self.mongo_db_connection.port,
         "nodes": [n for n in self.mongo_db_connection.nodes],
