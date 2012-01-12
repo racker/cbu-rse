@@ -261,7 +261,7 @@ class HealthController(rawr.Controller):
           },
           "localTime" : str(dbstats['localTime'])
         },
-        "Coll_events_Stats": {
+        "coll_events_stats": {
           "count" : str(collstats_events['count']),
           "ns" : str(collstats_events['ns']),
           "ok" : str(collstats_events['ok']),
@@ -278,8 +278,8 @@ class HealthController(rawr.Controller):
             "uuid_1_channel_1" : str(collstats_events['indexSizes']['uuid_1_channel_1'])
           },
           "size" : str(collstats_events['size']),
-          "Age_Max" : str(collstats_events_max), 
-          "Age_Min" : str(collstats_events_min) 
+          "age_max" : str(collstats_events_max), 
+          "age_min" : str(collstats_events_min) 
         },
         "host": self.mongo_db_connection.host,
         "port": self.mongo_db_connection.port,
