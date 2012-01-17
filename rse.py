@@ -109,7 +109,7 @@ class HealthController(rawr.Controller):
       else:
         auth_error_message = "Auth endpoint returned HTTP %d instead of HTTP 401" % auth_response.status
     except Exception as ex:
-      auth_error_message = unicode(ex).encode("utf-8")          
+      auth_error_message = str(ex)          
     
     validation_info = "N/A. Pass validate_db=true to enable."
     profile_info = "N/A. Pass profile_db=true to enable."
@@ -158,7 +158,7 @@ class HealthController(rawr.Controller):
     except Exception as ex:
       active_events = -1
       db_online = False
-      db_error_message = unicode(ex).encode("utf-8")
+      db_error_message = str(ex)     
   
     return json.dumps({
       "rse": {
@@ -341,7 +341,7 @@ class MainController(rawr.Controller):
      
     except Exception as ex:
       # Oh well. Log the error and proceed as if no cached authentication
-      rse_logger.error(unicode(ex).encode("utf-8")
+      rse_logger.error(str(ex))
 
     if auth_record:
       # They are OK for the moment
@@ -357,7 +357,7 @@ class MainController(rawr.Controller):
       accountsvc.request('GET', auth_endpoint, None, headers)
       response = accountsvc.getresponse()
     except Exception as ex:
-      rse_logger.error(unicode(ex).encode("utf-8"))
+      rse_logger.error(str(ex))
       raise HttpBadGateway()
       
     # Check whether the auth token was good
@@ -415,7 +415,7 @@ class MainController(rawr.Controller):
       for event in events])
       
     self.response.write_header("Content-Type", "application/json; charset=utf-8")
-    self.response.write("[%s]" % unicode(entries_serialized).encode("utf-8"))
+    self.response.write("[%s]" % str(entries_serialized))
     return
     
   def _create_parent_pattern(self, channel):
@@ -484,8 +484,8 @@ class MainController(rawr.Controller):
         break
 
       except Exception as ex:
-        rse_logger.error(unicode(ex).encode("utf-8"))
-        rse_logger.error("Retry %d of %d. Details: %s" % (i, num_retries, unicode(ex).encode("utf-8"))) 
+        rse_logger.error(str(ex))
+        rse_logger.error("Retry %d of %d. Details: %s" % (i, num_retries, str(ex))) 
         if i == num_retries - 1: # Don't retry forever!
           # Critical error (retrying probably won't help)
           raise HttpInternalServerError()
@@ -552,7 +552,7 @@ class MainController(rawr.Controller):
         break
       
       except Exception as ex:
-        rse_logger.error(unicode(ex).encode("utf-8"))
+        rse_logger.error(str(ex))
 
         if i == num_retries - 1: # Don't retry forever!
           # Critical error (retrying probably won't help)
@@ -581,7 +581,7 @@ class MainController(rawr.Controller):
       if not jsonp_callback_pattern.match(callback_name):
         raise HttpBadRequest('Invalid callback name')
       
-      self.response.write("%s({\"channel\":\"%s\", \"events\":[%s]});" % (callback_name, channel_name, unicode(entries_serialized).encode("utf-8")))
+      self.response.write("%s({\"channel\":\"%s\", \"events\":[%s]});" % (callback_name, channel_name, str(entries_serialized)))
     else:
       if not entries_serialized:
         self.response.set_status(204)
