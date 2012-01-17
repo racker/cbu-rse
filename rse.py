@@ -587,7 +587,7 @@ class MainController(rawr.Controller):
         self.response.set_status(204)
       else:
         self.response.write_header("Content-Type", "application/json; charset=utf-8")
-        self.response.write("{\"channel\":\"%s\", \"events\":[%s]}" % (channel_name, str(entries_serialized)))
+        self.response.write("{\"channel\":\"%s\", \"events\":[%s]}" % (channel_name, unicode(entries_serialized).encode("utf-8")))
   
   def post(self):
     """Handle a true HTTP POST event"""
