@@ -127,16 +127,21 @@ class HealthController(rawr.Controller):
       find_retval = self.mongo_db.events.find(
         sort = [('created_at',pymongo.ASCENDING)],
         limit = 1)
-      collstats_events_max = "none"
+      collstats_events_max = json.loads('{"created_at": "N/A"}')
+      collstats_events_max_data = json.loads('{"Event":"N/A"}')
       if find_retval:
         collstats_events_max = find_retval[0]
+        collstats_events_max_data = json.loads(collstats_events_max['data'])
+
 
       find_retval = self.mongo_db.events.find(
         sort = [('created_at',pymongo.DESCENDING)],
         limit = 1)
-      collstats_events_min = "none"
+      collstats_events_min = json.loads('{"created_at": "N/A"}')
+      collstats_events_min_data = json.loads('{"Event":"N/A"}')
       if find_retval:
         collstats_events_min = find_retval[0]
+        collstats_events_min_data = json.loads(collstats_events_min['data'])
 
       db_test_start = datetime.datetime.utcnow()
       active_events = self.mongo_db.events.count()
@@ -278,8 +283,14 @@ class HealthController(rawr.Controller):
             "uuid_1_channel_1" : str(collstats_events['indexSizes']['uuid_1_channel_1'])
           },
           "size" : str(collstats_events['size']),
-          "age_max" : str(collstats_events_max), 
-          "age_min" : str(collstats_events_min) 
+          "age_max" : { 
+            "created_at" : str(collstats_events_max['created_at']),
+            "Event" : str(collstats_events_max_data['Event'])
+          },
+          "age_min" : { 
+            "created_at" : str(collstats_events_min['created_at']),
+            "Event" : str(collstats_events_min_data['Event'])
+          }
         },
         "host": self.mongo_db_connection.host,
         "port": self.mongo_db_connection.port,
