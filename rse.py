@@ -110,6 +110,9 @@ class HealthController(rawr.Controller):
         auth_error_message = "Auth endpoint returned HTTP %d instead of HTTP 401" % auth_response.status
     except Exception as ex:
       auth_error_message = unicode(ex).encode("utf-8")          
+      return json.dumps({
+        "error": "Auth error, please check log"
+      })
     
     validation_info = "N/A. Pass validate_db=true to enable."
     profile_info = "N/A. Pass profile_db=true to enable."
@@ -164,6 +167,9 @@ class HealthController(rawr.Controller):
       active_events = -1
       db_online = False
       db_error_message = unicode(ex).encode("utf-8")     
+      return json.dumps({
+        "error": "DB error, please check log."
+      })
   
     return json.dumps({
       "rse": {
