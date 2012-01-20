@@ -535,6 +535,11 @@ class MainController(rawr.Controller):
     sort_order = long(self.request.get_optional_param("sort", pymongo.ASCENDING))
     max_events = min(500, int(self.request.get_optional_param("max-events", 200)))
     echo = (self.request.get_optional_param("echo") == "true")
+
+    # request parameter validation
+    if sort_order not in (pymongo.ASCENDING, pymongo.DESCENDING):
+      sort_order = pymongo.ASCENDING
+    
     # Different values for "events" argument
     #    all - Get all events for both main and sub channels (@todo Lock this down for Retail Release)
     #    parent - Get anything that exactly matches the given sub channel, and each parent channel
