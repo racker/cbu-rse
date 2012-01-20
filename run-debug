@@ -1,2 +1,2 @@
 cd /opt/rse
-/opt/python2.7/bin/gunicorn --log-level debug  -b unix:/tmp/rse.sock -w 1 --backlog 4096 --max-requests 10000 rse:app -p gunicorn.pid --log-file /var/log/gunicorn.log
+/opt/python2.7/bin/gunicorn --log-level debug  -b unix:/tmp/rse.sock -w 1 --backlog 4096 --max-requests 10000 rse:app -p gunicorn.pid 
