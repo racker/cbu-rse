@@ -52,7 +52,7 @@ local_config_path = os.path.join(dir_path, 'rse.conf')
 global_config_path = '/etc/rse.conf'
 default_config_path = os.path.join(dir_path, 'rse.default.conf')
 auth_endpoint = '/v1.0/auth/isauthenticated'
-auth_health_endpoint = '/v1.0/help/developerguide'
+auth_health_endpoint = '/v1.0/help/health'
 jsonp_callback_pattern = re.compile("\A[a-zA-Z0-9_]+\Z") # Regex for validating JSONP callback name
 auth_ttl_sec = 90
 
