@@ -228,7 +228,7 @@ class HealthController(rawr.Controller):
             "resident" : str(dbstats['mem']['resident']),
             "supported" : str(dbstats['mem']['supported']),
             "virtual" : str(dbstats['mem']['virtual']),
-            "mappedWithJournal" : str(dbstats['mem']['mappedWithJournal']),
+            #"mappedWithJournal" : str(dbstats['mem']['mappedWithJournal']),
             "mapped" : str(dbstats['mem']['mapped']),
             "bits" : str(dbstats['mem']['bits'])
           },
@@ -260,20 +260,20 @@ class HealthController(rawr.Controller):
             "page_faults" : str(dbstats['extra_info']['page_faults']),
             "heap_usage_bytes" : str(dbstats['extra_info']['heap_usage_bytes'])
           },
-          "dur" : {
-            "compression" : str(dbstats['dur']['compression']),
-            "journaledMB" : str(dbstats['dur']['journaledMB']),
-            "commits" : str(dbstats['dur']['commits']),
-            "writeToDataFilesMB" : str(dbstats['dur']['writeToDataFilesMB']),
-            "commitsInWriteLock" : str(dbstats['dur']['commitsInWriteLock']),
-            "earlyCommits" : str(dbstats['dur']['earlyCommits']),
-            "timeMs" : {
-              "writeToJournal" : str(dbstats['dur']['timeMs']['writeToJournal']),
-              "dt" : str(dbstats['dur']['timeMs']['dt']),
-              "remapPrivateView" : str(dbstats['dur']['timeMs']['remapPrivateView']),
-              "prepLogBuffer" : str(dbstats['dur']['timeMs']['prepLogBuffer']),
-              "writeToDataFiles" : str(dbstats['dur']['timeMs']['writeToDataFiles'])
-            }
+          #"dur" : {
+          #  "compression" : str(dbstats['dur']['compression']),
+          #  "journaledMB" : str(dbstats['dur']['journaledMB']),
+          #  "commits" : str(dbstats['dur']['commits']),
+          #  "writeToDataFilesMB" : str(dbstats['dur']['writeToDataFilesMB']),
+          #  "commitsInWriteLock" : str(dbstats['dur']['commitsInWriteLock']),
+          #  "earlyCommits" : str(dbstats['dur']['earlyCommits']),
+          #  "timeMs" : {
+          #    "writeToJournal" : str(dbstats['dur']['timeMs']['writeToJournal']),
+          #    "dt" : str(dbstats['dur']['timeMs']['dt']),
+          #    "remapPrivateView" : str(dbstats['dur']['timeMs']['remapPrivateView']),
+          #    "prepLogBuffer" : str(dbstats['dur']['timeMs']['prepLogBuffer']),
+          #    "writeToDataFiles" : str(dbstats['dur']['timeMs']['writeToDataFiles'])
+          #  }
           },
           "localTime" : str(dbstats['localTime'])
         },
