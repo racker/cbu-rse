@@ -274,7 +274,7 @@ class HealthController(rawr.Controller):
           #    "prepLogBuffer" : str(dbstats['dur']['timeMs']['prepLogBuffer']),
           #    "writeToDataFiles" : str(dbstats['dur']['timeMs']['writeToDataFiles'])
           #  }
-          },
+          #},
           "localTime" : str(dbstats['localTime'])
         },
         "coll_events_stats": {
