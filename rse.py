@@ -85,6 +85,7 @@ class HealthController(rawr.Controller):
       return False
     
     try:
+      # Important: This must work on secondaries (e.g., read-only slaves)
       self.mongo_db.events.count()
     except Exception as ex:
       return False
@@ -122,59 +123,67 @@ class HealthController(rawr.Controller):
     profile_info = "N/A. Pass profile_db=true to enable."
     db_error_message = "N/A"
 
-    try:
-      #dbstats is in JSON format. Retrieve individual item like dbstats['globalLock']['currentQueue']
-      dbstats = self.mongo_db.command("serverStatus")
+    for retry_counter in range(10):
+      try:
+        #dbstats is in JSON format. Retrieve individual item like dbstats['globalLock']['currentQueue']
+        dbstats = self.mongo_db.command("serverStatus")
 
-      #Collection stats is in JSON format. docu on stat items:
-      # http://www.mongodb.org/display/DOCS/collStats+Command
-      collstats_events = self.mongo_db.command({"collStats":"events"})
+        #Collection stats is in JSON format. docu on stat items:
+        # http://www.mongodb.org/display/DOCS/collStats+Command
+        collstats_events = self.mongo_db.command({"collStats":"events"})
 
-      self.mongo_db.events.ensure_index('created_at', pymongo.ASCENDING)
-      find_retval = self.mongo_db.events.find(
-        sort = [('created_at',pymongo.ASCENDING)],
-        limit = 1)
-      collstats_events_max = json.loads('{"created_at": "N/A"}')
-      collstats_events_max_data = json.loads('{"Event":"N/A"}')
-      if find_retval:
-        collstats_events_max = find_retval[0]
-        collstats_events_max_data = json.loads(collstats_events_max['data'])
+        self.mongo_db.events.ensure_index('created_at', pymongo.ASCENDING)
+        find_retval = self.mongo_db.events.find(
+          sort = [('created_at',pymongo.ASCENDING)],
+          limit = 1)
+        collstats_events_max = json.loads('{"created_at": "N/A"}')
+        collstats_events_max_data = json.loads('{"Event":"N/A"}')
+        
+        if find_retval:
+          collstats_events_max = find_retval[0]
+          collstats_events_max_data = json.loads(collstats_events_max['data'])
 
 
-      find_retval = self.mongo_db.events.find(
-        sort = [('created_at',pymongo.DESCENDING)],
-        limit = 1)
-      collstats_events_min = json.loads('{"created_at": "N/A"}')
-      collstats_events_min_data = json.loads('{"Event":"N/A"}')
-      if find_retval:
-        collstats_events_min = find_retval[0]
-        collstats_events_min_data = json.loads(collstats_events_min['data'])
+        find_retval = self.mongo_db.events.find(
+          sort = [('created_at',pymongo.DESCENDING)],
+          limit = 1)
+        collstats_events_min = json.loads('{"created_at": "N/A"}')
+        collstats_events_min_data = json.loads('{"Event":"N/A"}')
+        if find_retval:
+          collstats_events_min = find_retval[0]
+          collstats_events_min_data = json.loads(collstats_events_min['data'])
 
-      db_test_start = datetime.datetime.utcnow()
-      active_events = self.mongo_db.events.count()
-      db_test_duration = (datetime.datetime.utcnow() - db_test_start).seconds          
+        db_test_start = datetime.datetime.utcnow()
+        active_events = self.mongo_db.events.count()
+        db_test_duration = (datetime.datetime.utcnow() - db_test_start).seconds          
 
-      db_online = True
-      if db_test_duration > 1:
+        db_online = True
+        if db_test_duration > 1:
           db_error_message = "WARNING: DB is slow (%d seconds)" % db_test_duration
+            
+        if validate_db:
+          validation_info = self.mongo_db.validate_collection("events")
+
+        if profile_db:
+          self.mongo_db.set_profiling_level(pymongo.ALL)
+          time.sleep(2)
+          profile_info = self.mongo_db.profiling_info()
+          self.mongo_db.set_profiling_level(pymongo.OFF)
           
-      if validate_db:
-        validation_info = self.mongo_db.validate_collection("events")
+        break;
 
-      if profile_db:
-        self.mongo_db.set_profiling_level(pymongo.ALL)
-        time.sleep(2)
-        profile_info = self.mongo_db.profiling_info()
-        self.mongo_db.set_profiling_level(pymongo.OFF)
-
-    except Exception as ex:
-      active_events = -1
-      db_online = False
-      #db_error_message = unicode(ex).encode("utf-8")     
-      db_error_message = str_utf8(ex)
-      return json.dumps({
-        "error": "DB error, please check log."
-      })
+      except pymongo.errors.AutoReconnect:
+        rse_logger.error("AutoReconnect caught from stats query")
+        time.sleep(1)
+        
+      except Exception as ex:
+        active_events = -1
+        db_online = False
+        #db_error_message = unicode(ex).encode("utf-8")     
+        db_error_message = str_utf8(ex)
+        return json.dumps({
+          "error": "DB error, please check log."
+        })
   
     return json.dumps({
       "rse": {
