@@ -167,7 +167,8 @@ class HealthController(rawr.Controller):
         if profile_db:
           self.mongo_db.set_profiling_level(pymongo.ALL)
           time.sleep(2)
-          profile_info = self.mongo_db.profiling_info()
+          #profile_info = self.mongo_db.profiling_info()
+          profile_info = self.mongo_db.system.profile.find_one()
           self.mongo_db.set_profiling_level(pymongo.OFF)
           
         break;
@@ -318,10 +319,14 @@ class HealthController(rawr.Controller):
         "online": db_online,
         "error": db_error_message,
         "database": self.mongo_db.name,
+        "profiling":  {
+          "reponseLength": str(profile_info['responseLength']) if profile_db else "N/A",
+          "nreturned": str(profile_info['nreturned']) if profile_db else "N/A",
+          "nscanned": str(profile_info['nscanned']) if profile_db else "N/A",
+        },
         "collection": {
           "name": "events",
           "integrity": validation_info
-          #"profiling": profile_info
         },
         "slave_okay": self.mongo_db_connection.slave_okay,
         "safe": self.mongo_db_connection.safe,
