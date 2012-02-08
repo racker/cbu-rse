@@ -370,6 +370,7 @@ class MainController(rawr.Controller):
         raise HttpUnauthorized()
      
     # Read X-* headers
+    auth_record = None
     try:     
       # Check for non-expired, cached authentication
       auth_record = self.mongo_db.authcache.find_one(
