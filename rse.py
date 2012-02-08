@@ -157,7 +157,6 @@ class HealthController(rawr.Controller):
         active_events = self.mongo_db.events.count()
         db_test_duration = (datetime.datetime.utcnow() - db_test_start).seconds          
 
-        db_online = True
         if db_test_duration > 1:
           db_error_message = "WARNING: DB is slow (%d seconds)" % db_test_duration
             
@@ -171,6 +170,7 @@ class HealthController(rawr.Controller):
           profile_info = self.mongo_db.system.profile.find_one()
           self.mongo_db.set_profiling_level(pymongo.OFF)
           
+        db_online = True
         break;
 
       except pymongo.errors.AutoReconnect:
@@ -183,7 +183,7 @@ class HealthController(rawr.Controller):
         #db_error_message = unicode(ex).encode("utf-8")     
         db_error_message = str_utf8(ex)
         return json.dumps({
-          "error": "DB error, please check log."
+          "error": "DB error: %s" % (db_error_message)
         })
   
     return json.dumps({
@@ -525,7 +525,7 @@ class MainController(rawr.Controller):
 
       except Exception as ex:
         #rse_logger.error(unicode(ex).encode("utf-8"))
-        rse_logger.error(str_utf8(ex))
+        #rse_logger.error(str_utf8(ex))
         #rse_logger.error("Retry %d of %d. Details: %s" % (i, num_retries, unicode(ex).encode("utf-8"))) 
         rse_logger.error("Retry %d of %d. Details: %s" % (i, num_retries, str_utf8(ex))) 
         if i == num_retries - 1: # Don't retry forever!
