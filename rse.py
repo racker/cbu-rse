@@ -519,14 +519,14 @@ class MainController(rawr.Controller):
           except pymongo.errors.AutoReconnect:
             rse_logger.error("AutoReconnect caught from insert")
             raise
-            
+
         # Success! No need to retry...
         break
 
+      except HttpError as ex:
+        rse_logger.error(str_utf8(ex)) 
+        raise 
       except Exception as ex:
-        #rse_logger.error(unicode(ex).encode("utf-8"))
-        #rse_logger.error(str_utf8(ex))
-        #rse_logger.error("Retry %d of %d. Details: %s" % (i, num_retries, unicode(ex).encode("utf-8"))) 
         rse_logger.error("Retry %d of %d. Details: %s" % (i, num_retries, str_utf8(ex))) 
         if i == num_retries - 1: # Don't retry forever!
           # Critical error (retrying probably won't help)
