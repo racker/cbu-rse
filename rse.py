@@ -428,10 +428,14 @@ class MainController(rawr.Controller):
       else:
         raise HttpBadGateway()
       
-    # Cache good token to increase performance and reduce the load on Account Services
-    #self.mongo_db.authcache.insert(
-    #    {'auth_token': auth_token, 'expires': time.time() + auth_ttl_sec})
-    self.fastcache_authtoken.cache(auth_token)
+    try: 
+      # Cache good token to increase performance and reduce the load on Account Services
+      #self.mongo_db.authcache.insert(
+      #    {'auth_token': auth_token, 'expires': time.time() + auth_ttl_sec})
+      self.fastcache_authtoken.cache(auth_token)
+    except Exception as ex: 
+      rse_logger.error(str_utf8(ex))
+      
            
   
   def _is_safe_user_agent(self, user_agent):
