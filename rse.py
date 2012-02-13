@@ -136,6 +136,7 @@ class HealthController(rawr.Controller):
         find_retval = self.mongo_db.events.find(
           sort = [('created_at',pymongo.ASCENDING)],
           limit = 1)
+
         collstats_events_max = json.loads('{"created_at": "N/A"}')
         collstats_events_max_data = json.loads('{"Event":"N/A"}')
         
@@ -368,6 +369,10 @@ class MainController(rawr.Controller):
         # Auth token required in live mode
         rse_logger.error("Missing X-Auth-Token header (required in live mode)")
         raise HttpUnauthorized()
+
+    rse_mode = self.request.get_optional_header('X-RSE-Mode');
+    if not rse_mode or rse_mode != 'test':
+      rse_mode = 'live' 
      
     # Read X-* headers
     auth_record = None
@@ -438,9 +443,14 @@ class MainController(rawr.Controller):
 
     sort_order = long(self.request.get_optional_param("sort", pymongo.ASCENDING))
 
-    events = self.mongo_db.events.find(
-      fields=['_id', 'user_agent', 'created_at', 'data', 'channel'],
-      sort=[('_id', sort_order)])
+    if rse_mode == 'test':
+      events = self.mongo_db.events_test.find(
+        fields=['_id', 'user_agent', 'created_at', 'data', 'channel'],
+        sort=[('_id', sort_order)])
+    else:
+      events = self.mongo_db.events.find(
+        fields=['_id', 'user_agent', 'created_at', 'data', 'channel'],
+        sort=[('_id', sort_order)])
       
     entries_serialized = "\"No events\"" if not events else ",\n".join([
       '{"id":%d,"user_agent":"%s","channel":"%s","created_at":"%s","age":%d,"data":%s}'
@@ -487,10 +497,16 @@ class MainController(rawr.Controller):
         # counter = self.mongo_db.counters.find_and_modify({'_id': 'event_id'}, {'$inc': {'c': 1}})
         
         while (True):
-          last_id_record = self.mongo_db.events.find_one(
-            fields=['_id'],
-            sort=[('_id', pymongo.DESCENDING)],
-            limit=1)
+          if rse_mode == 'test':
+            last_id_record = self.mongo_db.events_test.find_one(
+              fields=['_id'],
+              sort=[('_id', pymongo.DESCENDING)],
+              limit=1)
+          else:
+            last_id_record = self.mongo_db.events.find_one(
+              fields=['_id'],
+              sort=[('_id', pymongo.DESCENDING)],
+              limit=1)
         
           try:
             next_id = last_id_record['_id'] + 1
@@ -502,14 +518,24 @@ class MainController(rawr.Controller):
           # Most of the time this will succeed, unless a different instance
           # beat us to the punch, in which case, we'll just try again
           try:
-            self.mongo_db.events.insert({
-              "_id": next_id, 
-              "data": data,
-              "channel": channel_name,
-              "user_agent": user_agent,
-              "uuid": self._parse_client_uuid(user_agent),
-              "created_at": datetime.datetime.utcnow()
-            }, safe=True)
+            if rse_mode == 'test':
+              self.mongo_db.events_test.insert({
+                "_id": next_id, 
+                "data": data,
+                "channel": channel_name,
+                "user_agent": user_agent,
+                "uuid": self._parse_client_uuid(user_agent),
+                "created_at": datetime.datetime.utcnow()
+              }, safe=True)
+            else: 
+              self.mongo_db.events.insert({
+                "_id": next_id, 
+                "data": data,
+                "channel": channel_name,
+                "user_agent": user_agent,
+                "uuid": self._parse_client_uuid(user_agent),
+                "created_at": datetime.datetime.utcnow()
+              }, safe=True)
             
             # Don't retry
             break
@@ -590,12 +616,18 @@ class MainController(rawr.Controller):
         user_agent = self.request.get_header("User-Agent")
         uuid = ("e" if echo else self._parse_client_uuid(user_agent))
         
-        events = self.mongo_db.events.find(
-          {'_id': {'$gt': last_known_id}, 'channel': channel_pattern, 'uuid': {'$ne': uuid}},
-          fields=['_id', 'user_agent', 'created_at', 'data'],
-          sort=[('_id', sort_order)],
-
-          limit=max_events)
+        if rse_mode == 'test':
+          events = self.mongo_db.events_test.find(
+            {'_id': {'$gt': last_known_id}, 'channel': channel_pattern, 'uuid': {'$ne': uuid}},
+            fields=['_id', 'user_agent', 'created_at', 'data'],
+            sort=[('_id', sort_order)],
+            limit=max_events)
+        else:
+          events = self.mongo_db.events.find(
+            {'_id': {'$gt': last_known_id}, 'channel': channel_pattern, 'uuid': {'$ne': uuid}},
+            fields=['_id', 'user_agent', 'created_at', 'data'],
+            sort=[('_id', sort_order)],
+            limit=max_events)
         break
       
       except Exception as ex:
@@ -683,6 +715,7 @@ class RseApplication(rawr.Rawr):
     for i in range(10):
       try:
         mongo_db.events.ensure_index([('uuid', pymongo.ASCENDING), ('channel', pymongo.ASCENDING)])
+        mongo_db.events_test.ensure_index([('uuid', pymongo.ASCENDING), ('channel', pymongo.ASCENDING)])
         break
       except pymongo.errors.AutoReconnect:
         time.sleep(1)
