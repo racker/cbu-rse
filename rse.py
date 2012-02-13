@@ -41,6 +41,7 @@ import json_validator
 
 from rax.http.exceptions import *
 from rax.http import rawr
+from rax.fastcache import fastcache
 
 # Set up a specific logger with our desired output level
 rse_logger = logging.getLogger(__name__)
@@ -360,6 +361,17 @@ class MainController(rawr.Controller):
     self.accountsvc_https = accountsvc_https # Whether to use HTTPS for account services
     self.mongo_db = mongo_db # MongoDB database for storing events
     self.test_mode = test_mode # If true, relax auth/uuid requirements
+
+    # Parse options
+    config = ConfigParser.ConfigParser()
+    config.read(default_config_path)
+    retention_period = config.getint('fastcache', 'authtoken_retention_period')
+    slice_size = config.getint('fastcache', 'authtoken_slice_size')
+    if not retention_period: 
+      retention_period = 30
+    if not slice_size: 
+      slice_size = 2
+    self.fastcache_authtoken = fastcache.FastCache(retention_period, slice_size)
   
   def prepare(self):
     auth_token = self.request.get_optional_header('X-Auth-Token');
@@ -380,8 +392,10 @@ class MainController(rawr.Controller):
     auth_record = None
     try:     
       # Check for non-expired, cached authentication
-      auth_record = self.mongo_db.authcache.find_one(
-        {'auth_token': auth_token, 'expires': {'$gt': time.time()}})
+      #auth_record = self.mongo_db.authcache.find_one(
+      #  {'auth_token': auth_token, 'expires': {'$gt': time.time()}})
+      auth_record = self.fastcache_authtoken.is_cached(auth_token)
+      
      
     except Exception as ex:
       # Oh well. Log the error and proceed as if no cached authentication
@@ -415,8 +429,9 @@ class MainController(rawr.Controller):
         raise HttpBadGateway()
       
     # Cache good token to increase performance and reduce the load on Account Services
-    self.mongo_db.authcache.insert(
-        {'auth_token': auth_token, 'expires': time.time() + auth_ttl_sec})
+    #self.mongo_db.authcache.insert(
+    #    {'auth_token': auth_token, 'expires': time.time() + auth_ttl_sec})
+    self.fastcache_authtoken.cache(auth_token)
            
   
   def _is_safe_user_agent(self, user_agent):
