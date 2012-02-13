@@ -358,6 +358,7 @@ class MainController(rawr.Controller):
     self.accountsvc_https = accountsvc_https # Whether to use HTTPS for account services
     self.mongo_db = mongo_db # MongoDB database for storing events
     self.test_mode = test_mode # If true, relax auth/uuid requirements
+    self.rse_mode = "live" # If true, relax auth/uuid requirements
   
   def prepare(self):
     auth_token = self.request.get_optional_header('X-Auth-Token');
@@ -370,9 +371,9 @@ class MainController(rawr.Controller):
         rse_logger.error("Missing X-Auth-Token header (required in live mode)")
         raise HttpUnauthorized()
 
-    rse_mode = self.request.get_optional_header('X-RSE-Mode');
-    if not rse_mode or rse_mode != 'test':
-      rse_mode = 'live' 
+    self.rse_mode = self.request.get_optional_header('X-RSE-Mode');
+    if self.rse_mode != 'test':
+      self.rse_mode = 'live' 
      
     # Read X-* headers
     auth_record = None
@@ -443,12 +444,12 @@ class MainController(rawr.Controller):
 
     sort_order = long(self.request.get_optional_param("sort", pymongo.ASCENDING))
 
-    if rse_mode == 'test':
-      events = self.mongo_db.events_test.find(
+    if self.rse_mode == 'live':
+      events = self.mongo_db.events.find(
         fields=['_id', 'user_agent', 'created_at', 'data', 'channel'],
         sort=[('_id', sort_order)])
     else:
-      events = self.mongo_db.events.find(
+      events = self.mongo_db.events_test.find(
         fields=['_id', 'user_agent', 'created_at', 'data', 'channel'],
         sort=[('_id', sort_order)])
       
@@ -497,13 +498,13 @@ class MainController(rawr.Controller):
         # counter = self.mongo_db.counters.find_and_modify({'_id': 'event_id'}, {'$inc': {'c': 1}})
         
         while (True):
-          if rse_mode == 'test':
-            last_id_record = self.mongo_db.events_test.find_one(
+          if self.rse_mode == 'live':
+            last_id_record = self.mongo_db.events.find_one(
               fields=['_id'],
               sort=[('_id', pymongo.DESCENDING)],
               limit=1)
           else:
-            last_id_record = self.mongo_db.events.find_one(
+            last_id_record = self.mongo_db.events_test.find_one(
               fields=['_id'],
               sort=[('_id', pymongo.DESCENDING)],
               limit=1)
@@ -518,8 +519,8 @@ class MainController(rawr.Controller):
           # Most of the time this will succeed, unless a different instance
           # beat us to the punch, in which case, we'll just try again
           try:
-            if rse_mode == 'test':
-              self.mongo_db.events_test.insert({
+            if self.rse_mode == 'live':
+              self.mongo_db.events.insert({
                 "_id": next_id, 
                 "data": data,
                 "channel": channel_name,
@@ -528,7 +529,7 @@ class MainController(rawr.Controller):
                 "created_at": datetime.datetime.utcnow()
               }, safe=True)
             else: 
-              self.mongo_db.events.insert({
+              self.mongo_db.events_test.insert({
                 "_id": next_id, 
                 "data": data,
                 "channel": channel_name,
@@ -616,14 +617,14 @@ class MainController(rawr.Controller):
         user_agent = self.request.get_header("User-Agent")
         uuid = ("e" if echo else self._parse_client_uuid(user_agent))
         
-        if rse_mode == 'test':
-          events = self.mongo_db.events_test.find(
+        if self.rse_mode == 'live':
+          events = self.mongo_db.events.find(
             {'_id': {'$gt': last_known_id}, 'channel': channel_pattern, 'uuid': {'$ne': uuid}},
             fields=['_id', 'user_agent', 'created_at', 'data'],
             sort=[('_id', sort_order)],
             limit=max_events)
         else:
-          events = self.mongo_db.events.find(
+          events = self.mongo_db.events_test.find(
             {'_id': {'$gt': last_known_id}, 'channel': channel_pattern, 'uuid': {'$ne': uuid}},
             fields=['_id', 'user_agent', 'created_at', 'data'],
             sort=[('_id', sort_order)],
