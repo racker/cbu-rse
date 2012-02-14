@@ -51,6 +51,7 @@ rse_mode  = 'live'
 cache_token_hitcnt = 0
 cache_token_totalcnt = 0
 CACHE_TOKEN_CNT_MAX = sys.maxint - 1
+fastcache_authtoken = 0
 
 # Initialize config paths
 path = os.path.abspath(__file__)
@@ -62,6 +63,7 @@ auth_endpoint = '/v1.0/auth/isauthenticated'
 auth_health_endpoint = '/v1.0/help/health'
 jsonp_callback_pattern = re.compile("\A[a-zA-Z0-9_]+\Z") # Regex for validating JSONP callback name
 auth_ttl_sec = 90
+
 
 health_auth_headers = {
   'X-Auth-Token': 'HealthCheck'
@@ -199,6 +201,8 @@ class HealthController(rawr.Controller):
       "rse": {
         "test_mode": self.test_mode,
         "events": active_events,
+        "Auth-Token cache cnt": cache_token_totalcnt,
+        "Auth-Token cache hit cnt": cache_token_hitcnt,
         "Auth-Token cache hit rate": 0 if cache_token_totalcnt == 0 else "{0:.2f}%".format(float(cache_token_hitcnt)/cache_token_totalcnt*100)
       },
       "auth": {
@@ -368,17 +372,6 @@ class MainController(rawr.Controller):
     self.mongo_db = mongo_db # MongoDB database for storing events
     self.test_mode = test_mode # If true, relax auth/uuid requirements
 
-    # Parse options
-    config = ConfigParser.ConfigParser()
-    config.read(default_config_path)
-    retention_period = config.getint('fastcache', 'authtoken_retention_period')
-    slice_size = config.getint('fastcache', 'authtoken_slice_size')
-    if not retention_period: 
-      retention_period = 30
-    if not slice_size: 
-      slice_size = 2
-    self.fastcache_authtoken = fastcache.FastCache(retention_period, slice_size)
-  
   def prepare(self):
     global cache_token_totalcnt, cache_token_hitcnt, CACHE_TOKEN_CNT_MAX
     auth_token = self.request.get_optional_header('X-Auth-Token');
@@ -401,9 +394,8 @@ class MainController(rawr.Controller):
       # Check for non-expired, cached authentication
       #auth_record = self.mongo_db.authcache.find_one(
       #  {'auth_token': auth_token, 'expires': {'$gt': time.time()}})
-      auth_record = self.fastcache_authtoken.is_cached(auth_token)
+      auth_record = fastcache_authtoken.is_cached(auth_token)
       
-     
     except Exception as ex:
       # Oh well. Log the error and proceed as if no cached authentication
       #rse_logger.error(unicode(ex).encode("utf-8"))
@@ -447,7 +439,7 @@ class MainController(rawr.Controller):
       # Cache good token to increase performance and reduce the load on Account Services
       #self.mongo_db.authcache.insert(
       #    {'auth_token': auth_token, 'expires': time.time() + auth_ttl_sec})
-      self.fastcache_authtoken.cache(auth_token)
+      fastcache_authtoken.cache(auth_token)
     except Exception as ex: 
       rse_logger.error(str_utf8(ex))
       
@@ -716,6 +708,7 @@ class RseApplication(rawr.Rawr):
   """RSE app for encapsulating initialization"""
   
   def __init__(self): 
+    global fastcache_authtoken
     rawr.Rawr.__init__(self)
     
     # Parse options
@@ -742,6 +735,16 @@ class RseApplication(rawr.Rawr):
       handler.setFormatter(formatter);
       rse_logger.addHandler(handler)
     
+    # FastCache for Auth Token
+    retention_period = config.getint('fastcache', 'authtoken_retention_period')
+    slice_size = config.getint('fastcache', 'authtoken_slice_size')
+    if not retention_period: 
+      retention_period = 30
+    if not slice_size: 
+      slice_size = 2
+    fastcache_authtoken = fastcache.FastCache(retention_period, slice_size)
+    #rse_logger.warning( "YUDEBUG: work!")
+  
     # Have one global connection to the DB across all handlers (pymongo manages its own connection pool)
     # WARNING: Even if you set slaveok in the URI, you must also set the param in the Connection constructor
     connection = pymongo.Connection(config.get('mongodb', 'uri'), slaveok=True)
@@ -769,6 +772,7 @@ class RseApplication(rawr.Rawr):
     options = dict(accountsvc_host=accountsvc_host, accountsvc_https=accountsvc_https, mongo_db=mongo_db, test_mode=test_mode)
     self.add_route(r"/health$", HealthController, options)
     self.add_route(r"/.+", MainController, options)
+
 
 # WSGI app
 app = RseApplication() 
