@@ -201,9 +201,9 @@ class HealthController(rawr.Controller):
       "rse": {
         "test_mode": self.test_mode,
         "events": active_events,
-        "Auth-Token cache cnt": cache_token_totalcnt,
-        "Auth-Token cache hit cnt": cache_token_hitcnt,
-        "Auth-Token cache hit rate": 0 if cache_token_totalcnt == 0 else "{0:.2f}%".format(float(cache_token_hitcnt)/cache_token_totalcnt*100)
+        "auth_token_cache_cnt": cache_token_totalcnt,
+        "auth_token_cache_hit_cnt": cache_token_hitcnt,
+        "auth_token_cache_hit_rate": 0 if cache_token_totalcnt == 0 else "{0:.2f}%".format(float(cache_token_hitcnt)/cache_token_totalcnt*100)
       },
       "auth": {
         "url": "%s://%s%s" % ("https" if self.accountsvc_https else "http", self.accountsvc_host, auth_endpoint),        
@@ -213,76 +213,76 @@ class HealthController(rawr.Controller):
       },
       "mongodb": {
         "stats": {
-          "backgroundFlushing" : {
+          "background_flushing" : {
             "last_finished" : str(dbstats['backgroundFlushing']['last_finished']),
-            "last_ms" : str (dbstats['backgroundFlushing']['last_ms']),
-            "flushes" : str (dbstats['backgroundFlushing']['flushes']),
-            "average_ms" : str (dbstats['backgroundFlushing']['average_ms']),
-            "total_ms" : str (dbstats['backgroundFlushing']['total_ms'])
+            "last_ms" : dbstats['backgroundFlushing']['last_ms'],
+            "flushes" : dbstats['backgroundFlushing']['flushes'],
+            "average_ms" : dbstats['backgroundFlushing']['average_ms'],
+            "total_ms" : dbstats['backgroundFlushing']['total_ms']
           },
           "connections" : {
-            "current" : str(dbstats['connections']['current']),
-            "available" : str(dbstats['connections']['available'])
+            "current" : dbstats['connections']['current'],
+            "available" : dbstats['connections']['available']
           },
-          "uptime" : str(dbstats['uptime']),
-          "ok" : str(dbstats['ok']),
+          "uptime" : dbstats['uptime'],
+          "ok" : dbstats['ok'],
           "network" : {
-            "numRequests" : str(dbstats['network']['numRequests']),
-            "bytesOut" : str(dbstats['network']['bytesOut']),
-            "bytesIn" : str(dbstats['network']['bytesIn'])
+            "num_requests" : dbstats['network']['numRequests'],
+            "bytes_out" : dbstats['network']['bytesOut'],
+            "bytes_in" : dbstats['network']['bytesIn']
           },
           "opcounters" : {
-            "getmore" : str(dbstats['opcounters']['getmore']),
-            "insert" : str(dbstats['opcounters']['insert']),
-            "update" : str(dbstats['opcounters']['update']),
-            "command" : str(dbstats['opcounters']['command']),
-            "query" : str(dbstats['opcounters']['query']),
-            "delete" : str(dbstats['opcounters']['delete'])
+            "getmore" : dbstats['opcounters']['getmore'],
+            "insert" : dbstats['opcounters']['insert'],
+            "update" : dbstats['opcounters']['update'],
+            "command" : dbstats['opcounters']['command'],
+            "query" : dbstats['opcounters']['query'],
+            "delete" : dbstats['opcounters']['delete']
           },
           "process" : str(dbstats['process']),
           "asserts" : {
-            "msg" : str(dbstats['asserts']['msg']),
-            "rollovers" : str(dbstats['asserts']['rollovers']),
-            "regular" : str(dbstats['asserts']['regular']),
-            "warning" : str(dbstats['asserts']['warning']),
-            "user" : str(dbstats['asserts']['user'])
+            "msg" : dbstats['asserts']['msg'],
+            "rollovers" : dbstats['asserts']['rollovers'],
+            "regular" : dbstats['asserts']['regular'],
+            "warning" : dbstats['asserts']['warning'],
+            "user" : dbstats['asserts']['user']
           },
-          "uptimeEstimate" : str(dbstats['uptimeEstimate']),
+          "uptime_estimate" : dbstats['uptimeEstimate'],
           "mem" : {
-            "resident" : str(dbstats['mem']['resident']),
-            "supported" : str(dbstats['mem']['supported']),
-            "virtual" : str(dbstats['mem']['virtual']),
+            "resident" : dbstats['mem']['resident'],
+            "supported" : dbstats['mem']['supported'],
+            "virtual" : dbstats['mem']['virtual'],
             #"mappedWithJournal" : str(dbstats['mem']['mappedWithJournal']),
-            "mapped" : str(dbstats['mem']['mapped']),
-            "bits" : str(dbstats['mem']['bits'])
+            "mapped" : dbstats['mem']['mapped'],
+            "bits" : dbstats['mem']['bits']
           },
           "host" : str(dbstats['host']),
-          "version" : str(dbstats['version']),
+          "version" : dbstats['version'],
           "cursors" : {
-            "clientCursors_size" : str(dbstats['cursors']['clientCursors_size']),
-            "timedOut" : str(dbstats['cursors']['timedOut']),
-            "totalOpen" : str(dbstats['cursors']['totalOpen'])
+            "client_cursors_size" : dbstats['cursors']['clientCursors_size'],
+            "timed_out" : dbstats['cursors']['timedOut'],
+            "total_open" : dbstats['cursors']['totalOpen']
           },
-          "writeBacksQueued" : str(dbstats['writeBacksQueued']),
-          "globalLock" : {
-            "totalTime" : str(dbstats['globalLock']['totalTime']),
-            "currentQueue" : {
-              "total" : str(dbstats['globalLock']['currentQueue']['total']),
-              "writers" : str(dbstats['globalLock']['currentQueue']['writers']),
-              "readers" : str(dbstats['globalLock']['currentQueue']['readers'])
+          "write_backs_queued" : dbstats['writeBacksQueued'],
+          "global_lock" : {
+            "total_time" : dbstats['globalLock']['totalTime'],
+            "current_queue" : {
+              "total" : dbstats['globalLock']['currentQueue']['total'],
+              "writers" : dbstats['globalLock']['currentQueue']['writers'],
+              "readers" : dbstats['globalLock']['currentQueue']['readers']
             },
-            "lockTime" : str(dbstats['globalLock']['lockTime']),
-            "ratio" : str(dbstats['globalLock']['ratio']),
-            "activeClients" : {
-              "total" : str(dbstats['globalLock']['activeClients']['total']),
-              "writers" : str(dbstats['globalLock']['activeClients']['writers']),
-              "readers" : str(dbstats['globalLock']['activeClients']['readers'])
+            "lockTime" : dbstats['globalLock']['lockTime'],
+            "ratio" : dbstats['globalLock']['ratio'],
+            "active_clients" : {
+              "total" : dbstats['globalLock']['activeClients']['total'],
+              "writers" : dbstats['globalLock']['activeClients']['writers'],
+              "readers" : dbstats['globalLock']['activeClients']['readers']
             }
           },
           "extra_info" : {
             "note" : str(dbstats['extra_info']['note']),
-            "page_faults" : str(dbstats['extra_info']['page_faults']),
-            "heap_usage_bytes" : str(dbstats['extra_info']['heap_usage_bytes'])
+            "page_faults" : dbstats['extra_info']['page_faults'],
+            "heap_usage_bytes" : dbstats['extra_info']['heap_usage_bytes']
           },
           #"dur" : {
           #  "compression" : str(dbstats['dur']['compression']),
@@ -299,25 +299,25 @@ class HealthController(rawr.Controller):
           #    "writeToDataFiles" : str(dbstats['dur']['timeMs']['writeToDataFiles'])
           #  }
           #},
-          "localTime" : str(dbstats['localTime'])
+          "local_time" : str(dbstats['localTime'])
         },
         "coll_events_stats": {
-          "count" : str(collstats_events['count']),
+          "count" : collstats_events['count'],
           "ns" : str(collstats_events['ns']),
           "ok" : str(collstats_events['ok']),
-          "lastExtentSize" : str(collstats_events['lastExtentSize']),
-          "avgObjSize" : str(collstats_events['avgObjSize']),
-          "totalIndexSize" : str(collstats_events['totalIndexSize']),
-          "flags" : str(collstats_events['flags']),
-          "numExtents" : str(collstats_events['numExtents']),
-          "nindexes" : str(collstats_events['nindexes']),
-          "storageSize" : str(collstats_events['storageSize']),
-          "paddingFactor" : str(collstats_events['paddingFactor']),
-          "indexSizes" : {
-            "_id_" : str(collstats_events['indexSizes']['_id_']),
-            "uuid_1_channel_1" : str(collstats_events['indexSizes']['uuid_1_channel_1'])
+          "last_extent_size" : collstats_events['lastExtentSize'],
+          "avg_obj_size" : collstats_events['avgObjSize'],
+          "total_index_size" : collstats_events['totalIndexSize'],
+          "flags" : collstats_events['flags'],
+          "num_extents" : collstats_events['numExtents'],
+          "nindexes" : collstats_events['nindexes'],
+          "storage_size" : collstats_events['storageSize'],
+          "padding_factor" : collstats_events['paddingFactor'],
+          "index_sizes" : {
+            "id" : collstats_events['indexSizes']['_id_'],
+            "uuid_1_channel_1" : collstats_events['indexSizes']['uuid_1_channel_1']
           },
-          "size" : str(collstats_events['size']),
+          "size" : collstats_events['size'],
           "age_max" : { 
             "created_at" : str(collstats_events_max['created_at']),
             "Event" : str(collstats_events_max_data['Event'])
@@ -334,7 +334,7 @@ class HealthController(rawr.Controller):
         "error": db_error_message,
         "database": self.mongo_db.name,
         "profiling":  {
-          "reponseLength": str(profile_info['responseLength']) if profile_db else "N/A",
+          "reponse_length": str(profile_info['responseLength']) if profile_db else "N/A",
           "nreturned": str(profile_info['nreturned']) if profile_db else "N/A",
           "nscanned": str(profile_info['nscanned']) if profile_db else "N/A",
         },
