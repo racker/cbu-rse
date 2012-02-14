@@ -18,6 +18,7 @@ sysctl -w net.core.somaxconn="4096" # or better
 """
 
 import os
+import sys
 import datetime
 import time
 import logging
@@ -47,6 +48,9 @@ from rax.fastcache import fastcache
 rse_logger = logging.getLogger(__name__)
 
 rse_mode  = 'live'
+cache_token_hitcnt = 0
+cache_token_totalcnt = 0
+CACHE_TOKEN_CNT_MAX = sys.maxint - 1
 
 # Initialize config paths
 path = os.path.abspath(__file__)
@@ -193,7 +197,8 @@ class HealthController(rawr.Controller):
     return json.dumps({
       "rse": {
         "test_mode": self.test_mode,
-        "events": active_events
+        "events": active_events,
+        "Auth-Token cache hit rate": 0 if cache_token_totalcnt == 0 else "{0:.2f}%".format(float(cache_token_hitcnt)/cache_token_totalcnt*100)
       },
       "auth": {
         "url": "%s://%s%s" % ("https" if self.accountsvc_https else "http", self.accountsvc_host, auth_endpoint),        
@@ -402,8 +407,16 @@ class MainController(rawr.Controller):
       #rse_logger.error(unicode(ex).encode("utf-8"))
       rse_logger.error(str_utf8(ex))
 
+    # Cache hit rate algorithm: Since there's no time stamp, the total counter and the hit counter are truncated to half when the total counter 
+    # reaches the integer maximum.  The theory is that 2^62 is a still big base compare to the accumulation step (1), so the scale remains accurate.
+    if cache_token_totalcnt >= CACHE_TOKEN_CNT_MAX:
+      # Truncate to avoid overflow 
+      cache_token_totalcnt = cache_token_totalcnt / 2
+      cache_token_hitcnt = cache_token_hitcnt / 2
+    cache_token_totalcnt += 1
     if auth_record:
       # They are OK for the moment
+      cache_token_hitcnt += 1
       return
     
     headers = {
