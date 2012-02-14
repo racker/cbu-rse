@@ -131,6 +131,7 @@ class HealthController(rawr.Controller):
     
     validation_info = "N/A. Pass validate_db=true to enable."
     profile_info = "N/A. Pass profile_db=true to enable."
+    server_info = "N/A."
     db_error_message = "N/A"
 
     for retry_counter in range(10):
@@ -148,7 +149,7 @@ class HealthController(rawr.Controller):
           limit = 1)
 
         collstats_events_max = json.loads('{"created_at": "N/A"}')
-        collstats_events_max_data = json.loads('{"Event":"N/A"}')
+        collstats_events_max_data = json.loads('{"event":"N/A"}')
         
         if find_retval:
           collstats_events_max = find_retval[0]
@@ -159,7 +160,7 @@ class HealthController(rawr.Controller):
           sort = [('created_at',pymongo.DESCENDING)],
           limit = 1)
         collstats_events_min = json.loads('{"created_at": "N/A"}')
-        collstats_events_min_data = json.loads('{"Event":"N/A"}')
+        collstats_events_min_data = json.loads('{"event":"N/A"}')
         if find_retval:
           collstats_events_min = find_retval[0]
           collstats_events_min_data = json.loads(collstats_events_min['data'])
@@ -180,6 +181,8 @@ class HealthController(rawr.Controller):
           #profile_info = self.mongo_db.profiling_info()
           profile_info = self.mongo_db.system.profile.find_one()
           self.mongo_db.set_profiling_level(pymongo.OFF)
+
+        server_info = self.mongo_db_connection.server_info()
           
         db_online = True
         break;
@@ -320,11 +323,11 @@ class HealthController(rawr.Controller):
           "size" : collstats_events['size'],
           "age_max" : { 
             "created_at" : str(collstats_events_max['created_at']),
-            "Event" : str(collstats_events_max_data['Event'])
+            "event" : str(collstats_events_max_data['Event'])
           },
           "age_min" : { 
             "created_at" : str(collstats_events_min['created_at']),
-            "Event" : str(collstats_events_min_data['Event'])
+            "event" : str(collstats_events_min_data['Event'])
           }
         },
         "host": self.mongo_db_connection.host,
@@ -344,7 +347,16 @@ class HealthController(rawr.Controller):
         },
         "slave_okay": self.mongo_db_connection.slave_okay,
         "safe": self.mongo_db_connection.safe,
-        "server_info": self.mongo_db_connection.server_info()
+        "server_info": {
+           "ok"  : server_info['ok'],
+           "sys_info"  : server_info['sysInfo'],
+           "version"  : server_info['version'],
+           "version_array"  : server_info['versionArray'],
+           "debug"  : server_info['debug'],
+           "max_bson_object_size"  : server_info['maxBsonObjectSize'],
+           "bits"  : server_info['bits'],
+           "git_version"  : server_info['gitVersion']
+        }
       }
     })
   
