@@ -101,6 +101,7 @@ class HealthController(rawr.Controller):
 
   def _create_report(self, profile_db, validate_db):
     # Check our auth endpoint
+    global cache_token_totalcnt, cache_token_hitcnt
    
     auth_error_message = "N/A"
     auth_online = False
@@ -379,6 +380,7 @@ class MainController(rawr.Controller):
     self.fastcache_authtoken = fastcache.FastCache(retention_period, slice_size)
   
   def prepare(self):
+    global cache_token_totalcnt, cache_token_hitcnt, CACHE_TOKEN_CNT_MAX
     auth_token = self.request.get_optional_header('X-Auth-Token');
     if not auth_token:
       if self.test_mode:
