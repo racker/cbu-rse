@@ -206,7 +206,7 @@ class HealthController(rawr.Controller):
         "events": active_events,
         "auth_token_cache_cnt": cache_token_totalcnt,
         "auth_token_cache_hit_cnt": cache_token_hitcnt,
-        "auth_token_cache_hit_rate": 0 if cache_token_totalcnt == 0 else "{0:.2f}%".format(float(cache_token_hitcnt)/cache_token_totalcnt*100)
+        "auth_token_cache_hit_rate": 0 if cache_token_totalcnt == 0 else float(cache_token_hitcnt)/cache_token_totalcnt
       },
       "auth": {
         "url": "%s://%s%s" % ("https" if self.accountsvc_https else "http", self.accountsvc_host, auth_endpoint),        
