@@ -758,8 +758,8 @@ class RseApplication(rawr.Rawr):
     #rse_logger.warning( "YUDEBUG: work!")
   
     # Have one global connection to the DB across all handlers (pymongo manages its own connection pool)
-    # WARNING: Even if you set slaveok in the URI, you must also set the param in the Connection constructor
-    connection = pymongo.Connection(config.get('mongodb', 'uri'), slaveok=True)
+    # WARNING: Even if you set slave_okay in the URI, you must also set the param in the Connection constructor
+    connection = pymongo.Connection(config.get('mongodb', 'uri'), slave_okay=True)
     mongo_db = connection[config.get('mongodb', 'database')]
     
     # Initialize collections
