@@ -342,8 +342,7 @@ class HealthController(rawr.Controller):
            "version_array"  : server_info['versionArray'],
            "debug"  : server_info['debug'],
            "max_bson_object_size"  : server_info['maxBsonObjectSize'],
-           "bits"  : server_info['bits'],
-           "git_version"  : server_info['gitVersion']
+           "bits"  : server_info['bits']
         }
       }
     })
