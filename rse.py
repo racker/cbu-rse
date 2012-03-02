@@ -747,8 +747,13 @@ class RseApplication(rawr.Rawr):
     #rse_logger.warning( "YUDEBUG: work!")
   
     # Have one global connection to the DB across all handlers (pymongo manages its own connection pool)
-    # WARNING: Even if you set slave_okay in the URI, you must also set the param in the Connection constructor
-    connection = pymongo.Connection(config.get('mongodb', 'uri'), slave_okay=True)
+    replica_set = config.get('mongodb', 'replica-set') if config.has_option('mongodb', 'replica-set') else '[none]'
+
+    if replica_set == '[none]':
+      connection = pymongo.Connection(config.get('mongodb', 'uri'), read_preference=pymongo.ReadPreference.SECONDARY)
+    else:
+      connection = pymongo.ReplicaSetConnection(config.get('mongodb', 'uri'), replicaSet=replica_set, read_preference=pymongo.ReadPreference.SECONDARY)
+
     mongo_db = connection[config.get('mongodb', 'database')]
     
     # Initialize collections
