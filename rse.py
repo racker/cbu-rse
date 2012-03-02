@@ -321,7 +321,6 @@ class HealthController(rawr.Controller):
         },
         "host": self.mongo_db_connection.host,
         "port": self.mongo_db_connection.port,
-        "nodes": [n for n in self.mongo_db_connection.nodes],
         "online": db_online,
         "error": db_error_message,
         "database": self.mongo_db.name,
@@ -334,7 +333,7 @@ class HealthController(rawr.Controller):
           "name": "events",
           "integrity": validation_info
         },
-        "slave_okay": self.mongo_db_connection.slave_okay,
+        "read_preference": self.mongo_db_connection.read_preference,
         "safe": self.mongo_db_connection.safe,
         "server_info": {
            "ok"  : server_info['ok'],
