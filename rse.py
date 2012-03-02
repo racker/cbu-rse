@@ -276,27 +276,12 @@ class HealthController(rawr.Controller):
             "page_faults" : dbstats['extra_info']['page_faults'],
             "heap_usage_bytes" : dbstats['extra_info']['heap_usage_bytes']
           },
-          #"dur" : {
-          #  "compression" : str(dbstats['dur']['compression']),
-          #  "journaledMB" : str(dbstats['dur']['journaledMB']),
-          #  "commits" : str(dbstats['dur']['commits']),
-          #  "writeToDataFilesMB" : str(dbstats['dur']['writeToDataFilesMB']),
-          #  "commitsInWriteLock" : str(dbstats['dur']['commitsInWriteLock']),
-          #  "earlyCommits" : str(dbstats['dur']['earlyCommits']),
-          #  "timeMs" : {
-          #    "writeToJournal" : str(dbstats['dur']['timeMs']['writeToJournal']),
-          #    "dt" : str(dbstats['dur']['timeMs']['dt']),
-          #    "remapPrivateView" : str(dbstats['dur']['timeMs']['remapPrivateView']),
-          #    "prepLogBuffer" : str(dbstats['dur']['timeMs']['prepLogBuffer']),
-          #    "writeToDataFiles" : str(dbstats['dur']['timeMs']['writeToDataFiles'])
-          #  }
-          #},
           "local_time" : str(dbstats['localTime'])
         },
-        "coll_events_stats": {
+        "coll_events_stats": { 
           "count" : collstats_events['count'],
-          "ns" : str(collstats_events['ns']),
-          "ok" : str(collstats_events['ok']),
+          "ns" : collstats_events['ns'],
+          "ok" : collstats_events['ok'],
           "last_extent_size" : collstats_events['lastExtentSize'],
           "avg_obj_size" : collstats_events['avgObjSize'],
           "total_index_size" : collstats_events['totalIndexSize'],
@@ -319,8 +304,6 @@ class HealthController(rawr.Controller):
             "event" : str(collstats_events_min_data['Event'])
           }
         },
-        "host": self.mongo_db_connection.host,
-        "port": self.mongo_db_connection.port,
         "online": db_online,
         "error": db_error_message,
         "database": self.mongo_db.name,
