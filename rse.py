@@ -82,52 +82,41 @@ class HealthController(rawr.Controller):
     self.mongo_db_connection = mongo_db.connection # MongoDB connection for storing events
     self.test_mode = test_mode # If true, relax auth/uuid requirements
 
-  def _basic_health_check(self):
-    # Check our auth endpoint    
+  def _auth_service_is_healthy(self):
     try:
       accountsvc = httplib.HTTPSConnection(self.accountsvc_host, timeout=2) if self.accountsvc_https else httplib.HTTPConnection(self.accountsvc_host, timeout=2) 
       accountsvc.request('GET', auth_health_endpoint, None, health_auth_headers)
       auth_response = accountsvc.getresponse()
+      
       if auth_response.status != 200:
-        return False
+        error_message = "Auth endpoint returned HTTP %d instead of HTTP 200" % auth_response.status
+        return (False, error_message)
+        
+      auth_service_health = json.loads(auth_response.read())
+      if auth_service_health['Status'] != 'OK':
+        error_message = "Auth endpoint returned %s instead of OK" % auth_service_health['Status']
+        return (False, error_message)
+        
     except Exception as ex:
-      return False
+      error_message = "Exception while checking auth service health: %s" % str_utf8(ex)
+      return (False, error_message)
+      
+    return (True, "No errors")  
     
+  def _basic_health_check(self):       
     try:
       # Important: This must work on secondaries (e.g., read-only slaves)
       self.mongo_db.events.count()
     except Exception as ex:
-      return False
+      return False     
     
-    return True
+    return self._auth_service_is_healthy()[0];
 
   def _create_report(self, profile_db, validate_db):
     # Check our auth endpoint
     global cache_token_totalcnt, cache_token_hitcnt
    
-    auth_error_message = "N/A"
-    auth_online = False
-    try:
-      auth_test_start = datetime.datetime.utcnow()
-
-      accountsvc = httplib.HTTPSConnection(self.accountsvc_host) if self.accountsvc_https else httplib.HTTPConnection(self.accountsvc_host) 
-      accountsvc.request('GET', auth_endpoint, None, health_auth_headers)
-      auth_response = accountsvc.getresponse()
-
-      if auth_response.status == 401:
-        auth_online = True
-
-        auth_test_duration = (datetime.datetime.utcnow() - auth_test_start).seconds          
-        if auth_test_duration > 2:
-          auth_error_message = "WARNING: Auth endpoint is slow (%d seconds)" % auth_test_duration
-      else:
-        auth_error_message = "Auth endpoint returned HTTP %d instead of HTTP 401" % auth_response.status
-    except Exception as ex:
-      #auth_error_message = unicode(ex).encode("utf-8")          
-      auth_error_message = str_utf8(ex)
-      return json.dumps({
-        "error": "Auth error, please check log"
-      })
+    auth_online, auth_error_message = self._auth_service_is_healthy()
     
     validation_info = "N/A. Pass validate_db=true to enable."
     profile_info = "N/A. Pass profile_db=true to enable."
@@ -210,9 +199,9 @@ class HealthController(rawr.Controller):
       },
       "auth": {
         "url": "%s://%s%s" % ("https" if self.accountsvc_https else "http", self.accountsvc_host, auth_endpoint),        
+        "url_health": "%s://%s%s" % ("https" if self.accountsvc_https else "http", self.accountsvc_host, auth_health_endpoint),        
         "online": auth_online,
-        "error": auth_error_message,
-        "ttl": auth_ttl_sec
+        "error": auth_error_message
       },
       "mongodb": {
         "stats": {
