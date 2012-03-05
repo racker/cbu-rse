@@ -81,6 +81,7 @@ def format_datetime(dt):
 
 class HealthController(rawr.Controller):
   """Provides web service health info"""
+  """@todo Move this class into a separate file"""
 
   def __init__(self, accountsvc_host, accountsvc_https, mongo_db, test_mode):
     self.accountsvc_host = accountsvc_host # Account services host for authenticating requests
@@ -124,6 +125,9 @@ class HealthController(rawr.Controller):
     return healthy
 
   def _create_report(self, profile_db, validate_db):
+    """@todo Build up the report piecemeal so we can get partial results on errors."""
+    """@todo Return a non-200 HTTP error code on error"""
+
     # Check our auth endpoint
     global cache_token_totalcnt, cache_token_hitcnt
    
@@ -726,9 +730,13 @@ class RseApplication(rawr.Rawr):
     fastcache_authtoken = fastcache.FastCache(retention_period, slice_size)
     #rse_logger.warning( "YUDEBUG: work!")
   
-    # Have one global connection to the DB across all handlers (pymongo manages its own connection pool)
-    replica_set = config.get('mongodb', 'replica-set') if config.has_option('mongodb', 'replica-set') else '[none]'
+    # Master instance connection for the health checker
+    connection_master = pymongo.Connection(config.get('mongodb', 'uri'), read_preference=pymongo.ReadPreference.PRIMARY)
+    mongo_db_master = connection_master[config.get('mongodb', 'database')]
 
+    # General connection for regular requests
+    # Note: Use one global connection to the DB across all handlers (pymongo manages its own connection pool)
+    replica_set = config.get('mongodb', 'replica-set') if config.has_option('mongodb', 'replica-set') else '[none]'
     if replica_set == '[none]':
       connection = pymongo.Connection(config.get('mongodb', 'uri'), read_preference=pymongo.ReadPreference.SECONDARY)
     else:
@@ -758,10 +766,11 @@ class RseApplication(rawr.Rawr):
     test_mode = config.getboolean('rse', 'test')
   
     # Setup routes
-    options = dict(accountsvc_host=accountsvc_host, accountsvc_https=accountsvc_https, mongo_db=mongo_db, test_mode=test_mode)
-    self.add_route(r"/health$", HealthController, options)
-    self.add_route(r"/.+", MainController, options)
+    health_options = dict(accountsvc_host=accountsvc_host, accountsvc_https=accountsvc_https, mongo_db=mongo_db_master, test_mode=test_mode)
+    self.add_route(r"/health$", HealthController, health_options)
 
+    main_options = dict(accountsvc_host=accountsvc_host, accountsvc_https=accountsvc_https, mongo_db=mongo_db, test_mode=test_mode)
+    self.add_route(r"/.+", MainController, main_options)    
 
 # WSGI app
 app = RseApplication() 
