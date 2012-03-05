@@ -60,17 +60,24 @@ local_config_path = os.path.join(dir_path, 'rse.conf')
 global_config_path = '/etc/rse.conf'
 default_config_path = os.path.join(dir_path, 'rse.default.conf')
 auth_endpoint = '/v1.0/auth/isauthenticated'
-auth_health_endpoint = '/v1.0/help/health'
+auth_health_endpoint = '/v1.0/help/apihealth'
 jsonp_callback_pattern = re.compile("\A[a-zA-Z0-9_]+\Z") # Regex for validating JSONP callback name
 auth_ttl_sec = 90
-
 
 health_auth_headers = {
   'X-Auth-Token': 'HealthCheck'
 }
 
+# @todo Move this into raxPy, give namespace
 def str_utf8(instr):
   return unicode(instr).encode("utf-8")          
+
+# @todo Move this into raxPy, put inside a namespace
+def format_datetime(dt):
+  """Formats a datetime instance according to ISO 8601-Extended"""
+  return dt.strftime("%Y-%m-%d %H:%M:%SZ");
+
+
 
 class HealthController(rawr.Controller):
   """Provides web service health info"""
@@ -110,7 +117,11 @@ class HealthController(rawr.Controller):
     except Exception as ex:
       return False     
     
-    return self._auth_service_is_healthy()[0];
+    healthy, msg = self._auth_service_is_healthy();
+    if not healthy:
+      rse_logger.error(msg)
+
+    return healthy
 
   def _create_report(self, profile_db, validate_db):
     # Check our auth endpoint
@@ -137,18 +148,18 @@ class HealthController(rawr.Controller):
 
         collstats_max_event_info = {}
         if max_event:
-          collstats_max_event_info['created_at'] = max_event['created_at']
-          collstats_max_event_info['age'] = max_event['age']
-          collstats_max_event_info['name'] = max_event['data']['Event']
+          collstats_max_event_info['created_at'] = format_datetime(max_event['created_at'])
+          collstats_max_event_info['age'] = (datetime.datetime.utcnow() - max_event['created_at']).seconds
+          collstats_max_event_info['name'] = json.loads(max_event['data'])['Event']
 
         min_event = self.mongo_db.events.find_one(
           sort = [('created_at', pymongo.DESCENDING)])
 
         collstats_min_event_info = {}
         if min_event:
-          collstats_min_event_info['created_at'] = min_event['created_at']
-          collstats_min_event_info['age'] = min_event['age']
-          collstats_min_event_info['name'] = min_event['data']['Event']
+          collstats_min_event_info['created_at'] = format_datetime(min_event['created_at'])
+          collstats_min_event_info['age'] = (datetime.datetime.utcnow() - min_event['created_at']).seconds
+          collstats_min_event_info['name'] = json.loads(min_event['data'])['Event']
 
         db_test_start = datetime.datetime.utcnow()
         active_events = self.mongo_db.events.count()
@@ -458,7 +469,7 @@ class MainController(rawr.Controller):
       event['_id'],
       event['user_agent'],
       event['channel'],
-      event['created_at'].strftime("%Y-%m-%d %H:%M:%SZ"),
+      format_datetime(event['created_at']),
       (datetime.datetime.utcnow() - event['created_at']).seconds, #<--- Assumes nothing is older than a day
       event['data'])
       for event in events])
@@ -644,7 +655,7 @@ class MainController(rawr.Controller):
       % (
       event['_id'],
       event['user_agent'],
-      event['created_at'].strftime("%Y-%m-%d %H:%M:%SZ"),
+      format_datetime(event['created_at']),
       (datetime.datetime.utcnow() - event['created_at']).seconds, #<--- Assumes nothing is older than a day
       event['data'])
       for event in events])
