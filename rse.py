@@ -290,7 +290,7 @@ class HealthController(rawr.Controller):
           "ns" : collstats_events['ns'],
           "ok" : collstats_events['ok'],
           "last_extent_size" : collstats_events['lastExtentSize'],
-          "avg_obj_size" : collstats_events['avgObjSize'],
+          "avg_obj_size" : (0 if collstats_events['count'] == 0 else collstats_events['avgObjSize']),
           "total_index_size" : collstats_events['totalIndexSize'],
           "flags" : collstats_events['flags'],
           "num_extents" : collstats_events['numExtents'],
