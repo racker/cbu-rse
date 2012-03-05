@@ -131,28 +131,24 @@ class HealthController(rawr.Controller):
         #Collection stats is in JSON format. docu on stat items:
         # http://www.mongodb.org/display/DOCS/collStats+Command
         collstats_events = self.mongo_db.command({"collStats":"events"})
+       
+        max_event = self.mongo_db.events.find_one(
+          sort = [('created_at', pymongo.ASCENDING)])
 
-        self.mongo_db.events.ensure_index('created_at', pymongo.ASCENDING)
-        find_retval = self.mongo_db.events.find(
-          sort = [('created_at',pymongo.ASCENDING)],
-          limit = 1)
+        collstats_max_event_info = {}
+        if max_event:
+          collstats_max_event_info['created_at'] = max_event['created_at']
+          collstats_max_event_info['age'] = max_event['age']
+          collstats_max_event_info['name'] = max_event['data']['Event']
 
-        collstats_events_max = json.loads('{"created_at": "N/A"}')
-        collstats_events_max_data = json.loads('{"event":"N/A"}')
-        
-        if find_retval:
-          collstats_events_max = find_retval[0]
-          collstats_events_max_data = json.loads(collstats_events_max['data'])
+        min_event = self.mongo_db.events.find_one(
+          sort = [('created_at', pymongo.DESCENDING)])
 
-
-        find_retval = self.mongo_db.events.find(
-          sort = [('created_at',pymongo.DESCENDING)],
-          limit = 1)
-        collstats_events_min = json.loads('{"created_at": "N/A"}')
-        collstats_events_min_data = json.loads('{"event":"N/A"}')
-        if find_retval:
-          collstats_events_min = find_retval[0]
-          collstats_events_min_data = json.loads(collstats_events_min['data'])
+        collstats_min_event_info = {}
+        if min_event:
+          collstats_min_event_info['created_at'] = min_event['created_at']
+          collstats_min_event_info['age'] = min_event['age']
+          collstats_min_event_info['name'] = min_event['data']['Event']
 
         db_test_start = datetime.datetime.utcnow()
         active_events = self.mongo_db.events.count()
@@ -295,14 +291,8 @@ class HealthController(rawr.Controller):
             "uuid_1_channel_1" : collstats_events['indexSizes']['uuid_1_channel_1']
           },
           "size" : collstats_events['size'],
-          "age_max" : { 
-            "created_at" : str(collstats_events_max['created_at']),
-            "event" : str(collstats_events_max_data['Event'])
-          },
-          "age_min" : { 
-            "created_at" : str(collstats_events_min['created_at']),
-            "event" : str(collstats_events_min_data['Event'])
-          }
+          "age_max" : collstats_max_event_info,
+          "age_min" : collstats_min_event_info
         },
         "online": db_online,
         "error": db_error_message,
@@ -510,13 +500,11 @@ class MainController(rawr.Controller):
           if rse_mode == 'live':
             last_id_record = self.mongo_db.events.find_one(
               fields=['_id'],
-              sort=[('_id', pymongo.DESCENDING)],
-              limit=1)
+              sort=[('_id', pymongo.DESCENDING)])
           else:
             last_id_record = self.mongo_db.events_test.find_one(
               fields=['_id'],
-              sort=[('_id', pymongo.DESCENDING)],
-              limit=1)
+              sort=[('_id', pymongo.DESCENDING)])
         
           try:
             next_id = last_id_record['_id'] + 1
@@ -742,6 +730,9 @@ class RseApplication(rawr.Rawr):
       try:
         mongo_db.events.ensure_index([('uuid', pymongo.ASCENDING), ('channel', pymongo.ASCENDING)])
         mongo_db.events_test.ensure_index([('uuid', pymongo.ASCENDING), ('channel', pymongo.ASCENDING)])
+
+        mongo_db.events.ensure_index('created_at', pymongo.ASCENDING)
+        mongo_db.events_test.ensure_index('created_at', pymongo.ASCENDING)
         break
       except pymongo.errors.AutoReconnect:
         time.sleep(1)
