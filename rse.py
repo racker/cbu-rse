@@ -763,6 +763,7 @@ class RseApplication(rawr.Rawr):
 
 # WSGI app
 app = RseApplication() 
+application = RseApplication()
 
 # If running this script directly, startup a basic WSGI server for testing
 if __name__ == "__main__":
