@@ -62,8 +62,8 @@ default_config_path = os.path.join(dir_path, 'rse.default.conf')
 auth_endpoint = '/v1.0/auth/isauthenticated'
 
 # Commented out for now until the new endpoint is released
-#auth_health_endpoint = '/v1.0/help/apihealth'
-auth_health_endpoint = '/v1.0/help/health'
+auth_health_endpoint = '/v1.0/help/apihealth'
+#auth_health_endpoint = '/v1.0/help/health'
 
 jsonp_callback_pattern = re.compile("\A[a-zA-Z0-9_]+\Z") # Regex for validating JSONP callback name
 auth_ttl_sec = 90
