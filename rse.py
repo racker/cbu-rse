@@ -37,7 +37,7 @@ import json
 import pymongo
 import argparse
 
-# We got this off the web somewhere - put in the same dir as raxSvcRse.py
+# We got this off the web somewhere - put in the same dir as rse.py
 import json_validator
 
 from rax.http.exceptions import *
@@ -715,12 +715,14 @@ class RseApplication(rawr.Rawr):
     # FastCache for Auth Token
     retention_period = config.getint('fastcache', 'authtoken_retention_period')
     slice_size = config.getint('fastcache', 'authtoken_slice_size')
+
     if not retention_period: 
       retention_period = 30
+
     if not slice_size: 
       slice_size = 2
+
     fastcache_authtoken = fastcache.FastCache(retention_period, slice_size)
-    #rse_logger.warning( "YUDEBUG: work!")
   
     # Master instance connection for the health checker
     connection_master = pymongo.Connection(config.get('mongodb', 'uri'), read_preference=pymongo.ReadPreference.PRIMARY)
