@@ -428,7 +428,7 @@ class MainController(rawr.Controller):
     except Exception as ex: 
       rse_logger.error(str_utf8(ex))
       
-  def _is_test_event(self):
+  def _is_test_request(self):
     return self.request.get_optional_header('X-RSE-Mode') == 'test'          
   
   def _is_safe_user_agent(self, user_agent):
@@ -453,30 +453,30 @@ class MainController(rawr.Controller):
       else:
         raise HttpBadRequest('Missing UUID in User-Agent header')
   
-  def _debug_dump(self):
+  def _serialize_events(self, events):
+    return "" if not events else ",".join([
+      '{"id":%d,"user_agent":"%s","created_at":"%s","age":%d,"data":%s}'
+      % (
+      event['_id'],
+      event['user_agent'],
+      format_datetime(event['created_at']),
+      (datetime.datetime.utcnow() - event['created_at']).seconds, #<--- Assumes nothing is older than a day
+      event['data'])
+      for event in events])
 
+  def _debug_dump(self):
     sort_order = long(self.request.get_optional_param("sort", pymongo.ASCENDING))
 
     # Get a reference to the correct collections, depending on mode
     events_collection = self.mongo_db.events
-    if self._is_test_event():
+    if self._is_test_request():
       events_collection = self.mongo_db.events_test
 
     events = events_collection.find(
       fields=['_id', 'user_agent', 'created_at', 'data', 'channel'],
       sort=[('_id', sort_order)])
       
-    entries_serialized = "\"No events\"" if not events else ",\n".join([
-      '{"id":%d,"user_agent":"%s","channel":"%s","created_at":"%s","age":%d,"data":%s}'
-      % (
-      event['_id'],
-      event['user_agent'],
-      event['channel'],
-      format_datetime(event['created_at']),
-      (datetime.datetime.utcnow() - event['created_at']).seconds, #<--- Assumes nothing is older than a day
-      event['data'])
-      for event in events])
-      
+    entries_serialized = self._serialize_events(events)     
     self.response.write_header("Content-Type", "application/json; charset=utf-8")
     self.response.write("[%s]" % str_utf8(entries_serialized))
     return
@@ -499,7 +499,7 @@ class MainController(rawr.Controller):
     # Note: Most likely scenario used as default               
     events = self.mongo_db.events
     counters = self.mongo_db.counters
-    if self._is_test_event():
+    if self._is_test_request():
       events = self.mongo_db.events_test
       counters = self.mongo_db.counters_test
 
@@ -617,7 +617,7 @@ class MainController(rawr.Controller):
     # Get a reference to the correct collections, depending on mode
     # Note: Most likely scenario used as default to favor branch prediction              
     events_collection = self.mongo_db.events
-    if self._is_test_event():
+    if self._is_test_request():
       events_collection = self.mongo_db.events_test
 
     # Get a list of events
@@ -645,18 +645,9 @@ class MainController(rawr.Controller):
         else:
           time.sleep(1) # Wait a moment for a new primary to be elected
 
-    # http://www.skymind.com/~ocrow/python_string/
-    entries_serialized = "" if not events else ",".join([
-      '{"id":%d,"user_agent":"%s","created_at":"%s","age":%d,"data":%s}'
-      % (
-      event['_id'],
-      event['user_agent'],
-      format_datetime(event['created_at']),
-      (datetime.datetime.utcnow() - event['created_at']).seconds, #<--- Assumes nothing is older than a day
-      event['data'])
-      for event in events])
-
     # Write out the response
+    entries_serialized = self._serialize_events(events)
+
     callback_name = self.request.get_optional_param("callback")
     if callback_name:
       # JSON-P
@@ -666,14 +657,12 @@ class MainController(rawr.Controller):
       if not jsonp_callback_pattern.match(callback_name):
         raise HttpBadRequest('Invalid callback name')
       
-      #self.response.write("%s({\"channel\":\"%s\", \"events\":[%s]});" % (callback_name, channel_name, unicode(entries_serialized).encode("utf-8")))
       self.response.write("%s({\"channel\":\"%s\", \"events\":[%s]});" % (callback_name, channel_name, str_utf8(entries_serialized)))
     else:
       if not entries_serialized:
         self.response.set_status(204)
       else:
         self.response.write_header("Content-Type", "application/json; charset=utf-8")
-        #self.response.write("{\"channel\":\"%s\", \"events\":[%s]}" % (channel_name, unicode(entries_serialized).encode("utf-8")))
         self.response.write("{\"channel\":\"%s\", \"events\":[%s]}" % (channel_name, str_utf8(entries_serialized)))
   
   def post(self):
