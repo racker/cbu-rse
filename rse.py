@@ -732,7 +732,12 @@ class RseApplication(rawr.Rawr):
     if replica_set == '[none]':
       connection = pymongo.Connection(config.get('mongodb', 'uri'), read_preference=pymongo.ReadPreference.SECONDARY)
     else:
-      connection = pymongo.ReplicaSetConnection(config.get('mongodb', 'uri'), replicaSet=replica_set, read_preference=pymongo.ReadPreference.SECONDARY)
+      try:
+        connection = pymongo.ReplicaSetConnection(config.get('mongodb', 'uri'), replicaSet=replica_set, read_preference=pymongo.ReadPreference.SECONDARY)
+      except Exception as ex:
+        rse_logger.warning( "Mongo connection exception: %s" % (ex.message))
+        if ex.message == 'secondary':
+          return 
 
     mongo_db = connection[config.get('mongodb', 'database')]
     
