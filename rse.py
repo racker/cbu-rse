@@ -429,7 +429,9 @@ class MainController(rawr.Controller):
       rse_logger.error(str_utf8(ex))
       
   def _is_test_request(self):
-    return self.request.get_optional_header('X-RSE-Mode') == 'test'          
+    return False
+    # @todo Enable this once we have new debug agent builds that use "live"
+    #return self.request.get_optional_header('X-RSE-Mode') == 'test'          
   
   def _is_safe_user_agent(self, user_agent):
     """Quick heuristic to tell whether we can embed the given user_agent string in a JSON document"""
