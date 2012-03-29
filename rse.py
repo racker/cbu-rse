@@ -37,7 +37,7 @@ import json
 import pymongo
 import argparse
 
-# We got this off the web somewhere - put in the same dir as raxSvcRse.py
+# We got this off the web somewhere - put in the same dir as rse.py
 import json_validator
 
 from rax.http.exceptions import *
@@ -47,7 +47,6 @@ from rax.fastcache import fastcache
 # Set up a specific logger with our desired output level
 rse_logger = logging.getLogger(__name__)
 
-rse_mode  = 'live'
 cache_token_hitcnt = 0
 cache_token_totalcnt = 0
 CACHE_TOKEN_CNT_MAX = sys.maxint - 1
@@ -374,10 +373,6 @@ class MainController(rawr.Controller):
         # Auth token required in live mode
         rse_logger.error("Missing X-Auth-Token header (required in live mode)")
         raise HttpUnauthorized()
-
-    rse_mode = self.request.get_optional_header('X-RSE-Mode');
-    if not rse_mode or rse_mode != 'test':
-      rse_mode = 'live' 
      
     # Read X-* headers
     auth_record = None
@@ -398,23 +393,24 @@ class MainController(rawr.Controller):
       # Truncate to avoid overflow 
       cache_token_totalcnt = cache_token_totalcnt / 2
       cache_token_hitcnt = cache_token_hitcnt / 2
+    
     cache_token_totalcnt += 1
+
     if auth_record:
       # They are OK for the moment
       cache_token_hitcnt += 1
       return
     
+    # Proxy authentication to the Account Services API
     headers = {
       'X-Auth-Token': auth_token
     }
 
-    # Proxy authentication to the Account Services API
     try:
       accountsvc = httplib.HTTPSConnection(self.accountsvc_host) if self.accountsvc_https else httplib.HTTPConnection(self.accountsvc_host) 
       accountsvc.request('GET', auth_endpoint, None, headers)
       response = accountsvc.getresponse()
     except Exception as ex:
-      #rse_logger.error(unicode(ex).encode("utf-8"))
       rse_logger.error(str_utf8(ex))
       raise HttpBadGateway()
       
@@ -427,14 +423,15 @@ class MainController(rawr.Controller):
         raise HttpBadGateway()
       
     try: 
-      # Cache good token to increase performance and reduce the load on Account Services
-      #self.mongo_db.authcache.insert(
-      #    {'auth_token': auth_token, 'expires': time.time() + auth_ttl_sec})
+      # Cache good token to reduce latency, and to reduce the load on Account Services
       fastcache_authtoken.cache(auth_token)
     except Exception as ex: 
       rse_logger.error(str_utf8(ex))
       
-           
+  def _is_test_request(self):
+    return False
+    # @todo Enable this once we have new debug agent builds that use "live"
+    #return self.request.get_optional_header('X-RSE-Mode') == 'test'          
   
   def _is_safe_user_agent(self, user_agent):
     """Quick heuristic to tell whether we can embed the given user_agent string in a JSON document"""
@@ -458,32 +455,31 @@ class MainController(rawr.Controller):
       else:
         raise HttpBadRequest('Missing UUID in User-Agent header')
   
-  def _debug_dump(self):
-
-    sort_order = long(self.request.get_optional_param("sort", pymongo.ASCENDING))
-
-    if rse_mode == 'live':
-      events = self.mongo_db.events.find(
-        fields=['_id', 'user_agent', 'created_at', 'data', 'channel'],
-        sort=[('_id', sort_order)])
-    else:
-      events = self.mongo_db.events_test.find(
-        fields=['_id', 'user_agent', 'created_at', 'data', 'channel'],
-        sort=[('_id', sort_order)])
-      
-    entries_serialized = "\"No events\"" if not events else ",\n".join([
-      '{"id":%d,"user_agent":"%s","channel":"%s","created_at":"%s","age":%d,"data":%s}'
+  def _serialize_events(self, events):
+    return "" if not events else ",".join([
+      '{"id":%d,"user_agent":"%s","created_at":"%s","age":%d,"data":%s}'
       % (
       event['_id'],
       event['user_agent'],
-      event['channel'],
       format_datetime(event['created_at']),
       (datetime.datetime.utcnow() - event['created_at']).seconds, #<--- Assumes nothing is older than a day
       event['data'])
       for event in events])
+
+  def _debug_dump(self):
+    sort_order = long(self.request.get_optional_param("sort", pymongo.ASCENDING))
+
+    # Get a reference to the correct collections, depending on mode
+    events_collection = self.mongo_db.events
+    if self._is_test_request():
+      events_collection = self.mongo_db.events_test
+
+    events = events_collection.find(
+      fields=['_id', 'user_agent', 'created_at', 'data', 'channel'],
+      sort=[('_id', sort_order)])
       
+    entries_serialized = self._serialize_events(events)     
     self.response.write_header("Content-Type", "application/json; charset=utf-8")
-    #self.response.write("[%s]" % unicode(entries_serialized).encode("utf-8"))
     self.response.write("[%s]" % str_utf8(entries_serialized))
     return
     
@@ -500,10 +496,15 @@ class MainController(rawr.Controller):
     # Verify that the data is valid JSON
     if not (json_validator.is_valid(data) and self._is_safe_user_agent(user_agent)):
       raise HttpBadRequest('Invalid JSON')
-        
-    # Increment our fallback counter (don't use normally, because it's prone to race conditions)
-    self.mongo_db.counters.update({'_id': 'last_known_id'}, {'$inc': {'c': 1}})
-        
+
+    # Get a reference to the correct collections, depending on mode
+    # Note: Most likely scenario used as default               
+    events = self.mongo_db.events
+    counters = self.mongo_db.counters
+    if self._is_test_request():
+      events = self.mongo_db.events_test
+      counters = self.mongo_db.counters_test
+
     # Insert the new event into the DB        
     num_retries = 30 # 30 seconds
     for i in range(num_retries):
@@ -513,46 +514,31 @@ class MainController(rawr.Controller):
         # end up inserting before we do (race condition). This could lead to 
         # a client getting the larger _id and using it for last-known-id, 
         # effectively skipping the other event.
-        # counter = self.mongo_db.counters.find_and_modify({'_id': 'event_id'}, {'$inc': {'c': 1}})
-        
+        # counter = self.mongo_db.counters.find_and_modify({'_id': 'event_id'}, {'$inc': {'c': 1}}) 
+
         while (True):
-          if rse_mode == 'live':
-            last_id_record = self.mongo_db.events.find_one(
-              fields=['_id'],
-              sort=[('_id', pymongo.DESCENDING)])
-          else:
-            last_id_record = self.mongo_db.events_test.find_one(
-              fields=['_id'],
-              sort=[('_id', pymongo.DESCENDING)])
+          last_id_record = events.find_one(
+            fields=['_id'],
+            sort=[('_id', pymongo.DESCENDING)])
         
           try:
             next_id = last_id_record['_id'] + 1
           except:
             # No records found (basis case)
             rse_logger.warning("No events. Falling back to global counter.")
-            next_id = self.mongo_db.counters.find_one({'_id': 'last_known_id'})['c']
+            next_id = counters.find_one({'_id': 'last_known_id'})['c']
         
           # Most of the time this will succeed, unless a different instance
           # beat us to the punch, in which case, we'll just try again
           try:
-            if rse_mode == 'live':
-              self.mongo_db.events.insert({
-                "_id": next_id, 
-                "data": data,
-                "channel": channel_name,
-                "user_agent": user_agent,
-                "uuid": self._parse_client_uuid(user_agent),
-                "created_at": datetime.datetime.utcnow()
-              }, safe=True)
-            else: 
-              self.mongo_db.events_test.insert({
-                "_id": next_id, 
-                "data": data,
-                "channel": channel_name,
-                "user_agent": user_agent,
-                "uuid": self._parse_client_uuid(user_agent),
-                "created_at": datetime.datetime.utcnow()
-              }, safe=True)
+            events.insert({
+              "_id": next_id, 
+              "data": data,
+              "channel": channel_name,
+              "user_agent": user_agent,
+              "uuid": self._parse_client_uuid(user_agent),
+              "created_at": datetime.datetime.utcnow()
+            }, safe=True)
             
             # Don't retry
             break
@@ -571,12 +557,16 @@ class MainController(rawr.Controller):
         raise 
       except Exception as ex:
         rse_logger.error("Retry %d of %d. Details: %s" % (i, num_retries, str_utf8(ex))) 
-        if i == num_retries - 1: # Don't retry forever!
+        if i == (num_retries - 1): # Don't retry forever!
           # Critical error (retrying probably won't help)
           raise HttpInternalServerError()
         else:
           time.sleep(1) # Wait 1 second for a new primary to be elected
     
+    # Increment our fallback counter (don't use normally, because it's prone to race conditions)
+    # IMPORTANT: Only increment once, and only if the event was successfully committed
+    counters.update({'_id': 'last_known_id'}, {'$inc': {'c': 1}})
+
     # If this is a JSON-P request, we need to return a response to the callback
     callback_name = self.request.get_optional_param("callback")
     if callback_name:
@@ -626,6 +616,12 @@ class MainController(rawr.Controller):
     else: # force "exact"
       channel_pattern = channel_name
     
+    # Get a reference to the correct collections, depending on mode
+    # Note: Most likely scenario used as default to favor branch prediction              
+    events_collection = self.mongo_db.events
+    if self._is_test_request():
+      events_collection = self.mongo_db.events_test
+
     # Get a list of events
     num_retries = 10
     for i in range(num_retries):
@@ -633,18 +629,12 @@ class MainController(rawr.Controller):
         user_agent = self.request.get_header("User-Agent")
         uuid = ("e" if echo else self._parse_client_uuid(user_agent))
         
-        if rse_mode == 'live':
-          events = self.mongo_db.events.find(
-            {'_id': {'$gt': last_known_id}, 'channel': channel_pattern, 'uuid': {'$ne': uuid}},
-            fields=['_id', 'user_agent', 'created_at', 'data'],
-            sort=[('_id', sort_order)],
-            limit=max_events)
-        else:
-          events = self.mongo_db.events_test.find(
-            {'_id': {'$gt': last_known_id}, 'channel': channel_pattern, 'uuid': {'$ne': uuid}},
-            fields=['_id', 'user_agent', 'created_at', 'data'],
-            sort=[('_id', sort_order)],
-            limit=max_events)
+        events = events_collection.find(
+          {'_id': {'$gt': last_known_id}, 'channel': channel_pattern, 'uuid': {'$ne': uuid}},
+          fields=['_id', 'user_agent', 'created_at', 'data'],
+          sort=[('_id', sort_order)],
+          limit=max_events)
+
         break
       
       except Exception as ex:
@@ -657,18 +647,9 @@ class MainController(rawr.Controller):
         else:
           time.sleep(1) # Wait a moment for a new primary to be elected
 
-    # http://www.skymind.com/~ocrow/python_string/
-    entries_serialized = "" if not events else ",".join([
-      '{"id":%d,"user_agent":"%s","created_at":"%s","age":%d,"data":%s}'
-      % (
-      event['_id'],
-      event['user_agent'],
-      format_datetime(event['created_at']),
-      (datetime.datetime.utcnow() - event['created_at']).seconds, #<--- Assumes nothing is older than a day
-      event['data'])
-      for event in events])
-
     # Write out the response
+    entries_serialized = self._serialize_events(events)
+
     callback_name = self.request.get_optional_param("callback")
     if callback_name:
       # JSON-P
@@ -678,14 +659,12 @@ class MainController(rawr.Controller):
       if not jsonp_callback_pattern.match(callback_name):
         raise HttpBadRequest('Invalid callback name')
       
-      #self.response.write("%s({\"channel\":\"%s\", \"events\":[%s]});" % (callback_name, channel_name, unicode(entries_serialized).encode("utf-8")))
       self.response.write("%s({\"channel\":\"%s\", \"events\":[%s]});" % (callback_name, channel_name, str_utf8(entries_serialized)))
     else:
       if not entries_serialized:
         self.response.set_status(204)
       else:
         self.response.write_header("Content-Type", "application/json; charset=utf-8")
-        #self.response.write("{\"channel\":\"%s\", \"events\":[%s]}" % (channel_name, unicode(entries_serialized).encode("utf-8")))
         self.response.write("{\"channel\":\"%s\", \"events\":[%s]}" % (channel_name, str_utf8(entries_serialized)))
   
   def post(self):
@@ -727,12 +706,14 @@ class RseApplication(rawr.Rawr):
     # FastCache for Auth Token
     retention_period = config.getint('fastcache', 'authtoken_retention_period')
     slice_size = config.getint('fastcache', 'authtoken_slice_size')
+
     if not retention_period: 
       retention_period = 30
+
     if not slice_size: 
       slice_size = 2
+
     fastcache_authtoken = fastcache.FastCache(retention_period, slice_size)
-    #rse_logger.warning( "YUDEBUG: work!")
   
     # Master instance connection for the health checker
     connection_master = pymongo.Connection(config.get('mongodb', 'uri'), read_preference=pymongo.ReadPreference.PRIMARY)
@@ -770,6 +751,9 @@ class RseApplication(rawr.Rawr):
     if not mongo_db.counters.find_one({'_id': 'last_known_id'}):
       mongo_db.counters.insert({'_id': 'last_known_id', 'c': 1})
     
+    if not mongo_db.counters_test.find_one({'_id': 'last_known_id'}):
+      mongo_db.counters_test.insert({'_id': 'last_known_id', 'c': 1})
+
     accountsvc_host = config.get('account-services', 'host')
     accountsvc_https = config.getboolean('account-services', 'https')
     test_mode = config.getboolean('rse', 'test')
