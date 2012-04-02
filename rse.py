@@ -600,6 +600,10 @@ class MainController(rawr.Controller):
     max_events = min(500, int(self.request.get_optional_param("max-events", 200)))
     echo = (self.request.get_optional_param("echo") == "true")
 
+    # Parse User-Agent string
+    user_agent = self.request.get_header("User-Agent")
+    uuid = ("e" if echo else self._parse_client_uuid(user_agent))
+
     # request parameter validation
     if sort_order not in (pymongo.ASCENDING, pymongo.DESCENDING):
       sort_order = pymongo.ASCENDING
@@ -625,10 +629,7 @@ class MainController(rawr.Controller):
     # Get a list of events
     num_retries = 10
     for i in range(num_retries):
-      try:
-        user_agent = self.request.get_header("User-Agent")
-        uuid = ("e" if echo else self._parse_client_uuid(user_agent))
-        
+      try:        
         events = events_collection.find(
           {'_id': {'$gt': last_known_id}, 'channel': channel_pattern, 'uuid': {'$ne': uuid}},
           fields=['_id', 'user_agent', 'created_at', 'data'],
