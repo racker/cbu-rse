@@ -45,7 +45,7 @@ from rax.http import rawr
 from rax.fastcache import fastcache
 
 # Set up a specific logger with our desired output level
-rse_logger = logging.getLogger(__name__)
+RSE_LOGGER = logging.getLogger(__name__)
 
 cache_token_hitcnt = 0
 cache_token_totalcnt = 0
@@ -60,12 +60,10 @@ global_config_path = '/etc/rse.conf'
 default_config_path = os.path.join(dir_path, 'rse.default.conf')
 auth_endpoint = '/v1.0/auth/isauthenticated'
 
-# Commented out for now until the new endpoint is released
 auth_health_endpoint = '/v1.0/help/apihealth'
-#auth_health_endpoint = '/v1.0/help/health'
 
-jsonp_callback_pattern = re.compile("\A[a-zA-Z0-9_]+\Z") # Regex for validating JSONP callback name
-auth_ttl_sec = 90
+# Precompiled regex for validating JSONP callback name
+jsonp_callback_pattern = re.compile("\A[a-zA-Z0-9_]+\Z") 
 
 health_auth_headers = {
   'X-Auth-Token': 'HealthCheck'
@@ -123,7 +121,7 @@ class HealthController(rawr.Controller):
     
     healthy, msg = self._auth_service_is_healthy();
     if not healthy:
-      rse_logger.error(msg)
+      RSE_LOGGER.error(msg)
 
     return healthy
 
@@ -191,7 +189,7 @@ class HealthController(rawr.Controller):
         break;
 
       except pymongo.errors.AutoReconnect:
-        rse_logger.error("AutoReconnect caught from stats query")
+        RSE_LOGGER.error("AutoReconnect caught from stats query")
         time.sleep(1)
         
       except Exception as ex:
@@ -371,22 +369,9 @@ class MainController(rawr.Controller):
         return
       else:
         # Auth token required in live mode
-        rse_logger.error("Missing X-Auth-Token header (required in live mode)")
+        RSE_LOGGER.error("Missing X-Auth-Token header (required in live mode)")
         raise HttpUnauthorized()
      
-    # Read X-* headers
-    auth_record = None
-    try:     
-      # Check for non-expired, cached authentication
-      #auth_record = self.mongo_db.authcache.find_one(
-      #  {'auth_token': auth_token, 'expires': {'$gt': time.time()}})
-      auth_record = fastcache_authtoken.is_cached(auth_token)
-      
-    except Exception as ex:
-      # Oh well. Log the error and proceed as if no cached authentication
-      #rse_logger.error(unicode(ex).encode("utf-8"))
-      rse_logger.error(str_utf8(ex))
-
     # Cache hit rate algorithm: Since there's no time stamp, the total counter and the hit counter are truncated to half when the total counter 
     # reaches the integer maximum.  The theory is that 2^62 is a still big base compare to the accumulation step (1), so the scale remains accurate.
     if cache_token_totalcnt >= CACHE_TOKEN_CNT_MAX:
@@ -396,12 +381,13 @@ class MainController(rawr.Controller):
     
     cache_token_totalcnt += 1
 
-    if auth_record:
+    # See if auth is cached
+    if fastcache_authtoken.is_cached(auth_token):
       # They are OK for the moment
       cache_token_hitcnt += 1
       return
     
-    # Proxy authentication to the Account Services API
+    # We don't have a record of this token, so proxy authentication to the Account Services API
     headers = {
       'X-Auth-Token': auth_token
     }
@@ -411,12 +397,12 @@ class MainController(rawr.Controller):
       accountsvc.request('GET', auth_endpoint, None, headers)
       response = accountsvc.getresponse()
     except Exception as ex:
-      rse_logger.error(str_utf8(ex))
+      RSE_LOGGER.error(str_utf8(ex))
       raise HttpBadGateway()
       
     # Check whether the auth token was good
     if response.status != 200:
-      rse_logger.warning('Could not authorize request. Server returned HTTP %d for "%s".' % (response.status, auth_token))
+      RSE_LOGGER.warning('Could not authorize request. Server returned HTTP %d for "%s".' % (response.status, auth_token))
       if (response.status / 100) == 4:
         raise HttpUnauthorized()
       else:
@@ -426,7 +412,7 @@ class MainController(rawr.Controller):
       # Cache good token to reduce latency, and to reduce the load on Account Services
       fastcache_authtoken.cache(auth_token)
     except Exception as ex: 
-      rse_logger.error(str_utf8(ex))
+      RSE_LOGGER.error(str_utf8(ex))
       
   def _is_test_request(self):
     return False
@@ -525,7 +511,7 @@ class MainController(rawr.Controller):
             next_id = last_id_record['_id'] + 1
           except:
             # No records found (basis case)
-            rse_logger.warning("No events. Falling back to global counter.")
+            RSE_LOGGER.warning("No events. Falling back to global counter.")
             next_id = counters.find_one({'_id': 'last_known_id'})['c']
         
           # Most of the time this will succeed, unless a different instance
@@ -546,17 +532,17 @@ class MainController(rawr.Controller):
             # Retry
             pass
           except pymongo.errors.AutoReconnect:
-            rse_logger.error("AutoReconnect caught from insert")
+            RSE_LOGGER.error("AutoReconnect caught from insert")
             raise
 
         # Success! No need to retry...
         break
 
       except HttpError as ex:
-        rse_logger.error(str_utf8(ex)) 
+        RSE_LOGGER.error(str_utf8(ex)) 
         raise 
       except Exception as ex:
-        rse_logger.error("Retry %d of %d. Details: %s" % (i, num_retries, str_utf8(ex))) 
+        RSE_LOGGER.error("Retry %d of %d. Details: %s" % (i, num_retries, str_utf8(ex))) 
         if i == (num_retries - 1): # Don't retry forever!
           # Critical error (retrying probably won't help)
           raise HttpInternalServerError()
@@ -639,8 +625,8 @@ class MainController(rawr.Controller):
         break
       
       except Exception as ex:
-        #rse_logger.error(unicode(ex).encode("utf-8"))
-        rse_logger.error(str_utf8(ex))
+        #RSE_LOGGER.error(unicode(ex).encode("utf-8"))
+        RSE_LOGGER.error(str_utf8(ex))
 
         if i == num_retries - 1: # Don't retry forever!
           # Critical error (retrying probably won't help)
@@ -690,19 +676,19 @@ class RseApplication(rawr.Rawr):
        config.read(global_config_path)
 
     # Add the log message handler to the logger
-    rse_logger.setLevel(logging.DEBUG if config.get('logging', 'verbose') else logging.WARNING)
+    RSE_LOGGER.setLevel(logging.DEBUG if config.get('logging', 'verbose') else logging.WARNING)
     
     formatter = logging.Formatter('%(asctime)s - RSE - PID %(process)d - %(funcName)s:%(lineno)d - %(levelname)s - %(message)s')
    
     if config.getboolean('logging', 'filelog'):
       handler = logging.handlers.RotatingFileHandler(config.get('logging', 'filelog-path'), maxBytes=5 * 1024*1024, backupCount=5)    
       handler.setFormatter(formatter);
-      rse_logger.addHandler(handler)
+      RSE_LOGGER.addHandler(handler)
     
     if config.getboolean('logging', 'syslog'):
       handler = logging.handlers.SysLogHandler(address=config.get('logging', 'syslog-address'))    
       handler.setFormatter(formatter);
-      rse_logger.addHandler(handler)
+      RSE_LOGGER.addHandler(handler)
     
     # FastCache for Auth Token
     retention_period = config.getint('fastcache', 'authtoken_retention_period')
@@ -729,7 +715,7 @@ class RseApplication(rawr.Rawr):
       try:
         connection = pymongo.ReplicaSetConnection(config.get('mongodb', 'uri'), replicaSet=replica_set, read_preference=pymongo.ReadPreference.SECONDARY)
       except Exception as ex:
-        rse_logger.warning( "Mongo connection exception: %s" % (ex.message))
+        RSE_LOGGER.warning( "Mongo connection exception: %s" % (ex.message))
         if ex.message == 'secondary':
           return 
 
