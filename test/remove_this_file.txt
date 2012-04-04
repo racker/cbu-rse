@@ -1,4 +1,0 @@
-
-This is a temporary file, existing only to create a structure
-of subdirectories. Please remove it from subversion when you
-put real files in this directory.
