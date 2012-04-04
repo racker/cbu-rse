@@ -59,7 +59,8 @@ class MainController(rawr.Controller):
         raise HttpUnauthorized()
      
     # Cache hit rate algorithm: Since there's no time stamp, the total counter and the hit counter are truncated to half when the total counter 
-    # reaches the integer maximum.  The theory is that 2^62 is a still big base compare to the accumulation step (1), so the scale remains accurate.
+    # reaches the integer maximum. This avoids BigInt arithmetic on 32-bit VMs. 
+    # Note: Since 2^62-1 is large relative to the accumulation step, the scale remains reasonably accurate.
     if self.shared.cache_token_totalcnt >= (sys.maxint - 1):
       # Truncate to avoid overflow 
       self.shared.cache_token_totalcnt = self.shared.cache_token_totalcnt / 2
@@ -74,17 +75,13 @@ class MainController(rawr.Controller):
       return
     
     # We don't have a record of this token, so proxy authentication to the Account Services API
-    headers = {
-      'X-Auth-Token': auth_token
-    }
-
     try:
       accountsvc = httplib.HTTPSConnection(self.accountsvc_host) if self.accountsvc_https else httplib.HTTPConnection(self.accountsvc_host) 
-      accountsvc.request('GET', self.shared.AUTH_ENDPOINT, None, headers)
+      accountsvc.request('GET', self.shared.AUTH_ENDPOINT, None, { 'X-Auth-Token': auth_token })
       response = accountsvc.getresponse()
     except Exception as ex:
       self.shared.logger.error(str_utf8(ex))
-      raise HttpBadGateway()
+      raise HttpServiceUnavailable()
       
     # Check whether the auth token was good
     if response.status != 200:
@@ -92,7 +89,7 @@ class MainController(rawr.Controller):
       if (response.status / 100) == 4:
         raise HttpUnauthorized()
       else:
-        raise HttpBadGateway()
+        raise HttpServiceUnavailable()
       
     try: 
       # Cache good token to reduce latency, and to reduce the load on Account Services
@@ -179,7 +176,11 @@ class MainController(rawr.Controller):
 
     # Insert the new event into the DB        
     num_retries = 30 # 30 seconds
+    inserted_id = -1
+
     for i in range(num_retries):
+      inserted_id = -1 # <--- Reset
+
       try:
         # Don't use this approach for normal ID creation.
         # A POST going to a different instance may get the next counter, but 
@@ -188,23 +189,17 @@ class MainController(rawr.Controller):
         # effectively skipping the other event.
         # counter = self.mongo_db.counters.find_and_modify({'_id': 'event_id'}, {'$inc': {'c': 1}}) 
 
-        while (True):
-          last_id_record = events.find_one(
-            fields=['_id'],
-            sort=[('_id', pymongo.DESCENDING)])
-        
-          try:
-            next_id = last_id_record['_id'] + 1
-          except:
-            # No records found (basis case)
-            self.shared.logger.warning("No events. Falling back to global counter.")
-            next_id = counters.find_one({'_id': 'last_known_id'})['c']
-        
+        # Grab the next ID - it's OK if two processes get the same, we will get an
+        # exception when we try to insert a duplicate _id       
+        inserted_id = counters.find_one({'_id': 'last_known_id'})['c']
+
+        # Retry until we get a unique _id
+        while (True):       
           # Most of the time this will succeed, unless a different instance
           # beat us to the punch, in which case, we'll just try again
           try:
             events.insert({
-              "_id": next_id, 
+              "_id": inserted_id, 
               "data": data,
               "channel": channel_name,
               "user_agent": user_agent,
@@ -212,11 +207,19 @@ class MainController(rawr.Controller):
               "created_at": datetime.datetime.utcnow()
             }, safe=True)
             
-            # Don't retry
+            # Don't retry with a different _id, since this one worked
             break
           except pymongo.errors.DuplicateKeyError:
-            # Retry
-            pass
+            # Retry with a new value for _id. Since we normally count by
+            # 10's, adding 1 or 2 in the case of another process having beat
+            # us to the punch should succeed on the first retry.
+            #
+            # Note: We choose 1 or 2 to add jitter in the case that we 
+            # have more than 2 loosers that must retry, and we want them
+            # to have a better chance of succeeding on their first try. This
+            # is a hueristic since we have no way of knowing how many
+            # processes are in contention.
+            inserted_id += random.randint(1,3) 
           except pymongo.errors.AutoReconnect:
             self.shared.logger.error("AutoReconnect caught from insert")
             raise
@@ -234,10 +237,18 @@ class MainController(rawr.Controller):
           raise HttpInternalServerError()
         else:
           time.sleep(1) # Wait 1 second for a new primary to be elected
+
+    # Sanity check
+    if inserted_id == -1:
+      self.shared.logger.error("inserted_id was never set")
+      raise HttpInternalServerError()
     
-    # Increment our fallback counter (don't use normally, because it's prone to race conditions)
-    # IMPORTANT: Only increment once, and only if the event was successfully committed
-    counters.update({'_id': 'last_known_id'}, {'$inc': {'c': 1}})
+    # Increment our side counter for the next POST
+    # Note: 
+    #   In the case of a race condition, where the current POST was the
+    #   loser, this will result in, e.g., 10 => 30, and events having 
+    #   _id's of [10, 11]. For 2 loosers, 10 => 40 and [10,11,12]
+    counters.update({'_id': 'last_known_id'}, {'$inc': {'c': 10}})
 
     # If this is a JSON-P request, we need to return a response to the callback
     callback_name = self.request.get_optional_param("callback")
