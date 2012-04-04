@@ -122,13 +122,13 @@ class RseApplication(rawr.Rawr):
       except pymongo.errors.AutoReconnect:
         time.sleep(1)
 
-    # Only used for fallback if we don't have any events to use for the ID
     # WARNING: Counter must start at a value greater than 0 per the RSE spec!
+    # Note: starting at 10 to keep counters even
     if not mongo_db.counters.find_one({'_id': 'last_known_id'}):
-      mongo_db.counters.insert({'_id': 'last_known_id', 'c': 1})
+      mongo_db.counters.insert({'_id': 'last_known_id', 'c': 10})
     
     if not mongo_db.counters_test.find_one({'_id': 'last_known_id'}):
-      mongo_db.counters_test.insert({'_id': 'last_known_id', 'c': 1})
+      mongo_db.counters_test.insert({'_id': 'last_known_id', 'c': 10})
 
     accountsvc_host = config.get('account-services', 'host')
     accountsvc_https = config.getboolean('account-services', 'https')
