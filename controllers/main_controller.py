@@ -265,6 +265,11 @@ class MainController(rawr.Controller):
       
       self.response.write(callback_name)
       self.response.write('({"result":"OK"});')
+    
+    else:
+      # POST succeeded, but we aren't going to return any details in the response body,
+      # so use 204 to signal our intentions.
+      self.response.set_status(204)
   
   def get(self):
     """Handles a "GET events" request for the specified channel (channel here includes the scope name)"""
