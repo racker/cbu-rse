@@ -214,12 +214,14 @@ class MainController(rawr.Controller):
             # 10's, adding 1 or 2 in the case of another process having beat
             # us to the punch should succeed on the first retry.
             #
-            # Note: We choose 1 or 2 to add jitter in the case that we 
-            # have more than 2 loosers that must retry, and we want them
+            # Note: We choose a random int to add jitter in the case that we 
+            # have more 2 or more loosers that must retry, and we want them
             # to have a better chance of succeeding on their first try. This
             # is a hueristic since we have no way of knowing how many
-            # processes are in contention.
-            inserted_id += random.randint(1,3) 
+            # processes are in contention
+            #
+            # @todo Tune based on load testing
+            inserted_id += random.randint(1, 3) 
           except pymongo.errors.AutoReconnect:
             self.shared.logger.error("AutoReconnect caught from insert")
             raise
@@ -247,7 +249,8 @@ class MainController(rawr.Controller):
     # Note: 
     #   In the case of a race condition, where the current POST was the
     #   loser, this will result in, e.g., 10 => 30, and events having 
-    #   _id's of [10, 11]. For 2 loosers, 10 => 40 and [10,11,12]
+    #   _id's of [10, 11]. For 2 loosers, 10 => 40 and [10,11,12]. Should
+    #   never overflow regardless, since max int in MongoDB is 2^63 - 1.
     counters.update({'_id': 'last_known_id'}, {'$inc': {'c': 10}})
 
     # If this is a JSON-P request, we need to return a response to the callback
@@ -262,6 +265,11 @@ class MainController(rawr.Controller):
       
       self.response.write(callback_name)
       self.response.write('({"result":"OK"});')
+    
+    else:
+      # POST succeeded, but we aren't going to return any details in the response body,
+      # so use 204 to signal our intentions.
+      self.response.set_status(204)
   
   def get(self):
     """Handles a "GET events" request for the specified channel (channel here includes the scope name)"""
