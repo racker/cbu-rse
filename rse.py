@@ -114,22 +114,15 @@ class RseApplication(rawr.Rawr):
     for i in range(10):
       try:
         mongo_db.events.ensure_index([('uuid', pymongo.ASCENDING), ('channel', pymongo.ASCENDING)])
-        mongo_db.events_test.ensure_index([('uuid', pymongo.ASCENDING), ('channel', pymongo.ASCENDING)])
-
         mongo_db.events.ensure_index('created_at', pymongo.ASCENDING)
-        mongo_db.events_test.ensure_index('created_at', pymongo.ASCENDING)
         break
       except pymongo.errors.AutoReconnect:
         time.sleep(1)
 
     # WARNING: Counter must start at a value greater than 0 per the RSE spec!
-    # Note: starting at 10 to keep counters even
     if not mongo_db.counters.find_one({'_id': 'last_known_id'}):
-      mongo_db.counters.insert({'_id': 'last_known_id', 'c': 10})
+      mongo_db.counters.insert({'_id': 'last_known_id', 'c': 0})
     
-    if not mongo_db.counters_test.find_one({'_id': 'last_known_id'}):
-      mongo_db.counters_test.insert({'_id': 'last_known_id', 'c': 10})
-
     accountsvc_host = config.get('account-services', 'host')
     accountsvc_https = config.getboolean('account-services', 'https')
     test_mode = config.getboolean('rse', 'test')

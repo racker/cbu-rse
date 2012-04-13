@@ -48,9 +48,6 @@ class MainController(rawr.Controller):
     self.test_mode = test_mode # If true, relax auth/uuid requirements
     self.shared = shared # Shared performance counters, logging, etc.
 
-    self.EVENT_ID_STEP = 1000 # Choose a large enough number to minimize the likelihood of collisions under load
-    self.EVENT_ID_RETRY_STEP = 3 # Should be a number in the range [2..5] - optimize to fall into local wells
-
   def prepare(self):
     auth_token = self.request.get_optional_header('X-Auth-Token');
     if not auth_token:
@@ -94,11 +91,6 @@ class MainController(rawr.Controller):
     except Exception as ex: 
       self.shared.logger.error(str_utf8(ex))
       
-  def _is_test_request(self):
-    return False
-    # @todo Enable this once we have new debug agent builds that use "live"
-    #return self.request.get_optional_header('X-RSE-Mode') == 'test'          
-  
   def _is_safe_user_agent(self, user_agent):
     """Quick heuristic to tell whether we can embed the given user_agent string in a JSON document"""
     for c in user_agent:
@@ -135,12 +127,7 @@ class MainController(rawr.Controller):
   def _debug_dump(self):
     sort_order = long(self.request.get_optional_param("sort", pymongo.ASCENDING))
 
-    # Get a reference to the correct collections, depending on mode
-    events_collection = self.mongo_db.events
-    if self._is_test_request():
-      events_collection = self.mongo_db.events_test
-
-    events = events_collection.find(
+    events = self.mongo_db.events.find(
       fields=['_id', 'user_agent', 'created_at', 'data', 'channel'],
       sort=[('_id', sort_order)])
       
@@ -178,14 +165,6 @@ class MainController(rawr.Controller):
     if not (json_validator.is_valid(data) and self._is_safe_user_agent(user_agent)):
       raise HttpBadRequest('Invalid JSON')
 
-    # Get a reference to the correct collections, depending on mode
-    # Note: Most likely scenario used as default               
-    events = self.mongo_db.events
-    counters = self.mongo_db.counters
-    if self._is_test_request():
-      events = self.mongo_db.events_test
-      counters = self.mongo_db.counters_test
-
     # Insert the new event into the DB        
     num_retries = 30 # 30 seconds
     for i in range(num_retries):
@@ -214,7 +193,7 @@ class MainController(rawr.Controller):
           try:
             # Most of the time this will succeed, unless a different instance
             # beat us to the punch, in which case, we'll just try again
-            events.insert({
+            self.mongo_db.events.insert({
               "_id": next_id, 
               "data": data,
               "channel": channel_name,
@@ -225,7 +204,7 @@ class MainController(rawr.Controller):
 
             # Succeeded. Increment the side counter to keep it in sync with 
             # next_id.
-            counters.update({"_id": "last_known_id"}, {"$inc": {"c": 1}})
+            self.mongo_db.counters.update({"_id": "last_known_id"}, {"$inc": {"c": 1}})
             
             # Our work is done here
             break
@@ -309,17 +288,11 @@ class MainController(rawr.Controller):
     else: # force "exact"
       channel_pattern = channel_name
     
-    # Get a reference to the correct collections, depending on mode
-    # Note: Most likely scenario used as default to favor branch prediction              
-    events_collection = self.mongo_db.events
-    if self._is_test_request():
-      events_collection = self.mongo_db.events_test
-
     # Get a list of events
     num_retries = 10
     for i in range(num_retries):
       try:        
-        events = events_collection.find(
+        events = self.mongo_db.events.find(
           {'_id': {'$gt': last_known_id}, 'channel': channel_pattern, 'uuid': {'$ne': uuid}},
           fields=['_id', 'user_agent', 'created_at', 'data'],
           sort=[('_id', sort_order)],
