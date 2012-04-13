@@ -262,7 +262,7 @@ class MainController(rawr.Controller):
         raise HttpBadRequest('Invalid callback name')
       
       self.response.write(callback_name)
-      self.response.write('({"result":"OK"});')
+      self.response.write('({});')
     
     else:
       # POST succeeded, but we aren't going to return any details in the response body,
