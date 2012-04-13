@@ -166,9 +166,18 @@ class HealthController(rawr.Controller):
       "rse": {
         "test_mode": self.test_mode,
         "events": active_events,
-        "auth_token_cache_cnt": self.shared.cache_token_totalcnt,
-        "auth_token_cache_hit_cnt": self.shared.cache_token_hitcnt,
-        "auth_token_cache_hit_rate": 0 if self.shared.cache_token_totalcnt == 0 else float(self.shared.cache_token_hitcnt)/self.shared.cache_token_totalcnt
+        "pp_stats": {
+          "auth_token_cache": {
+            "lookups": self.shared.cache_token_totalcnt,
+            "hits": self.shared.cache_token_hitcnt,
+            "hit_rate": 0 if self.shared.cache_token_totalcnt == 0 else float(self.shared.cache_token_hitcnt) / self.shared.cache_token_totalcnt
+          },
+          "id_generator": {
+            "attempts": self.shared.id_totalcnt,
+            "retries": self.shared.id_retrycnt,
+            "retry_rate": 0 if (self.shared.id_totalcnt == 0 or self.shared.id_retrycnt == 0) else float(self.shared.id_retrycnt) / self.shared.id_totalcnt
+          }
+        }
       },
       "auth": {
         "url": "%s://%s%s" % ("https" if self.accountsvc_https else "http", self.accountsvc_host, self.shared.AUTH_ENDPOINT),        
