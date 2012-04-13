@@ -12,6 +12,7 @@ import time
 import uuid
 import re
 import httplib
+# import pdb; 
 
 # Requires python 2.6 or better
 import json
@@ -47,6 +48,9 @@ class MainController(rawr.Controller):
     self.test_mode = test_mode # If true, relax auth/uuid requirements
     self.shared = shared # Shared performance counters, logging, etc.
 
+    self.EVENT_ID_STEP = 1000 # Choose a large enough number to minimize the likelihood of collisions under load
+    self.EVENT_ID_RETRY_STEP = 3 # Should be a number in the range [2..5] - optimize to fall into local wells
+
   def prepare(self):
     auth_token = self.request.get_optional_header('X-Auth-Token');
     if not auth_token:
@@ -57,20 +61,13 @@ class MainController(rawr.Controller):
         # Auth token required in live mode
         self.shared.logger.error("Missing X-Auth-Token header (required in live mode)")
         raise HttpUnauthorized()
-     
-    # Cache hit rate algorithm: Since there's no time stamp, the total counter and the hit counter are truncated to half when the total counter 
-    # reaches the integer maximum. This avoids BigInt arithmetic on 32-bit VMs. 
-    # Note: Since 2^62-1 is large relative to the accumulation step, the scale remains reasonably accurate.
-    if self.shared.cache_token_totalcnt >= (sys.maxint - 1):
-      # Truncate to avoid overflow 
-      self.shared.cache_token_totalcnt = self.shared.cache_token_totalcnt / 2
-      self.shared.cache_token_hitcnt = self.shared.cache_token_hitcnt / 2
     
+    # Incement token cache access counter
     self.shared.cache_token_totalcnt += 1
 
     # See if auth is cached
     if self.shared.authtoken_cache.is_cached(auth_token):
-      # They are OK for the moment
+      # They are OK for the moment. Update hit counter for posterity.
       self.shared.cache_token_hitcnt += 1
       return
     
@@ -158,10 +155,25 @@ class MainController(rawr.Controller):
     channel_fixed += "$"
     return re.compile("^" + channel_fixed)
 
+  def _calculate_next_id(self):
+    event = self.mongo_db.events.find_one(
+      fields=["_id"],
+      sort=[("_id", -1)])
+
+    if event:
+      return event["_id"] + 1
+
+    # If we get here, events is empty so fallback to our
+    # side counter. We don't normally use it since this
+    # approach is prone to race conditions. In this case
+    # we likely won't get a race condition, since the server
+    # cannot be very busy if the events collection was empty.
+    return self.mongo_db.counters.find_one({"_id": "last_known_id"})["c"] + 1
+
   def _post(self, channel_name, data):
     """Handles a client submitting a new event (the data parameter)"""
     user_agent = self.request.get_header("User-Agent")
-        
+
     # Verify that the data is valid JSON
     if not (json_validator.is_valid(data) and self._is_safe_user_agent(user_agent)):
       raise HttpBadRequest('Invalid JSON')
@@ -176,52 +188,51 @@ class MainController(rawr.Controller):
 
     # Insert the new event into the DB        
     num_retries = 30 # 30 seconds
-    inserted_id = -1
-
     for i in range(num_retries):
-      inserted_id = -1 # <--- Reset
-
       try:
-        # Don't use this approach for normal ID creation.
-        # A POST going to a different instance may get the next counter, but 
-        # end up inserting before we do (race condition). This could lead to 
-        # a client getting the larger _id and using it for last-known-id, 
-        # effectively skipping the other event.
+        # Since the agent is not stateless (remembers last_known_id), we must
+        # be careful to never insert one event with a larger ID, BEFORE inserting
+        # a different event with a smaller one. If that happens, then the agent
+        # could get the event with the larger ID first, and on the next query
+        # send last_known_id of that event which will cause us to miss the other
+        # event since that one has a smaller ID.
+        # 
+        # Therefore, we can't use the usual method of keeping a side-counter
+        # and using it as the sole authority, like this:
+        #
         # counter = self.mongo_db.counters.find_and_modify({'_id': 'event_id'}, {'$inc': {'c': 1}}) 
-
-        # Grab the next ID - it's OK if two processes get the same, we will get an
-        # exception when we try to insert a duplicate _id       
-        inserted_id = counters.find_one({'_id': 'last_known_id'})['c']
 
         # Retry until we get a unique _id
         while (True):       
-          # Most of the time this will succeed, unless a different instance
-          # beat us to the punch, in which case, we'll just try again
+          # Increment stats counter
+          self.shared.id_totalcnt += 1
+
+          # @todo Move to a collision-tolerant ID pattern so that we
+          # can scale out writes
+          next_id = self._calculate_next_id()
+
           try:
+            # Most of the time this will succeed, unless a different instance
+            # beat us to the punch, in which case, we'll just try again
             events.insert({
-              "_id": inserted_id, 
+              "_id": next_id, 
               "data": data,
               "channel": channel_name,
               "user_agent": user_agent,
               "uuid": self._parse_client_uuid(user_agent),
               "created_at": datetime.datetime.utcnow()
             }, safe=True)
+
+            # Succeeded. Increment the side counter to keep it in sync with 
+            # next_id.
+            counters.update({"_id": "last_known_id"}, {"$inc": {"c": 1}})
             
-            # Don't retry with a different _id, since this one worked
+            # Our work is done here
             break
+
           except pymongo.errors.DuplicateKeyError:
-            # Retry with a new value for _id. Since we normally count by
-            # 10's, adding 1 or 2 in the case of another process having beat
-            # us to the punch should succeed on the first retry.
-            #
-            # Note: We choose a random int to add jitter in the case that we 
-            # have more 2 or more loosers that must retry, and we want them
-            # to have a better chance of succeeding on their first try. This
-            # is a hueristic since we have no way of knowing how many
-            # processes are in contention
-            #
-            # @todo Tune based on load testing
-            inserted_id += random.randint(1, 3) 
+            self.shared.id_retrycnt += 1
+
           except pymongo.errors.AutoReconnect:
             self.shared.logger.error("AutoReconnect caught from insert")
             raise
@@ -232,27 +243,14 @@ class MainController(rawr.Controller):
       except HttpError as ex:
         self.shared.logger.error(str_utf8(ex)) 
         raise 
-      except Exception as ex:
+      except pymongo.errors.AutoReconnect as ex:
         self.shared.logger.error("Retry %d of %d. Details: %s" % (i, num_retries, str_utf8(ex))) 
         if i == (num_retries - 1): # Don't retry forever!
           # Critical error (retrying probably won't help)
           raise HttpInternalServerError()
         else:
           time.sleep(1) # Wait 1 second for a new primary to be elected
-
-    # Sanity check
-    if inserted_id == -1:
-      self.shared.logger.error("inserted_id was never set")
-      raise HttpInternalServerError()
     
-    # Increment our side counter for the next POST
-    # Note: 
-    #   In the case of a race condition, where the current POST was the
-    #   loser, this will result in, e.g., 10 => 30, and events having 
-    #   _id's of [10, 11]. For 2 loosers, 10 => 40 and [10,11,12]. Should
-    #   never overflow regardless, since max int in MongoDB is 2^63 - 1.
-    counters.update({'_id': 'last_known_id'}, {'$inc': {'c': 10}})
-
     # If this is a JSON-P request, we need to return a response to the callback
     callback_name = self.request.get_optional_param("callback")
     if callback_name:
