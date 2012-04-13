@@ -12,7 +12,7 @@ import time
 import uuid
 import re
 import httplib
-# import pdb; 
+import pdb; 
 
 # Requires python 2.6 or better
 import json
@@ -160,7 +160,7 @@ class MainController(rawr.Controller):
   def _post(self, channel_name, data):
     """Handles a client submitting a new event (the data parameter)"""
     user_agent = self.request.get_header("User-Agent")
-
+    
     # Verify that the data is valid JSON
     if not (json_validator.is_valid(data) and self._is_safe_user_agent(user_agent)):
       raise HttpBadRequest('Invalid JSON')
@@ -230,18 +230,16 @@ class MainController(rawr.Controller):
         else:
           time.sleep(1) # Wait 1 second for a new primary to be elected
     
-    # If this is a JSON-P request, we need to return a response to the callback
+    # If this is a JSON-P request, we need to return a response to the callback    
     callback_name = self.request.get_optional_param("callback")
     if callback_name:
-      #self.response.write_header("Content-Type", "application/json-p")
       self.response.write_header("Content-Type", "text/javascript")
       
       # Security check
       if not self.shared.JSONP_CALLBACK_PATTERN.match(callback_name):
-        raise HttpBadRequest('Invalid callback name')
+        raise HttpBadRequest("Invalid callback name")
       
-      self.response.write(callback_name)
-      self.response.write('({});')
+      self.response.write("%s({});" % callback_name)
     
     else:
       # POST succeeded, but we aren't going to return any details in the response body,
@@ -250,7 +248,6 @@ class MainController(rawr.Controller):
   
   def get(self):
     """Handles a "GET events" request for the specified channel (channel here includes the scope name)"""
-
     channel_name = self.request.path
     
     if self.test_mode and channel_name == "/all":
@@ -259,7 +256,7 @@ class MainController(rawr.Controller):
 
     # Note: case-sensitive for speed
     if self.request.get_optional_param("method") == "POST":
-      self._post(channel_name, request.param("post-data"))
+      self._post(channel_name, self.request.get_param("post-data"))
       return
 
     # Parse query params
