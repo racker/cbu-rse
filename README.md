@@ -1,4 +1,6 @@
-Beyold! The official reference implementation for Really Simple Events, a simple event queueing protocol inspired by RSS. RSE is a light-weight, fast, scale-out alternative to other popular queueing systems, and was specifically designed for communicating across unreliable network partitions (read: the internet). Unlike simple timestamp-based protocols, RSE guarantees clients will never miss an event due to clock drift or ID collisions. 
+# Really Simple Events
+
+Here be the official reference implementation for Really Simple Events, a simple event queueing protocol inspired by RSS. RSE is a light-weight, fast, scale-out alternative to other popular queueing systems, and was specifically designed for communicating across unreliable network partitions (read: the internet). Unlike simple timestamp-based protocols, RSE guarantees clients will never miss an event due to clock drift or ID collisions. 
 
 # RSE Dependencies
 
@@ -16,6 +18,7 @@ Beyold! The official reference implementation for Really Simple Events, a simple
 
 # Roadmap Brainstrom
 
+* Open-source RSE!
 * Migrate documentation to GitHub wiki and/or README.md
 * Test Suite
 * StatsD Integration
