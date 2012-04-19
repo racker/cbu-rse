@@ -1,6 +1,6 @@
 # Really Simple Events
 
-Here be the official reference implementation for Really Simple Events, a simple event queueing protocol inspired by RSS. RSE is a light-weight, fast, scale-out alternative to other popular queueing systems, and was specifically designed for communicating across unreliable network partitions (read: the internet). Unlike simple timestamp-based protocols, RSE guarantees clients will never miss an event due to clock drift or ID collisions. 
+Here's the official reference implementation for Really Simple Events, a simple event queueing protocol inspired by RSS. RSE is a light-weight, fast, scale-out alternative to other popular queueing systems, and was specifically designed for communicating across unreliable network partitions (read: the internet). Unlike simple timestamp-based protocols, RSE guarantees clients will never miss an event due to clock drift or ID collisions. 
 
 # RSE Dependencies
 
@@ -15,6 +15,7 @@ Here be the official reference implementation for Really Simple Events, a simple
 * Nginx
 * Gunicorn => rse.py
 * MongoDB
+* Linux (CentOS, RHEL or Ubuntu)
 
 # Roadmap Brainstrom
 
