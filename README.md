@@ -20,7 +20,8 @@ Here's the official reference implementation for Really Simple Events, a simple 
 ## Roadmap Brainstorm
 
 * Open-source RSE!
-* Migrate documentation to GitHub wiki and/or README.md
+* Propose RSE as a standard protocol?
+* Migrate documentation. roadmap to GitHub wiki and/or README.md
 * Test Suite
 * StatsD Integration
 * More failure-resistant /health?verbose (build up report as we go, return as much as we can)
