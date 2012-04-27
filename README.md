@@ -4,7 +4,7 @@ Here's the official reference implementation for Really Simple Events, a simple 
 
 ## RSE Dependencies
 
-* Python 2.x (2.6 or better)
+* Python 2 (2.6 or better)
 * WebOb
 * Gunicorn
 * Pymongo
@@ -19,21 +19,21 @@ Here's the official reference implementation for Really Simple Events, a simple 
 
 ## Roadmap Brainstorm
 
-* Move this list to the wiki!
-* Open-source RSE!
-* Propose RSE as a standard protocol?
 * Migrate documentation. roadmap to GitHub wiki and/or README.md
+* Move this list to the wiki!
 * Document "events" parameter 
-* Improve code documentation
 * API doc generator
-* Test Suite
-* StatsD Integration
+* Improve code documentation in general
+* Create a test suite
+* Consider open-sourcing the protocol and a reference implementation
+* StatsD integration
 * More failure-resistant /health?verbose (build up report as we go, return as much as we can)
 * PyPy support
 * Add Push support for highly latency-sensitive use cases (e.g., real-time user interfaces)
 * Final benchmarking and scalability analysis for polling mode (initial results show sustained 7-9K reqs/sec, mixed GETs and POSTs with authentication, per node)
 * Modify ID generation logic/last-known-id semantics to allow scaling out writes
 * Investigate use of Node.js to further improve node utilization and reduce latency
+* Compare/contrast Paste with RaxPy in terms of useability and performance
 * Benchmark Apache 2.4 + event MPM vs current Nginx + gunicorn stack
-* Take advantage of the up-and-coming TTL feature in MongoDB to remove the need for gc.py
+* Contribute a TTL feature to MongoDB to remove the need for gc.py
 * Add support for request signing
