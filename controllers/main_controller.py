@@ -70,7 +70,7 @@ class MainController(rawr.Controller):
     
     # We don't have a record of this token, so proxy authentication to the Account Services API
     try:
-      accountsvc = httplib.HTTPSConnection(self.accountsvc_host) if self.accountsvc_https else httplib.HTTPConnection(self.accountsvc_host) 
+      accountsvc = httplib.HTTPSConnection(self.accountsvc_host, timeout=2) if self.accountsvc_https else httplib.HTTPConnection(self.accountsvc_host, timeout=2) 
       accountsvc.request('GET', self.shared.AUTH_ENDPOINT, None, { 'X-Auth-Token': auth_token })
       response = accountsvc.getresponse()
     except Exception as ex:
