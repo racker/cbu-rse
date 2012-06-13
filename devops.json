@@ -86,6 +86,7 @@
   },
   "dependent_services": [
     "Cloud Backup API",
+    "Cloud Auth"
     "https://github.rackspace.com/atl/rax-py/blob/master/devops.json"
   ],
   "environments": [
