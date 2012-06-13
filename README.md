@@ -8,7 +8,7 @@ RSE is a light-weight, fast, scale-out alternative to other popular queueing sys
 
 ## RSE Dependencies
 
-* Python 2.x (2.6 or better)
+* Python 2 (2.6 or better)
 * WebOb
 * Gunicorn
 * Pymongo
