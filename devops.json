@@ -1,0 +1,128 @@
+{
+  "name": "Really Simple Events (RSE)",
+  "description": "A fast, scalable message queueuing service for the cloud.",
+  "devops_version": "0.2",
+  "devopsJSON_URL": "https://github.rackspace.com/atl/rse/edit/master/devops.json",
+  "tags": [
+    "python",
+    "linux",
+    "mongodb",
+    "queue",
+    "message",
+    "bus",
+    "cloud",
+    "event",
+    "rest"
+  ],
+  "contacts": [
+    {
+      "team_name": "DevOps",
+      "members": [
+        {
+          "name": "Josh Brand",
+          "sso": "josh.brand",
+          "github": "https://github.com/joshbrand",
+          "mailto": "josh.brand@rackspace.com"
+        }
+      ]
+    },
+    {
+      "team_name": "QE",
+      "members": [
+        {
+          "name": "Malini Kamalambal",
+          "sso": "malini.kamalambal",
+          "mailto": "malini.kamalambal@rackspace.com>"
+        }
+      ]
+    },
+    {
+      "team_name": "Product",
+      "members": [
+        {
+          "name": "Marcus Johnson",
+          "sso": "marcus.johnson",
+          "mailto": "marcus.johnson@rackspace.com>"
+        }
+      ]
+    },
+    {
+      "team_name": "Engineering",
+      "members": [
+        {
+          "name": "Allan Metts",
+          "sso": "allan.metts",
+          "github": "https://github.com/ametts",
+          "mailto": "allan.metts@rackspace.com"
+        },
+        {
+          "name": "Kurt Griffiths",
+          "sso": "kurt.griffiths",
+          "github": "https://github.com/kgriffs",
+          "mailto": "kurt.griffiths@rackspace.com",
+          "ircnick": "kgriffs",
+          "jabber": "kurt@dukgo.com"
+        },
+        {
+          "name": "Jamie Painter",
+          "sso": "jamie.painter",
+          "github": "https://github.com/painterjd",
+          "mailto": "jamie.painter@rackspace.com"
+        },
+        {
+          "name": "Xuan Yu",
+          "sso": "xuan.yu",
+          "mailto": "xuan.yu@rackspace.com"
+        }
+      ]
+    }
+  ],
+  "links": {
+    "Email List": "ds.atl@lists.rackspace.com",
+    "Code": "https://github.rackspace.com/atl/rse",
+    "Developer Guide": "https://ldev01.jungledisk.com/junglewiki/start/doku.php?id=rse-dev-guide",
+    "Example Data Flow": "https://github.rackspace.com/atl/rse/blob/master/doc/example-data-flow.pdf",
+    "Usage Example": "https://ldev01.jungledisk.com/junglewiki/start/doku.php?id=rse-quattro-implementation"
+  },
+  "dependent_services": [
+    "Cloud Backup API",
+    "https://github.rackspace.com/atl/rax-py/blob/master/devops.json"
+  ],
+  "environments": [
+    {
+      "type": "Workstation",
+      "platforms": [
+        "Xubuntu 12.04",
+        "Windows 7 64-bit"
+      ]
+    },
+    {
+      "type": "Development",
+      "url": {"url": "https://rse.drivesrvr-dev.com/:channel" },
+      "platforms": [
+        "CentOS 5"
+      ]
+    },
+    {
+      "type": "Test",
+      "url": {"url": "https://rse.drivesrvr-qa.com/:channel" },
+      "platforms": [
+        "CentOS 5"
+      ]
+    },
+    {
+      "type": "Preproduction",
+      "url": {"url": "https://rse.drivesrvr-staging.com/:channel" },
+      "platforms": [
+        "RHEL 5.6"
+      ]
+    },
+    {
+      "type": "Production",
+      "url": {"url": "https://rse.drivesrvr.com/:channel" },
+      "platforms": [
+        "RHEL 5.6"
+      ]
+    }
+  ]
+}
