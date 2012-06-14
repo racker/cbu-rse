@@ -47,7 +47,7 @@ class HealthController(rawr.Controller):
 
   def _auth_service_is_healthy(self):
     try:
-      accountsvc = httplib.HTTPSConnection(self.accountsvc_host, timeout=self.accountsvc_timeout) if self.accountsvc_https else httplib.HTTPConnection(self.accountsvc_host, timeout=2) 
+      accountsvc = httplib.HTTPSConnection(self.accountsvc_host, timeout=self.accountsvc_timeout) if self.accountsvc_https else httplib.HTTPConnection(self.accountsvc_host, timeout=self.accountsvc_timeout) 
       accountsvc.request('GET', self.shared.AUTH_HEALTH_ENDPOINT)
       auth_response = accountsvc.getresponse()
       
