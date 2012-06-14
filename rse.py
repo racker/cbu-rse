@@ -58,8 +58,8 @@ class RseApplication(rawr.Rawr):
     config = ConfigParser.ConfigParser(
       defaults = {
         'timeout': '5',
-        'authtoken_retention_period': '30',
-        'authtoken_slice_size': '2',
+        'authtoken-retention-period': '30',
+        'authtoken-slice-size': '2',
         'replica-set': '[none]'
       }
     )
