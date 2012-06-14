@@ -1,6 +1,6 @@
 {
   "name": "Really Simple Events (RSE)",
-  "description": "A fast, scalable message queueuing service for the cloud.",
+  "description": "A fast, scalable message queueuing service for the cloud",
   "devops_version": "0.2",
   "devopsJSON_URL": "https://github.rackspace.com/atl/rse/edit/master/devops.json",
   "tags": [
