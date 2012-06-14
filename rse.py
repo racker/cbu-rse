@@ -89,8 +89,8 @@ class RseApplication(rawr.Rawr):
       logger.addHandler(handler)
 
     # FastCache for Auth Token
-    retention_period = config.getint('fastcache', 'authtoken_retention_period')
-    slice_size = config.getint('fastcache', 'authtoken_slice_size')
+    retention_period = config.getint('fastcache', 'authtoken-retention-period')
+    slice_size = config.getint('fastcache', 'authtoken-slice-size')
     authtoken_cache = FastCache(retention_period, slice_size)
 
     # Master instance connection for the health checker
