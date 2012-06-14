@@ -41,9 +41,10 @@ def format_datetime(dt):
 class MainController(rawr.Controller):
   """Provides all RSE functionality"""
   
-  def __init__(self, accountsvc_host, accountsvc_https, mongo_db, shared, test_mode = False):
+  def __init__(self, accountsvc_host, accountsvc_https, accountsvc_timeout, mongo_db, shared, test_mode = False):
     self.accountsvc_host = accountsvc_host # Account services host for authenticating requests
     self.accountsvc_https = accountsvc_https # Whether to use HTTPS for account services
+    self.accountsvc_timeout = accountsvc_timeout #
     self.mongo_db = mongo_db # MongoDB database for storing events
     self.test_mode = test_mode # If true, relax auth/uuid requirements
     self.shared = shared # Shared performance counters, logging, etc.
@@ -70,7 +71,7 @@ class MainController(rawr.Controller):
     
     # We don't have a record of this token, so proxy authentication to the Account Services API
     try:
-      accountsvc = httplib.HTTPSConnection(self.accountsvc_host, timeout=2) if self.accountsvc_https else httplib.HTTPConnection(self.accountsvc_host, timeout=2) 
+      accountsvc = httplib.HTTPSConnection(self.accountsvc_host, timeout=self.accountsvc_timeout) if self.accountsvc_https else httplib.HTTPConnection(self.accountsvc_host, timeout=2) 
       accountsvc.request('GET', self.shared.AUTH_ENDPOINT, None, { 'X-Auth-Token': auth_token })
       response = accountsvc.getresponse()
     except Exception as ex:
