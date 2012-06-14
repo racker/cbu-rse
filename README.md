@@ -20,3 +20,10 @@ RSE is a light-weight, fast, scale-out alternative to other popular queueing sys
 * Gunicorn => rse.py
 * MongoDB
 * Linux (CentOS, RHEL or Ubuntu)
+
+## Coming soon
+
+* Modular design (storage driver, auth, etc.)
+* Improved scale-out for writes
+* Transactional symantecs (to support job queues)
+* ...and much more!
