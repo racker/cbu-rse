@@ -1,2 +1,2 @@
 cd /opt/rse
-/opt/python2.7/bin/gunicorn -b unix:/tmp/rse.sock -w 8 -k sync -D --backlog 4096 rse:app -p gunicorn.pid --log-file /var/log/gunicorn.log
+/opt/python2.7/bin/gunicorn -b unix:/tmp/rse.sock -w 10 -k sync -D --backlog 4096 rse:app -p gunicorn.pid --log-file /var/log/gunicorn.log
