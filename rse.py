@@ -125,15 +125,25 @@ class RseApplication(rawr.Rawr):
     
     accountsvc_host = config.get('account-services', 'host')
     accountsvc_https = config.getboolean('account-services', 'https')
+    accountsvc_timeout = config.getboolean('account-services', 'timeout')
     test_mode = config.getboolean('rse', 'test')
   
+    if not accountsvc_timeout:
+      accountsvc_timeout = 5
+      
     # Setup routes
     shared = Shared(logger, authtoken_cache)
 
-    health_options = dict(shared=shared, accountsvc_host=accountsvc_host, accountsvc_https=accountsvc_https, mongo_db=mongo_db_master, test_mode=test_mode)
+    health_options = dict(shared=shared, accountsvc_host=accountsvc_host, 
+                          accountsvc_https=accountsvc_https, 
+                          accountsvc_timeout=accountsvc_timeout, 
+                          mongo_db=mongo_db_master, test_mode=test_mode)
     self.add_route(r"/health$", HealthController, health_options)
 
-    main_options = dict(shared=shared, accountsvc_host=accountsvc_host, accountsvc_https=accountsvc_https, mongo_db=mongo_db, test_mode=test_mode)
+    main_options = dict(shared=shared, accountsvc_host=accountsvc_host, 
+                        accountsvc_https=accountsvc_https, 
+                        accountsvc_timeout=accountsvc_timeout,
+                        mongo_db=mongo_db, test_mode=test_mode)
     self.add_route(r"/.+", MainController, main_options)    
 
 # WSGI app
