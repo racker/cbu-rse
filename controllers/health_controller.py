@@ -36,9 +36,10 @@ class HealthController(rawr.Controller):
   """Provides web service health info"""
   """@todo Move this class into a separate file"""
 
-  def __init__(self, accountsvc_host, accountsvc_https, mongo_db, test_mode, shared):
+  def __init__(self, accountsvc_host, accountsvc_https, accountsvc_timeout, mongo_db, test_mode, shared):
     self.accountsvc_host = accountsvc_host # Account services host for authenticating requests
     self.accountsvc_https = accountsvc_https # Whether to use HTTPS for account services
+    self.accountsvc_timeout = accountsvc_timeout # Timeout for requests to Account services
     self.mongo_db = mongo_db # MongoDB database for storing events
     self.mongo_db_connection = mongo_db.connection # MongoDB connection for storing events
     self.test_mode = test_mode # If true, relax auth/uuid requirements
@@ -46,7 +47,7 @@ class HealthController(rawr.Controller):
 
   def _auth_service_is_healthy(self):
     try:
-      accountsvc = httplib.HTTPSConnection(self.accountsvc_host, timeout=2) if self.accountsvc_https else httplib.HTTPConnection(self.accountsvc_host, timeout=2) 
+      accountsvc = httplib.HTTPSConnection(self.accountsvc_host, timeout=self.accountsvc_timeout) if self.accountsvc_https else httplib.HTTPConnection(self.accountsvc_host, timeout=self.accountsvc_timeout) 
       accountsvc.request('GET', self.shared.AUTH_HEALTH_ENDPOINT)
       auth_response = accountsvc.getresponse()
       
