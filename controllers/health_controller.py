@@ -25,7 +25,7 @@ from shared import *
 
 # @todo Move this into raxPy, give namespace
 def str_utf8(instr):
-  return unicode(instr).encode("utf-8")          
+  return unicode(instr).encode("utf-8")
 
 # @todo Move this into raxPy, put inside a namespace
 def format_datetime(dt):
@@ -47,37 +47,45 @@ class HealthController(rawr.Controller):
 
   def _auth_service_is_healthy(self):
     try:
-      accountsvc = httplib.HTTPSConnection(self.accountsvc_host, timeout=self.accountsvc_timeout) if self.accountsvc_https else httplib.HTTPConnection(self.accountsvc_host, timeout=self.accountsvc_timeout) 
+      accountsvc = httplib.HTTPSConnection(self.accountsvc_host, timeout=self.accountsvc_timeout) if self.accountsvc_https else httplib.HTTPConnection(self.accountsvc_host, timeout=self.accountsvc_timeout)
       accountsvc.request('GET', self.shared.AUTH_HEALTH_ENDPOINT)
       auth_response = accountsvc.getresponse()
-      
+
       if auth_response.status != 200:
         error_message = "Auth endpoint returned HTTP %d instead of HTTP 200" % auth_response.status
         return (False, error_message)
-        
+
       auth_service_health = json.loads(auth_response.read())
       if auth_service_health['Status'] != 'OK':
         error_message = "Auth endpoint returned %s instead of OK" % auth_service_health['Status']
         return (False, error_message)
-        
+
     except Exception as ex:
       error_message = "Exception while checking auth service health: %s" % str_utf8(ex)
       return (False, error_message)
-      
-    return (True, "No errors")  
-    
-  def _basic_health_check(self):       
-    try:
-      # Important: This must work on secondaries (e.g., read-only slaves)
-      self.mongo_db.events.count()
-    except Exception as ex:
-      return False     
-    
-    healthy, msg = self._auth_service_is_healthy();
-    if not healthy:
+
+    return (True, "No errors")
+
+  def _basic_health_check(self):
+    db_ok = False
+
+    for retry_counter in range(10):
+      try:
+        # Important: This must work on secondaries (e.g., read-only slaves)
+        self.mongo_db.events.count()
+        db_ok = True
+        break
+      except pymongo.errors.AutoReconnect:
+        self.shared.logger.error("AutoReconnect caught from events.count() in health check. Retrying...")
+      except Exception as ex:
+        self.shared.logger.error('Could not count events collection: ' + str_utf8(ex))
+        break
+
+    auth_ok, msg = self._auth_service_is_healthy();
+    if not auth_ok:
       self.shared.logger.error(msg)
 
-    return healthy
+    return auth_ok and db_ok
 
   def _create_report(self, profile_db, validate_db):
     """@todo Build up the report piecemeal so we can get partial results on errors."""
@@ -85,7 +93,7 @@ class HealthController(rawr.Controller):
 
     # Check our auth endpoint
     auth_online, auth_error_message = self._auth_service_is_healthy()
-    
+
     validation_info = "N/A. Pass validate_db=true to enable."
     profile_info = "N/A. Pass profile_db=true to enable."
     server_info = "N/A."
@@ -99,7 +107,7 @@ class HealthController(rawr.Controller):
         #Collection stats is in JSON format. docu on stat items:
         # http://www.mongodb.org/display/DOCS/collStats+Command
         collstats_events = self.mongo_db.command({"collStats":"events"})
-       
+
         max_event = self.mongo_db.events.find_one(
           sort = [('created_at', pymongo.ASCENDING)])
 
@@ -107,7 +115,7 @@ class HealthController(rawr.Controller):
         if max_event:
           collstats_max_event_info['created_at'] = format_datetime(max_event['created_at'])
           collstats_max_event_info['age'] = (datetime.datetime.utcnow() - max_event['created_at']).seconds
-          
+
           event_data = json.loads(max_event['data'])
           if 'Event' in event_data:
             collstats_max_event_info['name'] = event_data['Event']
@@ -121,7 +129,7 @@ class HealthController(rawr.Controller):
         if min_event:
           collstats_min_event_info['created_at'] = format_datetime(min_event['created_at'])
           collstats_min_event_info['age'] = (datetime.datetime.utcnow() - min_event['created_at']).seconds
-          
+
           event_data = json.loads(min_event['data'])
           if 'Event' in event_data:
             collstats_min_event_info['name'] = event_data['Event']
@@ -130,11 +138,11 @@ class HealthController(rawr.Controller):
 
         db_test_start = datetime.datetime.utcnow()
         active_events = self.mongo_db.events.count()
-        db_test_duration = (datetime.datetime.utcnow() - db_test_start).seconds          
+        db_test_duration = (datetime.datetime.utcnow() - db_test_start).seconds
 
         if db_test_duration > 1:
           db_error_message = "WARNING: DB is slow (%d seconds)" % db_test_duration
-            
+
         if validate_db:
           validation_info = self.mongo_db.validate_collection("events")
 
@@ -146,14 +154,14 @@ class HealthController(rawr.Controller):
           self.mongo_db.set_profiling_level(pymongo.OFF)
 
         server_info = self.mongo_db_connection.server_info()
-          
+
         db_online = True
         break;
 
       except pymongo.errors.AutoReconnect:
         self.shared.logger.error("AutoReconnect caught from stats query")
         time.sleep(1)
-        
+
       except Exception as ex:
         active_events = -1
         db_online = False
@@ -162,7 +170,7 @@ class HealthController(rawr.Controller):
         return json.dumps({
           "error": "DB error: %s" % (db_error_message)
         })
-  
+
     return json.dumps({
       "rse": {
         "test_mode": self.test_mode,
@@ -181,8 +189,8 @@ class HealthController(rawr.Controller):
         }
       },
       "auth": {
-        "url": "%s://%s%s" % ("https" if self.accountsvc_https else "http", self.accountsvc_host, self.shared.AUTH_ENDPOINT),        
-        "url_health": "%s://%s%s" % ("https" if self.accountsvc_https else "http", self.accountsvc_host, self.shared.AUTH_HEALTH_ENDPOINT),        
+        "url": "%s://%s%s" % ("https" if self.accountsvc_https else "http", self.accountsvc_host, self.shared.AUTH_ENDPOINT),
+        "url_health": "%s://%s%s" % ("https" if self.accountsvc_https else "http", self.accountsvc_host, self.shared.AUTH_HEALTH_ENDPOINT),
         "online": auth_online,
         "error": auth_error_message
       },
@@ -256,7 +264,7 @@ class HealthController(rawr.Controller):
           },
           "local_time" : str(dbstats['localTime'])
         },
-        "coll_events_stats": { 
+        "coll_events_stats": {
           "count" : collstats_events['count'],
           "ns" : collstats_events['ns'],
           "ok" : collstats_events['ok'],
@@ -301,7 +309,7 @@ class HealthController(rawr.Controller):
         }
       }
     })
-  
+
   def get(self):
     if self.request.get_optional_param("verbose") == "true":
       self.response.write_header("Content-Type", "application/json; charset=utf-8")
@@ -312,4 +320,4 @@ class HealthController(rawr.Controller):
     elif self._basic_health_check():
       self.response.write("OK\n")
     else:
-      raise HttpError(503)    
+      raise HttpError(503)
