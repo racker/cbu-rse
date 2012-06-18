@@ -74,7 +74,12 @@ class MainController(rawr.Controller):
       accountsvc.request('GET', self.shared.AUTH_ENDPOINT, None, { 'X-Auth-Token': auth_token })
       response = accountsvc.getresponse()
     except Exception as ex:
-      self.shared.logger.error(str_utf8(ex))
+      auth_url = 'http%s://%s%s' % (
+        's' if self.accountsvc_https else '', self.accountsvc_host, self.shared.AUTH_ENDPOINT)
+
+      self.shared.logger.error('Error while attempting to validate token via GET https://%s - %s' %
+        (auth_url, str_utf8(ex)))
+
       raise HttpServiceUnavailable()
 
     # Check whether the auth token was good

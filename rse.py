@@ -60,7 +60,9 @@ class RseApplication(rawr.Rawr):
         'timeout': '5',
         'authtoken-retention-period': '30',
         'authtoken-slice-size': '2',
-        'replica-set': '[none]'
+        'replica-set': '[none]',
+        'filelog': 'yes',
+        'syslog': 'no'
       }
     )
 
@@ -93,27 +95,45 @@ class RseApplication(rawr.Rawr):
     slice_size = config.getint('fastcache', 'authtoken-slice-size')
     authtoken_cache = FastCache(retention_period, slice_size)
 
-    # Master instance connection for the health checker
-    connection_master = pymongo.Connection(config.get('mongodb', 'uri'), read_preference=pymongo.ReadPreference.PRIMARY)
-    mongo_db_master = connection_master[config.get('mongodb', 'database')]
-
-    # General connection for regular requests
-    # Note: Use one global connection to the DB across all handlers (pymongo manages its own connection pool)
-    replica_set = config.get('mongodb', 'replica-set')
-    if replica_set == '[none]':
-      connection = pymongo.Connection(config.get('mongodb', 'uri'), read_preference=pymongo.ReadPreference.SECONDARY)
-    else:
+    # Setup DB connections
+    db_connections_ok = False
+    for i in range(10):
       try:
-        connection = pymongo.ReplicaSetConnection(config.get('mongodb', 'uri'), replicaSet=replica_set, read_preference=pymongo.ReadPreference.SECONDARY)
+        # Master instance connection for the health checker
+        connection_master = pymongo.Connection(config.get('mongodb', 'uri'), read_preference=pymongo.ReadPreference.PRIMARY)
+        mongo_db_master = connection_master[config.get('mongodb', 'database')]
+
+        # General connection for regular requests
+        # Note: Use one global connection to the DB across all handlers (pymongo manages its own connection pool)
+        replica_set = config.get('mongodb', 'replica-set')
+        if replica_set == '[none]':
+          connection = pymongo.Connection(config.get('mongodb', 'uri'), read_preference=pymongo.ReadPreference.SECONDARY)
+        else:
+          try:
+            connection = pymongo.ReplicaSetConnection(config.get('mongodb', 'uri'), replicaSet=replica_set, read_preference=pymongo.ReadPreference.SECONDARY)
+          except Exception as ex:
+            logger.warning( "Mongo connection exception: %s" % (ex.message))
+            if ex.message == 'secondary':
+              return
+
+        mongo_db = connection[config.get('mongodb', 'database')]
+        mongo_db_master = connection_master[config.get('mongodb', 'database')]
+        db_connections_ok = True
+
+      except pymongo.errors.AutoReconnect:
+        logger.warning("Got AutoReconnect on startup while attempting to connect to DB. Retrying...")
+        time.sleep(0.5)
+
       except Exception as ex:
-        logger.warning( "Mongo connection exception: %s" % (ex.message))
-        if ex.message == 'secondary':
-          return
+        logger.error("Error on startup while attempting to connect to DB: " + str_utf8(ex))
+        sys.exit(1)
 
-    mongo_db = connection[config.get('mongodb', 'database')]
-    mongo_db_master = connection_master[config.get('mongodb', 'database')]
+    if not db_connections_ok:
+      logger.error("Could not set up db connections")
+      sys.exit(1)
 
-    # Initialize collections
+    # Initialize events collection
+    db_events_collection_ok = False
     for i in range(10):
       try:
         # get rid of deprecated indexes so they don't bloat our working set size
@@ -133,14 +153,27 @@ class RseApplication(rawr.Rawr):
         # NOTE: MongoDB does not use multiple indexes per query, so we want to put all query fields in the
         # index.
         mongo_db_master.events.ensure_index([('channel', pymongo.ASCENDING), ('_id', pymongo.ASCENDING), ('uuid', pymongo.ASCENDING)], name='get_events')
+
+        # WARNING: Counter must start at a value greater than 0 per the RSE spec, so
+        # we set to 0 since the id generation logic always adds one to get
+        # the next id, so we will start at 1 for the first event
+        if not mongo_db_master.counters.find_one({'_id': 'last_known_id'}):
+          mongo_db_master.counters.insert({'_id': 'last_known_id', 'c': 0})
+
+        db_events_collection_ok = True
         break
 
       except pymongo.errors.AutoReconnect:
+        logger.warning("Got AutoReconnect on startup while attempting to set up events collection. Retrying...")
         time.sleep(0.5)
 
-    # WARNING: Counter must start at a value greater than 0 per the RSE spec!
-    if not mongo_db_master.counters.find_one({'_id': 'last_known_id'}):
-      mongo_db_master.counters.insert({'_id': 'last_known_id', 'c': 0})
+      except Exception as ex:
+        logger.error("Error on startup while attempting to initialize events collection: " + str_utf8(ex))
+        sys.exit(1)
+
+    if not db_events_collection_ok:
+      logger.error("Could not setup events connections")
+      sys.exit(1)
 
     accountsvc_host = config.get('account-services', 'host')
     accountsvc_https = config.getboolean('account-services', 'https')

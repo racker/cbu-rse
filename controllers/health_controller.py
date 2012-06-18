@@ -278,7 +278,7 @@ class HealthController(rawr.Controller):
           "padding_factor" : collstats_events['paddingFactor'],
           "index_sizes" : {
             "id" : collstats_events['indexSizes']['_id_'],
-            "uuid_1_channel_1" : collstats_events['indexSizes']['uuid_1_channel_1']
+            "get_events" : collstats_events['indexSizes']['get_events']
           },
           "size" : collstats_events['size'],
           "age_max" : collstats_max_event_info,
