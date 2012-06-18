@@ -93,11 +93,7 @@ class MainController(rawr.Controller):
 
   def _is_safe_user_agent(self, user_agent):
     """Quick heuristic to tell whether we can embed the given user_agent string in a JSON document"""
-    for c in user_agent:
-      if c == '\\' or c == '"':
-        return False
-
-    return True
+    return not ('\\' in user_agent or '"' in user_agent)
 
   def _parse_client_uuid(self, user_agent):
     """Returns the UUID value of the specified User-Agent string"""
@@ -164,6 +160,61 @@ class MainController(rawr.Controller):
     # cannot be very busy if the events collection was empty.
     return self.mongo_db.counters.find_one({"_id": "last_known_id"})["c"] + 1
 
+  def _insert_event(self, channel_name, data, user_agent):
+    # Since the agent is not stateless (remembers last_known_id), we must
+    # be careful to never insert one event with a larger ID, BEFORE inserting
+    # a different event with a smaller one. If that happens, then the agent
+    # could get the event with the larger ID first, and on the next query
+    # send last_known_id of that event which will cause us to miss the other
+    # event since that one has a smaller ID.
+    #
+    # Therefore, we can't use the usual method of keeping a side-counter
+    # and using it as the sole authority, like this:
+    #
+    # counter = self.mongo_db.counters.find_and_modify({'_id': 'event_id'}, {'$inc': {'c': 1}})
+
+    # Retry until we get a unique _id (or die trying)
+    event_insert_succeeded = False
+    for retry_on_duplicate_key in range(100):
+      # Increment stats counter
+      self.shared.id_totalcnt += 1
+
+      # @todo Move to a collision-tolerant ID pattern so that we
+      # can scale out writes
+      next_id = self._calculate_next_id()
+
+      try:
+        # Most of the time this will succeed, unless a different instance
+        # beats us to the punch, in which case we'll just try again
+        self.mongo_db.events.insert({
+          "_id": next_id,
+          "data": data,
+          "channel": channel_name,
+          "user_agent": user_agent,
+          "uuid": self._parse_client_uuid(user_agent),
+          "created_at": datetime.datetime.utcnow()
+        }, safe=True)
+
+        # Succeeded. Increment the side counter to keep it in sync with
+        # next_id.
+        self.mongo_db.counters.update({"_id": "last_known_id"}, {"$inc": {"c": 1}})
+
+        # Our work is done here
+        event_insert_succeeded = True
+        break
+
+      except pymongo.errors.DuplicateKeyError:
+        self.shared.id_retrycnt += 1
+        jitter = random.random() / 10 # Max 100 ms jitter
+        backoff = retry_on_duplicate_key * 0.02 # Max 2 second sleep
+        time.sleep(backoff + jitter)
+
+      except pymongo.errors.AutoReconnect:
+        self.shared.logger.error("AutoReconnect caught from insert")
+        raise
+
+    return event_insert_succeeded
+
   def _post(self, channel_name, data):
     """Handles a client submitting a new event (the data parameter)"""
     user_agent = self.request.get_header("User-Agent")
@@ -173,69 +224,26 @@ class MainController(rawr.Controller):
       raise HttpBadRequest('Invalid JSON')
 
     # Insert the new event into the DB
-    num_retries = 30 # 30 seconds
+    num_retries = 10 # 5 seconds
     for i in range(num_retries):
       try:
-        # Since the agent is not stateless (remembers last_known_id), we must
-        # be careful to never insert one event with a larger ID, BEFORE inserting
-        # a different event with a smaller one. If that happens, then the agent
-        # could get the event with the larger ID first, and on the next query
-        # send last_known_id of that event which will cause us to miss the other
-        # event since that one has a smaller ID.
-        #
-        # Therefore, we can't use the usual method of keeping a side-counter
-        # and using it as the sole authority, like this:
-        #
-        # counter = self.mongo_db.counters.find_and_modify({'_id': 'event_id'}, {'$inc': {'c': 1}})
+        if not self._insert_event(channel_name, data, user_agent):
+          raise HttpServiceUnavailable()
 
-        # Retry until we get a unique _id
-        while (True):
-          # Increment stats counter
-          self.shared.id_totalcnt += 1
-
-          # @todo Move to a collision-tolerant ID pattern so that we
-          # can scale out writes
-          next_id = self._calculate_next_id()
-
-          try:
-            # Most of the time this will succeed, unless a different instance
-            # beat us to the punch, in which case, we'll just try again
-            self.mongo_db.events.insert({
-              "_id": next_id,
-              "data": data,
-              "channel": channel_name,
-              "user_agent": user_agent,
-              "uuid": self._parse_client_uuid(user_agent),
-              "created_at": datetime.datetime.utcnow()
-            }, safe=True)
-
-            # Succeeded. Increment the side counter to keep it in sync with
-            # next_id.
-            self.mongo_db.counters.update({"_id": "last_known_id"}, {"$inc": {"c": 1}})
-
-            # Our work is done here
-            break
-
-          except pymongo.errors.DuplicateKeyError:
-            self.shared.id_retrycnt += 1
-
-          except pymongo.errors.AutoReconnect:
-            self.shared.logger.error("AutoReconnect caught from insert")
-            raise
-
-        # Success! No need to retry...
         break
 
       except HttpError as ex:
         self.shared.logger.error(str_utf8(ex))
         raise
+
       except pymongo.errors.AutoReconnect as ex:
         self.shared.logger.error("Retry %d of %d. Details: %s" % (i, num_retries, str_utf8(ex)))
+
         if i == (num_retries - 1): # Don't retry forever!
           # Critical error (retrying probably won't help)
-          raise HttpInternalServerError()
+          raise HttpServiceUnavailable()
         else:
-          time.sleep(1) # Wait 1 second for a new primary to be elected
+          time.sleep(0.5) # Wait a moment for a new primary to be elected in case of failover
 
     # If this is a JSON-P request, we need to return a response to the callback
     callback_name = self.request.get_optional_param("callback")
@@ -322,7 +330,6 @@ class MainController(rawr.Controller):
 
     else:
       if filter_type == "all":
-        # @todo Known issue: This
         channel_pattern = re.compile("^" + channel_name + "(/.+)?")
 
       else: # force "exact"
