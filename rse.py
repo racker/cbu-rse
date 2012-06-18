@@ -116,11 +116,27 @@ class RseApplication(rawr.Rawr):
     # Initialize collections
     for i in range(10):
       try:
-        mongo_db_master.events.ensure_index([('uuid', pymongo.ASCENDING), ('channel', pymongo.ASCENDING)])
-        mongo_db_master.events.ensure_index('created_at', pymongo.ASCENDING)
+        # get rid of deprecated indexes so they don't bloat our working set size
+        try:
+          mongo_db_master.events.drop_index('uuid_1_channel_1')
+        except pymongo.errors.OperationFailure:
+          # Index already deleted
+          pass
+
+        try:
+          mongo_db_master.events.drop_index('created_at_1')
+        except pymongo.errors.OperationFailure:
+          # Index already deleted
+          pass
+
+        # Order matters - want exact matches first, and ones that will pair down the result set the fastest
+        # NOTE: MongoDB does not use multiple indexes per query, so we want to put all query fields in the
+        # index.
+        mongo_db_master.events.ensure_index([('channel', pymongo.ASCENDING), ('_id', pymongo.ASCENDING), ('uuid', pymongo.ASCENDING)], name='get_events')
         break
+
       except pymongo.errors.AutoReconnect:
-        time.sleep(1)
+        time.sleep(0.5)
 
     # WARNING: Counter must start at a value greater than 0 per the RSE spec!
     if not mongo_db_master.counters.find_one({'_id': 'last_known_id'}):
