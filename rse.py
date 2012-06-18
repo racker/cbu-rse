@@ -111,6 +111,7 @@ class RseApplication(rawr.Rawr):
           return
 
     mongo_db = connection[config.get('mongodb', 'database')]
+    mongo_db_master = connection_master[config.get('mongodb', 'database')]
 
     # Initialize collections
     for i in range(10):
@@ -138,8 +139,8 @@ class RseApplication(rawr.Rawr):
         time.sleep(0.5)
 
     # WARNING: Counter must start at a value greater than 0 per the RSE spec!
-    if not mongo_db.counters.find_one({'_id': 'last_known_id'}):
-      mongo_db.counters.insert({'_id': 'last_known_id', 'c': 0})
+    if not mongo_db_master.counters.find_one({'_id': 'last_known_id'}):
+      mongo_db_master.counters.insert({'_id': 'last_known_id', 'c': 0})
 
     accountsvc_host = config.get('account-services', 'host')
     accountsvc_https = config.getboolean('account-services', 'https')
