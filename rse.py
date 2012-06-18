@@ -118,13 +118,13 @@ class RseApplication(rawr.Rawr):
       try:
         # get rid of deprecated indexes so they don't bloat our working set size
         try:
-          mongo_db.events.drop_index('uuid_1_channel_1')
+          mongo_db_master.events.drop_index('uuid_1_channel_1')
         except pymongo.errors.OperationFailure:
           # Index already deleted
           pass
 
         try:
-          mongo_db.events.drop_index('created_at_1')
+          mongo_db_master.events.drop_index('created_at_1')
         except pymongo.errors.OperationFailure:
           # Index already deleted
           pass
@@ -132,7 +132,7 @@ class RseApplication(rawr.Rawr):
         # Order matters - want exact matches first, and ones that will pair down the result set the fastest
         # NOTE: MongoDB does not use multiple indexes per query, so we want to put all query fields in the
         # index.
-        mongo_db.events.ensure_index([('channel', pymongo.ASCENDING), ('_id', pymongo.ASCENDING), ('uuid', pymongo.ASCENDING)], name='get_events')
+        mongo_db_master.events.ensure_index([('channel', pymongo.ASCENDING), ('_id', pymongo.ASCENDING), ('uuid', pymongo.ASCENDING)], name='get_events')
         break
 
       except pymongo.errors.AutoReconnect:
