@@ -12,7 +12,6 @@ import time
 import uuid
 import re
 import httplib
-import pdb;
 
 # Requires python 2.6 or better
 import json
@@ -133,11 +132,18 @@ class MainController(rawr.Controller):
     self.response.write("[%s]" % str_utf8(entries_serialized))
     return
 
-  def _create_parent_pattern(self, channel):
-    channel_fixed = channel.replace("/", "(/")[1:]
-    channel_fixed += ")?" * channel_fixed.count("(")
-    channel_fixed += "$"
-    return re.compile("^" + channel_fixed)
+  def _explode_channel(self, channel):
+    channels = [channel]
+
+    marker_index = -1
+    while True:
+      marker_index = channel.rfind('/', 0, marker_index)
+      if marker_index < 1:
+        break
+
+      channels.append(channel[0:marker_index])
+
+    return channels
 
   def _calculate_next_id(self):
     event = self.mongo_db.events.find_one(
@@ -255,6 +261,35 @@ class MainController(rawr.Controller):
       # so use 204 to signal our intentions.
       self.response.set_status(204)
 
+  def _get_events(self, channel, last_known_id, uuid, sort_order, max_events):
+    # Get a list of events
+    num_retries = 10
+    for i in range(num_retries):
+      try:
+        events = self.mongo_db.events.find(
+          {'_id': {'$gt': last_known_id}, 'channel': channel, 'uuid': {'$ne': uuid}},
+          fields=['_id', 'user_agent', 'created_at', 'data'],
+          sort=[('_id', sort_order)],
+          limit=max_events)
+
+        break
+
+      except pymongo.errors.AutoReconnect as ex:
+        self.shared.logger.error("Retry %d of %d. Details: %s" % (i, num_retries, str_utf8(ex)))
+
+        if i == (num_retries - 1): # Don't retry forever!
+          raise HttpServiceUnavailable()
+        else:
+          time.sleep(0.5) # Wait a moment for a new primary to be elected
+
+      except Exception as ex:
+        self.shared.logger.error(str_utf8(ex))
+
+        if i == num_retries - 1: # Don't retry forever!
+          raise HttpInternalServerError()
+
+    return events
+
   def get(self):
     """Handles a "GET events" request for the specified channel (channel here includes the scope name)"""
     channel_name = self.request.path
@@ -287,33 +322,28 @@ class MainController(rawr.Controller):
     #    parent - Get anything that exactly matches the given sub channel, and each parent channel
     #    exact - Only get events that exactly match the given channel (default)
     filter_type = self.request.get_optional_param("events", "exact")
+    events = []
+
     if filter_type == "parent": # most common case first for speed
-      channel_pattern = self._create_parent_pattern(channel_name)
-    elif filter_type == "all":
-      channel_pattern = re.compile("^" + channel_name + "/.+")
-    else: # force "exact"
-      channel_pattern = channel_name
 
-    # Get a list of events
-    num_retries = 10
-    for i in range(num_retries):
-      try:
-        events = self.mongo_db.events.find(
-          {'_id': {'$gt': last_known_id}, 'channel': channel_pattern, 'uuid': {'$ne': uuid}},
-          fields=['_id', 'user_agent', 'created_at', 'data'],
-          sort=[('_id', sort_order)],
-          limit=max_events)
+      # Note: We could do this in one query using a regex, but the regex would not be in a format
+      # that allows the DB to use the get_events index, so we split it up here. Note that this
+      # also sets us up for sharding based on channel name.
+      for each_channel in self._explode_channel(channel_name):
+        events += self._get_events(each_channel, last_known_id, uuid, sort_order, max_events)
 
-        break
+      # Have to sort manually since we are combining the results of several queries
+      events.sort(key=lambda evt: evt['_id'], reverse=(sort_order == pymongo.DESCENDING))
 
-      except Exception as ex:
-        self.shared.logger.error(str_utf8(ex))
+    else:
+      # @todo Remove this option so that we can shard based on channel name.
+      if filter_type == "all":
+        channel_pattern = re.compile("^" + channel_name + "(/.+)?")
 
-        if i == num_retries - 1: # Don't retry forever!
-          # Critical error (retrying probably won't help)
-          raise HttpInternalServerError()
-        else:
-          time.sleep(0.5) # Wait a moment for a new primary to be elected
+      else: # force "exact"
+        channel_pattern = channel_name
+
+      events += self._get_events(channel_pattern, last_known_id, uuid, sort_order, max_events)
 
     # Write out the response
     entries_serialized = self._serialize_events(events)
@@ -327,13 +357,13 @@ class MainController(rawr.Controller):
       if not self.shared.JSONP_CALLBACK_PATTERN.match(callback_name):
         raise HttpBadRequest('Invalid callback name')
 
-      self.response.write("%s({\"channel\":\"%s\", \"events\":[%s]});" % (callback_name, channel_name, str_utf8(entries_serialized)))
+      self.response.write("%s({\"channel\":\"%s\",\"events\":[%s]});" % (callback_name, channel_name, str_utf8(entries_serialized)))
     else:
       if not entries_serialized:
         self.response.set_status(204)
       else:
         self.response.write_header("Content-Type", "application/json; charset=utf-8")
-        self.response.write("{\"channel\":\"%s\", \"events\":[%s]}" % (channel_name, str_utf8(entries_serialized)))
+        self.response.write("{\"channel\":\"%s\",\"events\":[%s]}" % (channel_name, str_utf8(entries_serialized)))
 
   def post(self):
     """Handle a true HTTP POST event"""
