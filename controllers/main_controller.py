@@ -325,10 +325,18 @@ class MainController(rawr.Controller):
     events = []
 
     if filter_type == "parent": # most common case first for speed
+
+      # Note: We could do this in one query using a regex, but the regex would not be in a format
+      # that allows the DB to use the get_events index, so we split it up here. Note that this
+      # also sets us up for sharding based on channel name.
       for each_channel in self._explode_channel(channel_name):
         events += self._get_events(each_channel, last_known_id, uuid, sort_order, max_events)
 
+      # Have to sort manually since we are combining the results of several queries
+      events.sort(key=lambda evt: evt['_id'], reverse=(sort_order == pymongo.DESCENDING))
+
     else:
+      # @todo Remove this option so that we can shard based on channel name.
       if filter_type == "all":
         channel_pattern = re.compile("^" + channel_name + "(/.+)?")
 
@@ -349,13 +357,13 @@ class MainController(rawr.Controller):
       if not self.shared.JSONP_CALLBACK_PATTERN.match(callback_name):
         raise HttpBadRequest('Invalid callback name')
 
-      self.response.write("%s({\"channel\":\"%s\", \"events\":[%s]});" % (callback_name, channel_name, str_utf8(entries_serialized)))
+      self.response.write("%s({\"channel\":\"%s\",\"events\":[%s]});" % (callback_name, channel_name, str_utf8(entries_serialized)))
     else:
       if not entries_serialized:
         self.response.set_status(204)
       else:
         self.response.write_header("Content-Type", "application/json; charset=utf-8")
-        self.response.write("{\"channel\":\"%s\", \"events\":[%s]}" % (channel_name, str_utf8(entries_serialized)))
+        self.response.write("{\"channel\":\"%s\",\"events\":[%s]}" % (channel_name, str_utf8(entries_serialized)))
 
   def post(self):
     """Handle a true HTTP POST event"""
