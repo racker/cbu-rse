@@ -12,6 +12,7 @@ import time
 import uuid
 import re
 import httplib
+import random
 
 # Requires python 2.6 or better
 import json
