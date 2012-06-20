@@ -263,9 +263,8 @@ class MainController(rawr.Controller):
       self.response.write("%s({});" % callback_name)
 
     else:
-      # POST succeeded, but we aren't going to return any details in the response body,
-      # so use 204 to signal our intentions.
-      self.response.set_status(204)
+      # POST succeeded, i.e., new event was created
+      self.response.set_status(201)
 
   def _get_events(self, channel, last_known_id, uuid, sort_order, max_events):
     # Get a list of events
