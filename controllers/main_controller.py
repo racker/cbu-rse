@@ -181,7 +181,7 @@ class MainController(rawr.Controller):
 
     # Retry until we get a unique _id (or die trying)
     event_insert_succeeded = False
-    for retry_on_duplicate_key in range(100):
+    for retry_on_duplicate_key in xrange(100):
       # Increment stats counter
       self.shared.id_totalcnt += 1
 
@@ -231,7 +231,7 @@ class MainController(rawr.Controller):
 
     # Insert the new event into the DB
     num_retries = 10 # 5 seconds
-    for i in range(num_retries):
+    for i in xrange(num_retries):
       try:
         if not self._insert_event(channel_name, data, user_agent):
           raise HttpServiceUnavailable()
@@ -269,7 +269,7 @@ class MainController(rawr.Controller):
   def _get_events(self, channel, last_known_id, uuid, sort_order, max_events):
     # Get a list of events
     num_retries = 10
-    for i in range(num_retries):
+    for i in xrange(num_retries):
       try:
         events = self.mongo_db.events.find(
           {'_id': {'$gt': last_known_id}, 'channel': channel, 'uuid': {'$ne': uuid}},
