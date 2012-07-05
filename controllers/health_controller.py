@@ -69,7 +69,7 @@ class HealthController(rawr.Controller):
   def _basic_health_check(self):
     db_ok = False
 
-    for retry_counter in range(10):
+    for retry_counter in xrange(10):
       try:
         # Important: This must work on secondaries (e.g., read-only slaves)
         self.mongo_db.events.count()
@@ -99,7 +99,7 @@ class HealthController(rawr.Controller):
     server_info = "N/A."
     db_error_message = "N/A"
 
-    for retry_counter in range(10):
+    for retry_counter in xrange(10):
       try:
         #dbstats is in JSON format. Retrieve individual item like dbstats['globalLock']['currentQueue']
         dbstats = self.mongo_db.command("serverStatus")
