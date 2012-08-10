@@ -17,8 +17,7 @@ Unlike simple timestamp-based protocols, RSE guarantees clients will never miss 
 * Plays nice with standard web servers, firewalls, routers, proxies, etc.
 * Stateless app servers with high utilization
 * Does not require long-lived connections
-* Low-latency polling 
-* Supports keep-alive for percieved real-time command and control
+* Low-latency polling of ~8 ms (combine with keep-alive for [perceptually instantaneous][1] command and control)
 * Guaranteed delivery of events (within a specific time window)
 
 ## RSE Dependencies
@@ -27,7 +26,7 @@ Unlike simple timestamp-based protocols, RSE guarantees clients will never miss 
 * WebOb
 * Gunicorn
 * Pymongo
-* [RaxPy](https://github.rackspace.com/atl/rax-py)
+* [RaxPy][2]
 
 ## Reference Stack
 
@@ -42,3 +41,6 @@ Unlike simple timestamp-based protocols, RSE guarantees clients will never miss 
 * Improved scale-out for writes
 * Transactional symantecs (to support job queues)
 * ...and much more!
+
+[1]:http://asktog.com/basics/firstPrinciples.html#latencyReduction
+[2]:https://github.rackspace.com/atl/rax-py
