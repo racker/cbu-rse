@@ -8,9 +8,9 @@ RSE is a light-weight, fast, scale-out alternative to other popular queueing sys
 
 ## Features
 
-* Supports events and command-and-control symantics
 * Clients communicate over channels and sub-channels
-* Designed in an elegant fashion so that communication styles are only limited by your imagination (point-to-point and publish-subscribe are emergent features, not hard-wired into the protocol)  
+* Supports both eventing and command-and-control semantics
+* Designed in an elegant fashion so that communication styles are only limited by your imagination (point-to-point and pubsub are emergent features, not hard-wired into the protocol)  
 * Uses a simple, compact, and human-readable HTTP+JSON protocol
 * Plays nice with standard web servers, firewalls, routers, proxies, etc.
 * Stateless app servers with high utilization
