@@ -4,7 +4,9 @@ Reference implementation for Really Simple Events, a simple event queueing proto
 
 Currently in production supporting Rackspace Cloud Backup.
 
-RSE is a light-weight, fast, scale-out alternative to other popular queueing systems. It is a good choice when you need a cloud message bus that supports 100's of thousands of clients, and was specifically designed for communicating across unreliable network partitions (read: the internet). Unlike simple timestamp-based protocols, RSE guarantees clients will never miss an event due to clock drift or ID collisions, while at the same time clients do not have to keep a sliding window of previously received events to detect duplicates.
+RSE is a light-weight, fast, scale-out alternative to other popular queueing systems. It is a good choice when you need a cloud message bus that supports 100's of thousands of clients, and was specifically designed for communicating across unreliable network partitions (read: the internet). 
+
+Unlike simple timestamp-based protocols, RSE guarantees clients will never miss an event due to clock drift or ID collisions, while at the same time clients do not have to keep a sliding window of previously received events to detect duplicates.
 
 ## Features
 
@@ -17,6 +19,7 @@ RSE is a light-weight, fast, scale-out alternative to other popular queueing sys
 * Does not require long-lived connections
 * Low-latency polling 
 * Supports keep-alive for percieved real-time command and control
+* Guaranteed delivery of events (within a specific time window)
 
 ## RSE Dependencies
 
