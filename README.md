@@ -39,7 +39,7 @@ Unlike simple timestamp-based protocols, RSE guarantees clients will never miss 
 
 * Modular design (storage driver, auth, etc.)
 * Improved scale-out for writes
-* Transactional symantecs (to support job queues)
+* Transactional semantics (to support job queues)
 * ...and much more!
 
 [1]:http://asktog.com/basics/firstPrinciples.html#latencyReduction
