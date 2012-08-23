@@ -87,7 +87,7 @@ class MainController(rawr.Controller):
     if response.status != 200:
       self.shared.logger.warning('Could not authorize request. Server returned HTTP %d for "%s".' % (response.status, auth_token))
       if (response.status / 100) == 4:
-        raise HttpUnauthorized()
+        raise HttpError(response.status)
       else:
         raise HttpServiceUnavailable()
 
