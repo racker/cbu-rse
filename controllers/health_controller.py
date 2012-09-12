@@ -255,7 +255,7 @@ class HealthController(rawr.Controller):
               "readers" : dbstats['globalLock']['currentQueue']['readers']
             },
             "lockTime" : dbstats['globalLock']['lockTime'],
-            "ratio" : dbstats['globalLock']['ratio'],
+            "ratio" : (dbstats['globalLock']['lockTime'] / dbstats['globalLock']['totalTime'])
             "active_clients" : {
               "total" : dbstats['globalLock']['activeClients']['total'],
               "writers" : dbstats['globalLock']['activeClients']['writers'],
@@ -271,7 +271,8 @@ class HealthController(rawr.Controller):
           "last_extent_size" : collstats_events['lastExtentSize'],
           "avg_obj_size" : (0 if collstats_events['count'] == 0 else collstats_events['avgObjSize']),
           "total_index_size" : collstats_events['totalIndexSize'],
-          "flags" : collstats_events['flags'],
+          "userFlags" : collstats_events['userFlags'],
+          "systemFlags" : collstats_events['systemFlags'],
           "num_extents" : collstats_events['numExtents'],
           "nindexes" : collstats_events['nindexes'],
           "storage_size" : collstats_events['storageSize'],
