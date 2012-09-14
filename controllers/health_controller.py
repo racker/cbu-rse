@@ -255,7 +255,7 @@ class HealthController(rawr.Controller):
               "readers" : dbstats['globalLock']['currentQueue']['readers']
             },
             "lockTime" : dbstats['globalLock']['lockTime'],
-            "ratio" : (dbstats['globalLock']['lockTime'] / dbstats['globalLock']['totalTime'])
+            "ratio" : (dbstats['globalLock']['lockTime'] / dbstats['globalLock']['totalTime']),
             "active_clients" : {
               "total" : dbstats['globalLock']['activeClients']['total'],
               "writers" : dbstats['globalLock']['activeClients']['writers'],
