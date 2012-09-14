@@ -322,3 +322,9 @@ class HealthController(rawr.Controller):
       self.response.write("OK\n")
     else:
       raise HttpError(503)
+
+  def head(self):
+    if self._basic_health_check():
+      self.response.write("OK\n")
+    else:
+      raise HttpError(503)
