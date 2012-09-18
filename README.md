@@ -13,7 +13,7 @@ Unlike simple timestamp-based protocols, RSE guarantees clients will never miss 
 1. Install MongoDB 2.2.
 1. Install Python 2.7. On Windows, you'll have to manually add it to your path (probably c:\python27\bin).
 1. Download this and run it with python: http://peak.telecommunity.com/dist/ez_setup.py
-1. Then do: ```easy_install pymongo webob```
+1. ```easy_install pymongo webob```
 1. Download rax-py, cd into the directory, then run: ```easy_install .```
 1. Download rse, cd into the directory, then run: ```python rse.py```
 1. If that doesn't work, check ```rse.log``` for errors. 
