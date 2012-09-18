@@ -8,6 +8,16 @@ RSE is a light-weight, fast, scale-out alternative to other popular queueing sys
 
 Unlike simple timestamp-based protocols, RSE guarantees clients will never miss an event due to clock drift or ID collisions, while at the same time clients do not have to keep a sliding window of previously received events to detect duplicates.
 
+## Quick Start ##
+
+1. Install MongoDB 2.2.
+1. Install Python 2.7. On Windows, you'll have to manually add it to your path (probably c:\python27\bin).
+1. Download this and run it with python: http://peak.telecommunity.com/dist/ez_setup.py
+1. ```easy_install pymongo webob```
+1. Download rax-py, cd into the directory, then run: ```easy_install .```
+1. Download rse, cd into the directory, then run: ```python rse.py```
+1. If that doesn't work, check ```rse.log``` for errors. 
+
 ## Features
 
 * Clients communicate over channels and sub-channels
@@ -19,6 +29,13 @@ Unlike simple timestamp-based protocols, RSE guarantees clients will never miss 
 * Does not require long-lived connections
 * Low-latency polling of ~8 ms (combine with keep-alive for [perceptually instantaneous][1] command and control)
 * Guaranteed delivery of events (within a specific time window)
+
+## Configuration ##
+
+```
+cp rse.default.conf /etc/rse.conf
+vim /etc/rse.conf
+```
 
 ## RSE Dependencies
 
