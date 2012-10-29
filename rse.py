@@ -187,14 +187,13 @@ class RseApplication(rawr.Rawr):
         mongo_db_master.events.ensure_index([('channel', pymongo.ASCENDING), ('_id', pymongo.ASCENDING), ('uuid', pymongo.ASCENDING)], name='get_events')
 
         # Drop TTL index if a different number of seconds was requested
-        for index in mongo_db_master.events.index_information():
-          index_info = mongo_db_master.events.index_information()
-        
-          if 'ttl' in index_info:
-            index = index_info['ttl']
-            if ('expireAfterSeconds' not in index) or index['expireAfterSeconds'] != event_ttl:
-              mongo_db_master.events.drop_index('ttl');
-              break
+        index_info = mongo_db_master.events.index_information()
+      
+        if 'ttl' in index_info:
+          index = index_info['ttl']
+          if ('expireAfterSeconds' not in index) or index['expireAfterSeconds'] != event_ttl:
+            mongo_db_master.events.drop_index('ttl');
+            break
 
         mongo_db_master.events.ensure_index('created_at', expireAfterSeconds=event_ttl, name='ttl')
 
