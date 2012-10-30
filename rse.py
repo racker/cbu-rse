@@ -193,7 +193,6 @@ class RseApplication(rawr.Rawr):
           index = index_info['ttl']
           if ('expireAfterSeconds' not in index) or index['expireAfterSeconds'] != event_ttl:
             mongo_db_master.events.drop_index('ttl');
-            break
 
         mongo_db_master.events.ensure_index('created_at', expireAfterSeconds=event_ttl, name='ttl')
 
