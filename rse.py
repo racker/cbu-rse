@@ -62,7 +62,9 @@ class RseApplication(rawr.Rawr):
         'authtoken-slice-size': '2',
         'replica-set': '[none]',
         'filelog': 'yes',
-        'syslog': 'no'
+        'console': 'no',
+        'syslog': 'no',
+        'event-ttl': '120'
       }
     )
 
@@ -80,6 +82,11 @@ class RseApplication(rawr.Rawr):
 
     formatter = logging.Formatter('%(asctime)s - RSE - PID %(process)d - %(funcName)s:%(lineno)d - %(levelname)s - %(message)s')
 
+    if config.getboolean('logging', 'console'):
+      handler = logging.StreamHandler();
+      handler.setFormatter(formatter);
+      logger.addHandler(handler)
+
     if config.getboolean('logging', 'filelog'):
       handler = logging.handlers.RotatingFileHandler(config.get('logging', 'filelog-path'), maxBytes=5 * 1024*1024, backupCount=5)
       handler.setFormatter(formatter);
@@ -95,7 +102,33 @@ class RseApplication(rawr.Rawr):
     slice_size = config.getint('fastcache', 'authtoken-slice-size')
     authtoken_cache = FastCache(retention_period, slice_size)
 
-    # Setup DB connections
+    # Connnect to MongoDB
+    mongo_db, mongo_db_master = self.init_database(logger, config)
+
+    # Get account services options
+    accountsvc_host = config.get('account-services', 'host')
+    accountsvc_https = config.getboolean('account-services', 'https')
+    accountsvc_timeout = config.getint('account-services', 'timeout')
+    test_mode = config.getboolean('rse', 'test')
+
+    # Setup routes
+    shared = Shared(logger, authtoken_cache)
+
+    health_options = dict(shared=shared, accountsvc_host=accountsvc_host,
+                          accountsvc_https=accountsvc_https,
+                          accountsvc_timeout=accountsvc_timeout,
+                          mongo_db=mongo_db_master, test_mode=test_mode)
+    self.add_route(r"/health$", HealthController, health_options)
+
+    main_options = dict(shared=shared, accountsvc_host=accountsvc_host,
+                        accountsvc_https=accountsvc_https,
+                        accountsvc_timeout=accountsvc_timeout,
+                        mongo_db=mongo_db, test_mode=test_mode)
+    self.add_route(r"/.+", MainController, main_options)
+
+  def init_database(self, logger, config):
+    event_ttl = config.getint('rse', 'event-ttl')
+
     db_connections_ok = False
     for i in range(10):
       try:
@@ -112,9 +145,8 @@ class RseApplication(rawr.Rawr):
           try:
             connection = pymongo.ReplicaSetConnection(config.get('mongodb', 'uri'), replicaSet=replica_set, read_preference=pymongo.ReadPreference.SECONDARY)
           except Exception as ex:
-            logger.warning( "Mongo connection exception: %s" % (ex.message))
-            if ex.message == 'secondary':
-              return
+            logger.error( "Mongo connection exception: %s" % (ex.message))
+            sys.exit(1)
 
         mongo_db = connection[config.get('mongodb', 'database')]
         mongo_db_master = connection_master[config.get('mongodb', 'database')]
@@ -154,6 +186,17 @@ class RseApplication(rawr.Rawr):
         # index.
         mongo_db_master.events.ensure_index([('channel', pymongo.ASCENDING), ('_id', pymongo.ASCENDING), ('uuid', pymongo.ASCENDING)], name='get_events')
 
+        # Drop TTL index if a different number of seconds was requested
+        index_info = mongo_db_master.events.index_information()
+      
+        if 'ttl' in index_info:
+          index = index_info['ttl']
+          if ('expireAfterSeconds' not in index) or index['expireAfterSeconds'] != event_ttl:
+            mongo_db_master.events.drop_index('ttl');
+
+        mongo_db_master.events.ensure_index('created_at', expireAfterSeconds=event_ttl, name='ttl')
+
+
         # WARNING: Counter must start at a value greater than 0 per the RSE spec, so
         # we set to 0 since the id generation logic always adds one to get
         # the next id, so we will start at 1 for the first event
@@ -175,25 +218,7 @@ class RseApplication(rawr.Rawr):
       logger.error("Could not setup events connections")
       sys.exit(1)
 
-    accountsvc_host = config.get('account-services', 'host')
-    accountsvc_https = config.getboolean('account-services', 'https')
-    accountsvc_timeout = config.getint('account-services', 'timeout')
-    test_mode = config.getboolean('rse', 'test')
-
-    # Setup routes
-    shared = Shared(logger, authtoken_cache)
-
-    health_options = dict(shared=shared, accountsvc_host=accountsvc_host,
-                          accountsvc_https=accountsvc_https,
-                          accountsvc_timeout=accountsvc_timeout,
-                          mongo_db=mongo_db_master, test_mode=test_mode)
-    self.add_route(r"/health$", HealthController, health_options)
-
-    main_options = dict(shared=shared, accountsvc_host=accountsvc_host,
-                        accountsvc_https=accountsvc_https,
-                        accountsvc_timeout=accountsvc_timeout,
-                        mongo_db=mongo_db, test_mode=test_mode)
-    self.add_route(r"/.+", MainController, main_options)
+    return (mongo_db, mongo_db_master)
 
 # WSGI app
 app = RseApplication()
@@ -201,6 +226,7 @@ app = RseApplication()
 # If running this script directly, startup a basic WSGI server for testing
 if __name__ == "__main__":
   from wsgiref.simple_server import make_server
+
 
   httpd = make_server('', 8000, app)
   print "Serving on port 8000..."
