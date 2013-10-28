@@ -127,7 +127,7 @@ class MainController(rawr.Controller):
       for event in events])
 
   def _debug_dump(self):
-    sort_order = long(self.request.get_optional_param("sort", pymongo.ASCENDING))
+    sort_order = int(self.request.get_optional_param("sort", pymongo.ASCENDING))
 
     events = self.mongo_db.events.find(
       fields=['_id', 'user_agent', 'created_at', 'data', 'channel'],
@@ -310,7 +310,7 @@ class MainController(rawr.Controller):
 
     # Parse query params
     last_known_id = long(self.request.get_optional_param("last-known-id", 0))
-    sort_order = long(self.request.get_optional_param("sort", pymongo.ASCENDING))
+    sort_order = int(self.request.get_optional_param("sort", pymongo.ASCENDING))
     max_events = min(500, int(self.request.get_optional_param("max-events", 200)))
     echo = (self.request.get_optional_param("echo") == "true")
 
