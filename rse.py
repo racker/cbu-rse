@@ -107,10 +107,10 @@ class RseApplication(rawr.Rawr):
         authtoken_cache = FastCache(retention_period, slice_size)
 
         # Statsd
-        if config.get('statsd', 'enable') == "true":
+        if config.getboolean('statsd', 'enable'):
             stats = StatsClient(host=config.get('statsd', 'host'),
-                              port=config.get('statsd', 'port'),
-                              prefix=config.get('statsd', 'prefix'))
+                                port=config.getint('statsd', 'port'),
+                                prefix=config.get('statsd', 'prefix'))
         else:
             stats = StatsClient()
 
