@@ -126,8 +126,9 @@ class MainController(rawr.Controller):
       event['data'])
       for event in events])
 
-  def _debug_dump(self):
-    sort_order = int(self.request.get_optional_param("sort", pymongo.ASCENDING))
+    def _debug_dump(self):
+        sort_order = int(
+            self.request.get_optional_param("sort", pymongo.ASCENDING))
 
     events = self.mongo_db.events.find(
       fields=['_id', 'user_agent', 'created_at', 'data', 'channel'],
@@ -308,11 +309,14 @@ class MainController(rawr.Controller):
       self._post(channel_name, self.request.get_param("post-data"))
       return
 
-    # Parse query params
-    last_known_id = long(self.request.get_optional_param("last-known-id", 0))
-    sort_order = int(self.request.get_optional_param("sort", pymongo.ASCENDING))
-    max_events = min(500, int(self.request.get_optional_param("max-events", 200)))
-    echo = (self.request.get_optional_param("echo") == "true")
+        # Parse query params
+        last_known_id = int(
+            self.request.get_optional_param("last-known-id", 0))
+        sort_order = int(
+            self.request.get_optional_param("sort", pymongo.ASCENDING))
+        max_events = min(
+            500, int(self.request.get_optional_param("max-events", 200)))
+        echo = (self.request.get_optional_param("echo") == "true")
 
     # Parse User-Agent string
     user_agent = self.request.get_header("User-Agent")
