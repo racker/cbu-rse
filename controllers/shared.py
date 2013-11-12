@@ -9,12 +9,13 @@ hard-coded options
 
 import re
 
-
 class Shared:
     """Encapsulates performance counters and hard-coded options"""
-    def __init__(self, logger, authtoken_cache):
+    def __init__(self, logger, authtoken_cache, stats):
         self.authtoken_cache = authtoken_cache
         self.logger = logger
+
+        self.stats = stats
 
         self.cache_token_hitcnt = 0
         self.cache_token_totalcnt = 0
