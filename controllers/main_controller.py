@@ -237,6 +237,7 @@ class MainController(rawr.Controller):
 
     def _post(self, channel_name, data):
         """Handles a client submitting a new event (the data parameter)"""
+        self.shared.stats.incr('method.post')
         user_agent = self.request.get_header("User-Agent")
 
         # Verify that the data is valid JSON
@@ -249,11 +250,11 @@ class MainController(rawr.Controller):
             try:
                 if not self._insert_event(channel_name, data, user_agent):
                     raise HttpServiceUnavailable()
-
                 break
 
             except HttpError as ex:
                 self.shared.logger.error(str_utf8(ex))
+                # raise something here :|
                 raise
 
             except pymongo.errors.AutoReconnect as ex:
@@ -303,6 +304,7 @@ class MainController(rawr.Controller):
                     "Retry %d of %d. Details: %s" % (i, num_retries, str_utf8(ex)))
 
                 if i == (num_retries - 1):  # Don't retry forever!
+                    stats.incr('response.503')
                     raise HttpServiceUnavailable()
                 else:
                     # Wait a moment for a new primary to be elected
@@ -312,11 +314,13 @@ class MainController(rawr.Controller):
                 self.shared.logger.error(str_utf8(ex))
 
                 if i == num_retries - 1:  # Don't retry forever!
+                    stats.incr('response.500')
                     raise HttpInternalServerError()
 
         return events
 
     def get(self):
+        self.shared.stats.incr('method.get')
         """Handles a "GET events" request for the specified channel (channel here includes the scope name)"""
         channel_name = self.request.path
 
@@ -389,14 +393,17 @@ class MainController(rawr.Controller):
 
             # Security check
             if not self.shared.JSONP_CALLBACK_PATTERN.match(callback_name):
+                self.shared.stats.incr('response.400')
                 raise HttpBadRequest('Invalid callback name')
 
             self.response.write("%s({\"channel\":\"%s\",\"events\":[%s]});" % (
                 callback_name, channel_name, str_utf8(entries_serialized)))
         else:
             if not entries_serialized:
+                self.shared.stats.incr('response.204')
                 self.response.set_status(204)
             else:
+                self.shared.stats.incr('response.200')
                 self.response.write_header(
                     "Content-Type", "application/json; charset=utf-8")
                 self.response.write("{\"channel\":\"%s\",\"events\":[%s]}" % (
