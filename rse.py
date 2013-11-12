@@ -107,9 +107,12 @@ class RseApplication(rawr.Rawr):
         authtoken_cache = FastCache(retention_period, slice_size)
 
         # Statsd
-        stats = StatsClient(host=config.get('statsd', 'host'),
-                            port=config.get('statsd', 'port'),
-                            prefix=config.get('statsd', 'prefix'))
+        if config.get('statsd', 'enable') == "true":
+            stats = StatsClient(host=config.get('statsd', 'host'),
+                              port=config.get('statsd', 'port'),
+                              prefix=config.get('statsd', 'prefix'))
+        else:
+            stats = StatsClient()
 
         # Connnect to MongoDB
         mongo_db, mongo_db_master = self.init_database(logger, config)
