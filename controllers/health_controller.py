@@ -340,12 +340,16 @@ class HealthController(rawr.Controller):
                     self.request.get_optional_param("profile_db") == "true",
                     self.request.get_optional_param("validate_db") == "true"))
         elif self._basic_health_check():
+            self.shared.stats.incr('response.200')
             self.response.write("OK\n")
         else:
+            self.shared.stats.incr('response.503')
             raise HttpError(503)
 
     def head(self):
         if self._basic_health_check():
+            self.shared.stats.incr('response.200')
             self.response.write("OK\n")
         else:
+            self.shared.stats.incr('response.503')
             raise HttpError(503)
