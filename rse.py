@@ -33,6 +33,7 @@ from rax.http import rawr
 from rax.fastcache.fastcache import *
 
 from statsd import StatsClient
+import graypy
 
 from controllers.shared import *
 from controllers.health_controller import *
@@ -100,6 +101,11 @@ class RseApplication(rawr.Rawr):
             handler.setFormatter(formatter)
             logger.addHandler(handler)
 
+        if config.getboolean('logging', 'graylog'):
+            handler = graypy.GELFHandler(config.get('logging', 'graylog-address'),
+                                         config.getint('logging', 'graylog-port'))
+            handler.setFormatter(formatter)
+            logger.addHandler(handler)
         # FastCache for Auth Token
         retention_period = config.getint(
             'fastcache', 'authtoken-retention-period')
