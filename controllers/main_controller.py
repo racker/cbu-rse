@@ -196,7 +196,8 @@ class MainController(rawr.Controller):
         # Therefore, we can't use the usual method of keeping a side-counter
         # and using it as the sole authority, like this:
         #
-        # counter = self.mongo_db.counters.find_and_modify({'_id': 'event_id'}, {'$inc': {'c': 1}})
+        # counter = self.mongo_db.counters.find_and_modify({'_id': 'event_id'},
+        #  {'$inc': {'c': 1}})
 
         # Retry until we get a unique _id (or die trying)
         event_insert_succeeded = False
@@ -262,12 +263,15 @@ class MainController(rawr.Controller):
 
             except HttpError as ex:
                 self.shared.logger.error(str_utf8(ex))
-                # raise something here :|
+                raise HttpServiceUnavailable()
+                self.shared.stats.incr('response.503')
                 raise
 
             except pymongo.errors.AutoReconnect as ex:
                 self.shared.logger.error(
-                    "Retry %d of %d. Details: %s" % (i, num_retries, str_utf8(ex)))
+                    "Retry %d of %d. Details: %s" % (i,
+                                                     num_retries,
+                                                     str_utf8(ex)))
 
                 if i == (num_retries - 1):  # Don't retry forever!
                     # Critical error (retrying probably won't help)
@@ -333,8 +337,8 @@ class MainController(rawr.Controller):
     def get(self):
         with self.shared.stats.timer('method.get'):
             self.shared.stats.incr('method.get')
-            """Handles a "GET events" request for the specified channel (channel
-              here includes the scope name)"""
+            """Handles a "GET events" request for the specified channel
+               (channel here includes the scope name)"""
             channel_name = self.request.path
 
             if self.test_mode and channel_name == "/all":
@@ -381,7 +385,8 @@ class MainController(rawr.Controller):
                 # also sets us up for sharding based on channel name.
                 for each_channel in self._explode_channel(channel_name):
                     events += self._get_events(
-                        each_channel, last_known_id, uuid, sort_order, max_events)
+                        each_channel, last_known_id, uuid, sort_order,
+                        max_events)
 
                 # Have to sort manually since we are combining the results of
                 # several queries
@@ -430,4 +435,4 @@ class MainController(rawr.Controller):
         """Handle a true HTTP POST event"""
 
         with self.shared.stats.timer('method.post'):
-          self._post(self.request.path, self.request.body)
+            self._post(self.request.path, self.request.body)
