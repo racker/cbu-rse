@@ -1,0 +1,5 @@
+gunicorn
+pymongo
+webob
+statsd
+graypy

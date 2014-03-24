@@ -32,6 +32,9 @@ import argparse
 from rax.http import rawr
 from rax.fastcache.fastcache import *
 
+from statsd import StatsClient
+import graypy
+
 from controllers.shared import *
 from controllers.health_controller import *
 from controllers.main_controller import *
@@ -86,7 +89,9 @@ class RseApplication(rawr.Rawr):
 
         if config.getboolean('logging', 'filelog'):
             handler = logging.handlers.RotatingFileHandler(
-                config.get('logging', 'filelog-path'), maxBytes=5 * 1024 * 1024, backupCount=5)
+                config.get('logging', 'filelog-path'),
+                maxBytes=5 * 1024 * 1024,
+                backupCount=5)
             handler.setFormatter(formatter)
             logger.addHandler(handler)
 
@@ -96,11 +101,24 @@ class RseApplication(rawr.Rawr):
             handler.setFormatter(formatter)
             logger.addHandler(handler)
 
+        if config.getboolean('logging', 'graylog'):
+            handler = graypy.GELFHandler(config.get('logging', 'graylog-address'),
+                                         config.getint('logging', 'graylog-port'))
+            handler.setFormatter(formatter)
+            logger.addHandler(handler)
         # FastCache for Auth Token
         retention_period = config.getint(
             'fastcache', 'authtoken-retention-period')
         slice_size = config.getint('fastcache', 'authtoken-slice-size')
         authtoken_cache = FastCache(retention_period, slice_size)
+
+        # Statsd
+        if config.getboolean('statsd', 'enable'):
+            stats = StatsClient(host=config.get('statsd', 'host'),
+                                port=config.getint('statsd', 'port'),
+                                prefix=config.get('statsd', 'prefix'))
+        else:
+            stats = StatsClient()
 
         # Connnect to MongoDB
         mongo_db, mongo_db_master = self.init_database(logger, config)
@@ -112,7 +130,7 @@ class RseApplication(rawr.Rawr):
         test_mode = config.getboolean('rse', 'test')
 
         # Setup routes
-        shared = Shared(logger, authtoken_cache)
+        shared = Shared(logger, authtoken_cache, stats)
 
         health_options = dict(shared=shared, accountsvc_host=accountsvc_host,
                               accountsvc_https=accountsvc_https,

@@ -59,6 +59,7 @@ class MainController(rawr.Controller):
                 # Auth token required in live mode
                 self.shared.logger.error(
                     "Missing X-Auth-Token header (required in live mode)")
+                self.shared.stats.incr('response.401')
                 raise HttpUnauthorized()
 
         # Incement token cache access counter
@@ -86,6 +87,7 @@ class MainController(rawr.Controller):
                 'Error while attempting to validate token via GET %s - %s' %
                 (auth_url, str_utf8(ex)))
 
+            self.shared.stats.incr('response.503')
             raise HttpServiceUnavailable()
 
         # Check whether the auth token was good
@@ -93,8 +95,10 @@ class MainController(rawr.Controller):
             self.shared.logger.warning(
                 'Could not authorize request. Server returned HTTP %d for "%s".' % (response.status, auth_token))
             if (response.status / 100) == 4:
+                self.shared.stats.incr("response.%s" % response.status)
                 raise HttpError(response.status)
             else:
+                self.shared.stats.incr('response.503')
                 raise HttpServiceUnavailable()
 
         try:
@@ -121,6 +125,7 @@ class MainController(rawr.Controller):
             if self.test_mode:
                 return "550e8400-dead-beef-dead-446655440000"
             else:
+                self.shared.stats.incr('response.400')
                 raise HttpBadRequest('Missing UUID in User-Agent header')
 
     def _serialize_events(self, events):
@@ -148,6 +153,7 @@ class MainController(rawr.Controller):
         entries_serialized = self._serialize_events(events)
         self.response.write_header(
             "Content-Type", "application/json; charset=utf-8")
+        self.shared.stats.incr('response.200')
         self.response.write("[%s]" % str_utf8(entries_serialized))
         return
 
@@ -190,7 +196,8 @@ class MainController(rawr.Controller):
         # Therefore, we can't use the usual method of keeping a side-counter
         # and using it as the sole authority, like this:
         #
-        # counter = self.mongo_db.counters.find_and_modify({'_id': 'event_id'}, {'$inc': {'c': 1}})
+        # counter = self.mongo_db.counters.find_and_modify({'_id': 'event_id'},
+        #  {'$inc': {'c': 1}})
 
         # Retry until we get a unique _id (or die trying)
         event_insert_succeeded = False
@@ -237,11 +244,13 @@ class MainController(rawr.Controller):
 
     def _post(self, channel_name, data):
         """Handles a client submitting a new event (the data parameter)"""
+        self.shared.stats.incr('method.post')
         user_agent = self.request.get_header("User-Agent")
 
         # Verify that the data is valid JSON
         if not (json_validator.is_valid(data) and self._is_safe_user_agent(user_agent)):
             raise HttpBadRequest('Invalid JSON')
+            self.shared.stats.incr('response.400')
 
         # Insert the new event into the DB
         num_retries = 10  # 5 seconds
@@ -249,19 +258,24 @@ class MainController(rawr.Controller):
             try:
                 if not self._insert_event(channel_name, data, user_agent):
                     raise HttpServiceUnavailable()
-
+                    self.shared.stats.incr('response.503')
                 break
 
             except HttpError as ex:
                 self.shared.logger.error(str_utf8(ex))
+                raise HttpServiceUnavailable()
+                self.shared.stats.incr('response.503')
                 raise
 
             except pymongo.errors.AutoReconnect as ex:
                 self.shared.logger.error(
-                    "Retry %d of %d. Details: %s" % (i, num_retries, str_utf8(ex)))
+                    "Retry %d of %d. Details: %s" % (i,
+                                                     num_retries,
+                                                     str_utf8(ex)))
 
                 if i == (num_retries - 1):  # Don't retry forever!
                     # Critical error (retrying probably won't help)
+                    self.shared.stats.incr('response.503')
                     raise HttpServiceUnavailable()
                 else:
                     # Wait a moment for a new primary to be elected in case of
@@ -276,12 +290,14 @@ class MainController(rawr.Controller):
 
             # Security check
             if not self.shared.JSONP_CALLBACK_PATTERN.match(callback_name):
+                self.shared.stats.incr('response.400')
                 raise HttpBadRequest("Invalid callback name")
 
             self.response.write("%s({});" % callback_name)
 
         else:
             # POST succeeded, i.e., new event was created
+            self.shared.stats.incr('response.201')
             self.response.set_status(201)
 
     def _get_events(self, channel, last_known_id, uuid, sort_order, max_events):
@@ -303,6 +319,7 @@ class MainController(rawr.Controller):
                     "Retry %d of %d. Details: %s" % (i, num_retries, str_utf8(ex)))
 
                 if i == (num_retries - 1):  # Don't retry forever!
+                    stats.incr('response.503')
                     raise HttpServiceUnavailable()
                 else:
                     # Wait a moment for a new primary to be elected
@@ -312,96 +329,110 @@ class MainController(rawr.Controller):
                 self.shared.logger.error(str_utf8(ex))
 
                 if i == num_retries - 1:  # Don't retry forever!
+                    stats.incr('response.500')
                     raise HttpInternalServerError()
 
         return events
 
     def get(self):
-        """Handles a "GET events" request for the specified channel (channel here includes the scope name)"""
-        channel_name = self.request.path
+        with self.shared.stats.timer('method.get'):
+            self.shared.stats.incr('method.get')
+            """Handles a "GET events" request for the specified channel
+               (channel here includes the scope name)"""
+            channel_name = self.request.path
 
-        if self.test_mode and channel_name == "/all":
-            self._debug_dump()
-            return
+            if self.test_mode and channel_name == "/all":
+                self._debug_dump()
+                return
 
-        # Note: case-sensitive for speed
-        if self.request.get_optional_param("method") == "POST":
-            self._post(channel_name, self.request.get_param("post-data"))
-            return
+            # Note: case-sensitive for speed
+            if self.request.get_optional_param("method") == "POST":
+                self._post(channel_name, self.request.get_param("post-data"))
+                return
 
-        # Parse query params
-        last_known_id = long(
-            self.request.get_optional_param("last-known-id", 0))
-        sort_order = int(
-            self.request.get_optional_param("sort", pymongo.ASCENDING))
-        max_events = min(
-            500, int(self.request.get_optional_param("max-events", 200)))
-        echo = (self.request.get_optional_param("echo") == "true")
+            # Parse query params
+            last_known_id = long(
+                self.request.get_optional_param("last-known-id", 0))
+            sort_order = int(
+                self.request.get_optional_param("sort", pymongo.ASCENDING))
+            max_events = min(
+                500, int(self.request.get_optional_param("max-events", 200)))
+            echo = (self.request.get_optional_param("echo") == "true")
 
-        # Parse User-Agent string
-        user_agent = self.request.get_header("User-Agent")
-        uuid = ("e" if echo else self._parse_client_uuid(user_agent))
+            # Parse User-Agent string
+            user_agent = self.request.get_header("User-Agent")
+            uuid = ("e" if echo else self._parse_client_uuid(user_agent))
 
-        # request parameter validation
-        if sort_order not in (pymongo.ASCENDING, pymongo.DESCENDING):
-            sort_order = pymongo.ASCENDING
+            # request parameter validation
+            if sort_order not in (pymongo.ASCENDING, pymongo.DESCENDING):
+                sort_order = pymongo.ASCENDING
 
-        # Different values for "events" argument
-        #    all - Get all events for both main and sub channels (@todo Lock this down for Retail Release)
-        #    parent - Get anything that exactly matches the given sub channel, and each parent channel
-        # exact - Only get events that exactly match the given channel
-        # (default)
-        filter_type = self.request.get_optional_param("events", "exact")
-        events = []
+            # Different values for "events" argument
+            #    all - Get all events for both main and sub channels (@todo
+            #          Lock this down for Retail Release)
+            #    parent - Get anything that exactly matches the given sub
+            #             channel, and each parent channel
+            # exact - Only get events that exactly match the given channel
+            # (default)
+            filter_type = self.request.get_optional_param("events", "exact")
+            events = []
 
-        if filter_type == "parent":  # most common case first for speed
+            if filter_type == "parent":  # most common case first for speed
 
-            # Note: We could do this in one query using a regex, but the regex would not be in a format
-            # that allows the DB to use the get_events index, so we split it up here. Note that this
-            # also sets us up for sharding based on channel name.
-            for each_channel in self._explode_channel(channel_name):
-                events += self._get_events(
-                    each_channel, last_known_id, uuid, sort_order, max_events)
+                # Note: We could do this in one query using a regex, but the
+                # regex would not be in a format that allows the DB to use the
+                # get_events index, so we split it up here. Note that this
+                # also sets us up for sharding based on channel name.
+                for each_channel in self._explode_channel(channel_name):
+                    events += self._get_events(
+                        each_channel, last_known_id, uuid, sort_order,
+                        max_events)
 
-            # Have to sort manually since we are combining the results of
-            # several queries
-            events.sort(key=lambda evt: evt['_id'], reverse=(
-                sort_order == pymongo.DESCENDING))
+                # Have to sort manually since we are combining the results of
+                # several queries
+                events.sort(key=lambda evt: evt['_id'], reverse=(
+                    sort_order == pymongo.DESCENDING))
 
-        else:
-            # @todo Remove this option so that we can shard based on channel name.
-            if filter_type == "all":
-                channel_pattern = re.compile("^" + channel_name + "(/.+)?")
-
-            else:  # force "exact"
-                channel_pattern = channel_name
-
-            events += self._get_events(
-                channel_pattern, last_known_id, uuid, sort_order, max_events)
-
-        # Write out the response
-        entries_serialized = self._serialize_events(events)
-
-        callback_name = self.request.get_optional_param("callback")
-        if callback_name:
-            # JSON-P
-            self.response.write_header("Content-Type", "text/javascript")
-
-            # Security check
-            if not self.shared.JSONP_CALLBACK_PATTERN.match(callback_name):
-                raise HttpBadRequest('Invalid callback name')
-
-            self.response.write("%s({\"channel\":\"%s\",\"events\":[%s]});" % (
-                callback_name, channel_name, str_utf8(entries_serialized)))
-        else:
-            if not entries_serialized:
-                self.response.set_status(204)
             else:
-                self.response.write_header(
-                    "Content-Type", "application/json; charset=utf-8")
-                self.response.write("{\"channel\":\"%s\",\"events\":[%s]}" % (
-                    channel_name, str_utf8(entries_serialized)))
+                # @todo Remove this option so that we can shard based on
+                # channel name.
+                if filter_type == "all":
+                    channel_pattern = re.compile("^" + channel_name + "(/.+)?")
+
+                else:  # force "exact"
+                    channel_pattern = channel_name
+
+                events += self._get_events(
+                    channel_pattern, last_known_id, uuid, sort_order, max_events)
+
+            # Write out the response
+            entries_serialized = self._serialize_events(events)
+
+            callback_name = self.request.get_optional_param("callback")
+            if callback_name:
+                # JSON-P
+                self.response.write_header("Content-Type", "text/javascript")
+
+                # Security check
+                if not self.shared.JSONP_CALLBACK_PATTERN.match(callback_name):
+                    self.shared.stats.incr('response.400')
+                    raise HttpBadRequest('Invalid callback name')
+                self.shared.stats.incr('response.200')
+                self.response.write("%s({\"channel\":\"%s\",\"events\":[%s]});" % (
+                    callback_name, channel_name, str_utf8(entries_serialized)))
+            else:
+                if not entries_serialized:
+                    self.shared.stats.incr('response.204')
+                    self.response.set_status(204)
+                else:
+                    self.shared.stats.incr('response.200')
+                    self.response.write_header(
+                        "Content-Type", "application/json; charset=utf-8")
+                    self.response.write("{\"channel\":\"%s\",\"events\":[%s]}" % (
+                        channel_name, str_utf8(entries_serialized)))
 
     def post(self):
         """Handle a true HTTP POST event"""
-        self._post(self.request.path, self.request.body)
+
+        with self.shared.stats.timer('method.post'):
+            self._post(self.request.path, self.request.body)
