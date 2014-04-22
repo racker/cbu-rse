@@ -13,7 +13,6 @@ import re
 import httplib
 import random
 
-# These need to be installed (easy_install)
 import pymongo
 
 # We got this off the web somewhere - put in the same dir as rse.py

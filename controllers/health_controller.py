@@ -10,10 +10,8 @@ import datetime
 import time
 import httplib
 
-# Requires python 2.6 or better
 import json
 
-# These need to be installed (easy_install)
 import pymongo
 
 from rax.http.exceptions import *

@@ -25,7 +25,6 @@ import logging.handlers
 import os.path
 import ConfigParser
 
-# These need to be installed (easy_install)
 import pymongo
 import argparse
 
