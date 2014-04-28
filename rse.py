@@ -27,9 +27,9 @@ import ConfigParser
 
 import pymongo
 import argparse
+import moecache
 
 from rax.http import rawr
-from rax.fastcache.fastcache import *
 
 from controllers.shared import *
 from controllers.health_controller import *
@@ -52,8 +52,7 @@ class RseApplication(rawr.Rawr):
         config = ConfigParser.ConfigParser(
             defaults={
                 'timeout': '5',
-                'authtoken-retention-period': '30',
-                'authtoken-slice-size': '2',
+                'authtoken-prefix': '',
                 'replica-set': '[none]',
                 'filelog': 'yes',
                 'console': 'no',
@@ -96,10 +95,14 @@ class RseApplication(rawr.Rawr):
             logger.addHandler(handler)
 
         # FastCache for Auth Token
-        retention_period = config.getint(
-            'fastcache', 'authtoken-retention-period')
-        slice_size = config.getint('fastcache', 'authtoken-slice-size')
-        authtoken_cache = FastCache(retention_period, slice_size)
+        authtoken_prefix = config.get('authcache', 'authtoken-prefix')
+        memcached_shards = [(host, int(port)) for host, port in
+                            [addr.split(':') for addr in
+                             config.get('authcache',
+                                        'memcached-shards').split(',')]]
+        memcached_timeout = config.getint('authcache', 'memcached-timeout')
+        authtoken_cache = moecache.Client(memcached_shards,
+                                          timeout=memcached_timeout)
 
         # Connnect to MongoDB
         mongo_db, mongo_db_master = self.init_database(logger, config)
@@ -119,10 +122,10 @@ class RseApplication(rawr.Rawr):
                               mongo_db=mongo_db_master, test_mode=test_mode)
         self.add_route(r"/health$", HealthController, health_options)
 
-        main_options = dict(shared=shared, accountsvc_host=accountsvc_host,
-                            accountsvc_https=accountsvc_https,
-                            accountsvc_timeout=accountsvc_timeout,
-                            mongo_db=mongo_db, test_mode=test_mode)
+        main_options = dict(shared=shared,
+                            mongo_db=mongo_db,
+                            authtoken_prefix=authtoken_prefix,
+                            test_mode=test_mode)
         self.add_route(r"/.+", MainController, main_options)
 
     def init_database(self, logger, config):

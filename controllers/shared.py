@@ -16,8 +16,6 @@ class Shared:
         self.authtoken_cache = authtoken_cache
         self.logger = logger
 
-        self.cache_token_hitcnt = 0
-        self.cache_token_totalcnt = 0
         self.id_totalcnt = 0
         self.id_retrycnt = 0
 
