@@ -194,11 +194,6 @@ class HealthController(rawr.Controller):
                               "test_mode": self.test_mode,
                               "events": active_events,
                               "pp_stats": {
-                                  "auth_token_cache": {
-                                      "lookups": self.shared.cache_token_totalcnt,
-                                      "hits": self.shared.cache_token_hitcnt,
-                                      "hit_rate": 0 if self.shared.cache_token_totalcnt == 0 else float(self.shared.cache_token_hitcnt) / self.shared.cache_token_totalcnt
-                                  },
                                   "id_generator": {
                                       "attempts": self.shared.id_totalcnt,
                                       "retries": self.shared.id_retrycnt,
