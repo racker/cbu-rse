@@ -107,19 +107,15 @@ class RseApplication(rawr.Rawr):
         # Connnect to MongoDB
         mongo_db, mongo_db_master = self.init_database(logger, config)
 
-        # Get account services options
-        accountsvc_host = config.get('account-services', 'host')
-        accountsvc_https = config.getboolean('account-services', 'https')
-        accountsvc_timeout = config.getint('account-services', 'timeout')
+        # Get auth requirements
         test_mode = config.getboolean('rse', 'test')
 
         # Setup routes
         shared = Shared(logger, authtoken_cache)
 
-        health_options = dict(shared=shared, accountsvc_host=accountsvc_host,
-                              accountsvc_https=accountsvc_https,
-                              accountsvc_timeout=accountsvc_timeout,
-                              mongo_db=mongo_db_master, test_mode=test_mode)
+        health_options = dict(shared=shared,
+                              mongo_db=mongo_db_master,
+                              test_mode=test_mode)
         self.add_route(r"/health$", HealthController, health_options)
 
         main_options = dict(shared=shared,

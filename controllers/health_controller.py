@@ -35,42 +35,12 @@ class HealthController(rawr.Controller):
     """Provides web service health info"""
     """@todo Move this class into a separate file"""
 
-    def __init__(self, accountsvc_host, accountsvc_https, accountsvc_timeout, mongo_db, test_mode, shared):
-        # Account services host for authenticating requests
-        self.accountsvc_host = accountsvc_host
-        # Whether to use HTTPS for account services
-        self.accountsvc_https = accountsvc_https
-        # Timeout for requests to Account services
-        self.accountsvc_timeout = accountsvc_timeout
+    def __init__(self, mongo_db, test_mode, shared):
         self.mongo_db = mongo_db  # MongoDB database for storing events
         # MongoDB connection for storing events
         self.mongo_db_connection = mongo_db.connection
         self.test_mode = test_mode  # If true, relax auth/uuid requirements
         self.shared = shared  # Shared performance counters, logging, etc.
-
-    def _auth_service_is_healthy(self):
-        try:
-            accountsvc = httplib.HTTPSConnection(self.accountsvc_host, timeout=self.accountsvc_timeout) if self.accountsvc_https else httplib.HTTPConnection(
-                self.accountsvc_host, timeout=self.accountsvc_timeout)
-            accountsvc.request('GET', self.shared.AUTH_HEALTH_ENDPOINT)
-            auth_response = accountsvc.getresponse()
-
-            if auth_response.status != 200:
-                error_message = "Auth endpoint returned HTTP %d instead of HTTP 200" % auth_response.status
-                return (False, error_message)
-
-            auth_service_health = json.loads(auth_response.read())
-            if auth_service_health['Status'] != 'OK':
-                error_message = "Auth endpoint returned %s instead of OK" % auth_service_health[
-                    'Status']
-                return (False, error_message)
-
-        except Exception as ex:
-            error_message = "Exception while checking auth service health: %s" % str_utf8(
-                ex)
-            return (False, error_message)
-
-        return (True, "No errors")
 
     def _basic_health_check(self):
         db_ok = False
@@ -90,18 +60,11 @@ class HealthController(rawr.Controller):
                     'Could not count events collection: ' + str_utf8(ex))
                 break
 
-        auth_ok, msg = self._auth_service_is_healthy()
-        if not auth_ok:
-            self.shared.logger.error(msg)
-
-        return auth_ok and db_ok
+        return db_ok
 
     def _create_report(self, profile_db, validate_db):
         """@todo Build up the report piecemeal so we can get partial results on errors."""
         """@todo Return a non-200 HTTP error code on error"""
-
-        # Check our auth endpoint
-        auth_online, auth_error_message = self._auth_service_is_healthy()
 
         validation_info = "N/A. Pass validate_db=true to enable."
         profile_info = "N/A. Pass profile_db=true to enable."
@@ -200,12 +163,6 @@ class HealthController(rawr.Controller):
                                       "retry_rate": 0 if (self.shared.id_totalcnt == 0 or self.shared.id_retrycnt == 0) else float(self.shared.id_retrycnt) / self.shared.id_totalcnt
                                   }
                               }
-                          },
-                          "auth": {
-                              "url": "%s://%s%s" % ("https" if self.accountsvc_https else "http", self.accountsvc_host, self.shared.AUTH_ENDPOINT),
-                              "url_health": "%s://%s%s" % ("https" if self.accountsvc_https else "http", self.accountsvc_host, self.shared.AUTH_HEALTH_ENDPOINT),
-                              "online": auth_online,
-                              "error": auth_error_message
                           },
                           "mongodb": {
                               "stats": {
