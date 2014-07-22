@@ -10,10 +10,8 @@ Main controller for Rackspace RSE Server
 import datetime
 import time
 import re
-import httplib
 import random
 
-# These need to be installed (easy_install)
 import pymongo
 
 # We got this off the web somewhere - put in the same dir as rse.py
@@ -39,13 +37,9 @@ def format_datetime(dt):
 class MainController(rawr.Controller):
     """Provides all RSE functionality"""
 
-    def __init__(self, accountsvc_host, accountsvc_https, accountsvc_timeout, mongo_db, shared, test_mode=False):
-        # Account services host for authenticating requests
-        self.accountsvc_host = accountsvc_host
-        # Whether to use HTTPS for account services
-        self.accountsvc_https = accountsvc_https
-        self.accountsvc_timeout = accountsvc_timeout
+    def __init__(self, mongo_db, shared, authtoken_prefix, test_mode=False):
         self.mongo_db = mongo_db  # MongoDB database for storing events
+        self.authtoken_prefix = authtoken_prefix
         self.test_mode = test_mode  # If true, relax auth/uuid requirements
         self.shared = shared  # Shared performance counters, logging, etc.
 
@@ -61,48 +55,18 @@ class MainController(rawr.Controller):
                     "Missing X-Auth-Token header (required in live mode)")
                 raise HttpUnauthorized()
 
-        # Incement token cache access counter
-        self.shared.cache_token_totalcnt += 1
-
-        # See if auth is cached
-        if self.shared.authtoken_cache.is_cached(auth_token):
-            # They are OK for the moment. Update hit counter for posterity.
-            self.shared.cache_token_hitcnt += 1
-            return
-
-        # We don't have a record of this token, so proxy authentication to the
-        # Account Services API
+        # See if auth is cached by API
         try:
-            accountsvc = httplib.HTTPSConnection(self.accountsvc_host, timeout=self.accountsvc_timeout) if self.accountsvc_https else httplib.HTTPConnection(
-                self.accountsvc_host,  timeout=self.accountsvc_timeout)
-            accountsvc.request(
-                'GET', self.shared.AUTH_ENDPOINT, None, {'X-Auth-Token': auth_token})
-            response = accountsvc.getresponse()
-        except Exception as ex:
-            auth_url = 'http%s://%s%s' % (
-                's' if self.accountsvc_https else '', self.accountsvc_host, self.shared.AUTH_ENDPOINT)
+            if (self.shared.authtoken_cache.get(
+                self.authtoken_prefix + auth_token) is None):
+                raise HttpUnauthorized()
 
-            self.shared.logger.error(
-                'Error while attempting to validate token via GET %s - %s' %
-                (auth_url, str_utf8(ex)))
+        except HttpError:
+            raise
 
-            raise HttpServiceUnavailable()
-
-        # Check whether the auth token was good
-        if response.status != 200:
-            self.shared.logger.warning(
-                'Could not authorize request. Server returned HTTP %d for "%s".' % (response.status, auth_token))
-            if (response.status / 100) == 4:
-                raise HttpError(response.status)
-            else:
-                raise HttpServiceUnavailable()
-
-        try:
-            # Cache good token to reduce latency, and to reduce the load on
-            # Account Services
-            self.shared.authtoken_cache.cache(auth_token)
         except Exception as ex:
             self.shared.logger.error(str_utf8(ex))
+            raise HttpServiceUnavailable()
 
     def _is_safe_user_agent(self, user_agent):
         """Quick heuristic to tell whether we can embed the given user_agent string in a JSON document"""
