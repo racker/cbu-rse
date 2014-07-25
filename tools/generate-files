@@ -1,0 +1,114 @@
+#!/usr/bin/env python
+
+import shutil
+import os
+import sys
+import re
+from glob import glob
+
+import jinja2
+
+
+all_options = [
+    ("use_venv", False),
+    ("debug", False),
+    ("production", False),
+    ("newrelic", False),
+    ("mongodb_uri", "mongodb://127.0.0.1/"),
+    ("mongodb_replica_set", "[none]"),
+    ("memcached_shards", "127.0.0.1:11211"),
+]
+
+
+def bool_to_yesno(v):
+    return 'yes' if v else 'no'
+
+
+def yesno_to_bool(s):
+    if s.lower() == 'yes':
+        return True
+    elif s.lower() == 'no':
+        return False
+    else:
+        raise ValueError("Type 'yes' or 'no'")
+
+
+def prompt_for_bool(name, default):
+    while 1:
+        try:
+            s = raw_input(name + " (default: %s): " % bool_to_yesno(default))
+
+            if s:
+                return yesno_to_bool(s)
+            else:
+                return default
+
+        except ValueError as e:
+            print e
+        else:
+            break
+
+
+def prompt_for_str(name, default):
+    s = raw_input(name + " (default: %s): " % default)
+    return s or default
+
+
+def read_options(options, done_options):
+    my_options = {}
+
+    for name, default in options:
+        if name in done_options:
+            if type(default) == bool:
+                my_options[name] = yesno_to_bool(done_options[name])
+            else:
+                my_options[name] = done_options[name]
+
+        else:
+            if type(default) == bool:
+                my_options[name] = prompt_for_bool(name, default)
+            else:
+                my_options[name] = prompt_for_str(name, default)
+
+    return my_options
+
+
+def cmdline_options(argv):
+    options = {}
+
+    for s in argv:
+        try:
+            k, v = s.split('=')
+
+        except ValueError:
+            print >> sys.stderr, "%r is not a key=value pair" % s
+            sys.exit(1)
+
+        options[k] = v
+
+    return options
+
+
+def main(argv):
+    jinja_env = jinja2.Environment(
+        loader=jinja2.FileSystemLoader('tools/templates'),
+        trim_blocks=True,
+        keep_trailing_newline=True)
+
+    try:
+        my_options = read_options(all_options, cmdline_options(argv))
+
+    except (KeyboardInterrupt, EOFError):
+        print
+        sys.exit(1)
+
+    for src in glob("tools/templates/*.in"):
+        tmpl_src = os.path.basename(src)
+        dest = re.sub('\.in$', '', tmpl_src)
+        tmpl = jinja_env.get_template(tmpl_src)
+        tmpl.stream(**my_options).dump(dest)
+        shutil.copymode(src, dest)
+
+
+if __name__ == "__main__":
+    main(sys.argv[1:])

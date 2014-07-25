@@ -1,0 +1,7 @@
+#!/bin/sh
+
+{% if debug %}
+kill "$(cat gunicorn.pid)"
+{% else %}
+kill "$(cat /var/run/gunicorn.pid)"
+{% endif %}

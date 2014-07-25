@@ -1,0 +1,32 @@
+[mongodb]
+uri = {{ mongodb_uri }}
+database = rse
+replica-set = {{ mongodb_replica_set }}
+
+[rse]
+{% if debug %}
+test = yes
+{% else %}
+test = no
+{% endif %}
+event-ttl = 60
+
+[authcache]
+{% if production %}
+authtoken-prefix = CloudBackup_API_PRODQuattroAPI_Login_Ticket_
+{% else %}
+authtoken-prefix = CloudBackup_API_QAQuattroAPI_Login_Ticket_
+{% endif %}
+memcached-shards = {{ memcached_shards }}
+memcached-timeout = 5
+
+[logging]
+filelog = yes
+{% if debug %}
+filelog-path = rse.log
+{% else %}
+filelog-path = /var/log/rse.log
+{% endif %}
+syslog = yes
+syslog-address = /dev/log
+verbose = yes

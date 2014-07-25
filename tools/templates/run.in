@@ -1,0 +1,20 @@
+#!/bin/sh
+
+pushd `dirname $0` > /dev/null
+SCRIPTPATH=`pwd`
+popd > /dev/null
+
+cd "$SCRIPTPATH"
+{% if use_venv %}
+source venv/bin/activate
+{% endif %}
+{% if newrelic %}
+NEW_RELIC_CONFIG_FILE=/etc/newrelic/newrelic.ini newrelic-admin run-program \
+{% endif %}
+gunicorn -D -b unix:/tmp/rse.sock --backlog 4096 -k sync \
+	{% if debug %}
+	-w 1 -p gunicorn.pid \
+	{% else %}
+	-w 10 -p /var/run/gunicorn.pid --log-file /var/log/gunicorn.log \
+	{% endif %}
+	rse:app
