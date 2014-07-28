@@ -1,3 +1,4 @@
+argparse
 pymongo
 moecache
 git+git://github.com/rackerlabs/rse-util.git
