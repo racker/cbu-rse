@@ -13,6 +13,7 @@ all_options = [
     ("use_venv", False),
     ("debug", False),
     ("production", False),
+    ("number_of_workers", 4),
     ("newrelic", False),
     ("mongodb_uri", "mongodb://127.0.0.1/"),
     ("mongodb_replica_set", "[none]"),
@@ -30,7 +31,7 @@ def yesno_to_bool(s):
     elif s.lower() == 'no':
         return False
     else:
-        raise ValueError("Type 'yes' or 'no'")
+        raise ValueError("%r is neither 'yes' nor 'no'" % s)
 
 
 def prompt_for_bool(name, default):
@@ -54,6 +55,22 @@ def prompt_for_str(name, default):
     return s or default
 
 
+def prompt_for_int(name, default):
+    while 1:
+        try:
+            s = raw_input(name + " (default: %d): " % default)
+
+            if s:
+                return int(s)
+            else:
+                return default
+
+        except ValueError:
+            print "%r is not an integer" % s
+        else:
+            break
+
+
 def read_options(options, done_options):
     my_options = {}
 
@@ -67,6 +84,8 @@ def read_options(options, done_options):
         else:
             if type(default) == bool:
                 my_options[name] = prompt_for_bool(name, default)
+            elif isinstance(default, (int, long)):
+                my_options[name] = prompt_for_int(name, default)
             else:
                 my_options[name] = prompt_for_str(name, default)
 

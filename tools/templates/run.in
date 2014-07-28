@@ -12,9 +12,10 @@ source venv/bin/activate
 NEW_RELIC_CONFIG_FILE=/etc/newrelic/newrelic.ini newrelic-admin run-program \
 {% endif %}
 gunicorn -D -b unix:/tmp/rse.sock --backlog 4096 -k sync \
-	{% if debug %}
-	-w 1 -p gunicorn.pid \
-	{% else %}
-	-w 10 -p /var/run/gunicorn.pid --log-file /var/log/gunicorn.log \
-	{% endif %}
+	-w {{ number_of_workers }} \
+{% if debug %}
+	-p gunicorn.pid \
+{% else %}
+	-p /var/run/gunicorn.pid --log-file /var/log/gunicorn.log \
+{% endif %}
 	rse:app
