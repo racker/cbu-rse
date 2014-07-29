@@ -1,0 +1,27 @@
+#!/usr/bin/env python
+
+import virtualenv
+import os
+import sys
+import subprocess
+from virtualenv import Logger
+
+virtualenv.logger = Logger([(Logger.LEVELS[-1], sys.stdout)])
+
+
+def main(argv):
+    virtualenv.create_environment("venv", site_packages=False)
+    this_file = "venv/bin/activate_this.py"
+    execfile(this_file, dict(__file__=this_file))
+    os.environ['PATH'] = (os.path.abspath("venv/bin") + os.pathsep +
+        os.environ['PATH'])
+
+    sys.exit(
+        subprocess.call('pip install -r requirements.txt'.split()) or
+        subprocess.call('pip install -r deploy-requirements.txt'.split()) or
+        subprocess.call(['tools/generate-files', 'use_venv=yes', 'debug=no'] +
+                        argv))
+
+
+if __name__ == "__main__":
+    main(sys.argv[1:])
