@@ -27,10 +27,10 @@ import ConfigParser
 
 import pymongo
 import argparse
-import moecache
 
 from rax.http import rawr
 
+import auth_cache
 from controllers.shared import *
 from controllers.health_controller import *
 from controllers.main_controller import *
@@ -96,13 +96,20 @@ class RseApplication(rawr.Rawr):
 
         # FastCache for Auth Token
         authtoken_prefix = config.get('authcache', 'authtoken-prefix')
-        memcached_shards = [(host, int(port)) for host, port in
-                            [addr.split(':') for addr in
-                             config.get('authcache',
-                                        'memcached-shards').split(',')]]
-        memcached_timeout = config.getint('authcache', 'memcached-timeout')
-        authtoken_cache = moecache.Client(memcached_shards,
-                                          timeout=memcached_timeout)
+        provider = config.get('authcache', 'provider')
+        logger.debug(
+            {
+                'token prefix': authtoken_prefix,
+                'cache provider': provider,
+            }
+        )
+        if provider == 'memcached':
+            authtoken_cache = auth_cache.MemcachedAuthCache(config, logger)
+        elif provider == 'cassandra':
+            authtoken_cache = auth_cache.CassandraAuthCache(config, logger)
+        else:
+            logger.error('No auth_cache provider for: ' + provider)
+            sys.exit(1)
 
         # Connnect to MongoDB
         mongo_db, mongo_db_master = self.init_database(logger, config)
@@ -120,7 +127,6 @@ class RseApplication(rawr.Rawr):
 
         main_options = dict(shared=shared,
                             mongo_db=mongo_db,
-                            authtoken_prefix=authtoken_prefix,
                             test_mode=test_mode)
         self.add_route(r"/.+", MainController, main_options)
 
