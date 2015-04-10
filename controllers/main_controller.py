@@ -37,9 +37,8 @@ def format_datetime(dt):
 class MainController(rawr.Controller):
     """Provides all RSE functionality"""
 
-    def __init__(self, mongo_db, shared, authtoken_prefix, test_mode=False):
+    def __init__(self, mongo_db, shared, test_mode=False):
         self.mongo_db = mongo_db  # MongoDB database for storing events
-        self.authtoken_prefix = authtoken_prefix
         self.test_mode = test_mode  # If true, relax auth/uuid requirements
         self.shared = shared  # Shared performance counters, logging, etc.
 
@@ -57,8 +56,7 @@ class MainController(rawr.Controller):
 
         # See if auth is cached by API
         try:
-            if (self.shared.authtoken_cache.get(
-                self.authtoken_prefix + auth_token) is None):
+            if self.shared.authtoken_cache.auth(auth_token) is False:
                 raise HttpUnauthorized()
 
         except HttpError:
