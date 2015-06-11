@@ -96,13 +96,21 @@ class RseApplication(rawr.Rawr):
 
         # FastCache for Auth Token
         authtoken_prefix = config.get('authcache', 'authtoken-prefix')
-        memcached_shards = [(host, int(port)) for host, port in
-                            [addr.split(':') for addr in
-                             config.get('authcache',
-                                        'memcached-shards').split(',')]]
+        memcached_shards = [
+            (host, int(port))
+            for host, port in [
+                addr.split(':')
+                for addr in config.get(
+                    'authcache',
+                    'memcached-shards'
+                ).split(',')
+            ]
+        ]
         memcached_timeout = config.getint('authcache', 'memcached-timeout')
-        authtoken_cache = moecache.Client(memcached_shards,
-                                          timeout=memcached_timeout)
+        authtoken_cache = moecache.Client(
+            memcached_shards,
+            timeout=memcached_timeout
+        )
 
         # Connnect to MongoDB
         mongo_db, mongo_db_master = self.init_database(logger, config)
@@ -131,22 +139,30 @@ class RseApplication(rawr.Rawr):
         for i in range(10):
             try:
                 # Master instance connection for the health checker
-                connection_master = pymongo.Connection(
-                    config.get('mongodb', 'uri'), read_preference=pymongo.ReadPreference.PRIMARY)
+                connection_master = pymongo.MongoClient(
+                    config.get('mongodb', 'uri'),
+                    read_preference=pymongo.ReadPreference.PRIMARY
+                )
                 mongo_db_master = connection_master[
-                    config.get('mongodb', 'database')]
+                    config.get('mongodb', 'database')
+                ]
 
                 # General connection for regular requests
                 # Note: Use one global connection to the DB across all handlers
                 # (pymongo manages its own connection pool)
                 replica_set = config.get('mongodb', 'replica-set')
                 if replica_set == '[none]':
-                    connection = pymongo.Connection(
-                        config.get('mongodb', 'uri'), read_preference=pymongo.ReadPreference.SECONDARY)
+                    connection = pymongo.MongoClient(
+                        config.get('mongodb', 'uri'),
+                        read_preference=pymongo.ReadPreference.SECONDARY
+                    )
                 else:
                     try:
-                        connection = pymongo.ReplicaSetConnection(
-                            config.get('mongodb', 'uri'), replicaSet=replica_set, read_preference=pymongo.ReadPreference.SECONDARY)
+                        connection = pymongo.MongoReplicaSetClient(
+                            config.get('mongodb', 'uri'),
+                            replicaSet=replica_set,
+                            read_preference=pymongo.ReadPreference.SECONDARY
+                        )
                     except Exception as ex:
                         logger.error(
                             "Mongo connection exception: %s" % (ex.message))

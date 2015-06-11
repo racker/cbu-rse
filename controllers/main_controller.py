@@ -57,8 +57,9 @@ class MainController(rawr.Controller):
 
         # See if auth is cached by API
         try:
-            if (self.shared.authtoken_cache.get(
-                self.authtoken_prefix + auth_token) is None):
+            if self.shared.authtoken_cache.get(
+                self.authtoken_prefix + auth_token
+            ) is None:
                 raise HttpUnauthorized()
 
         except HttpError:
