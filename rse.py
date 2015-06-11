@@ -134,18 +134,20 @@ class RseApplication(rawr.Rawr):
 
     def init_database(self, logger, config):
         event_ttl = config.getint('rse', 'event-ttl')
+        mongo_uri = config.get('mongodb', 'uri')
+        db_name = config.get('mongodb', 'database')
+        use_ssl = config.getboolean('mongodb', 'use_ssl')
 
         db_connections_ok = False
         for i in range(10):
             try:
                 # Master instance connection for the health checker
                 connection_master = pymongo.MongoClient(
-                    config.get('mongodb', 'uri'),
-                    read_preference=pymongo.ReadPreference.PRIMARY
+                    mongo_uri,
+                    read_preference=pymongo.ReadPreference.PRIMARY,
+                    ssl=use_ssl
                 )
-                mongo_db_master = connection_master[
-                    config.get('mongodb', 'database')
-                ]
+                mongo_db_master = connection_master[db_name]
 
                 # General connection for regular requests
                 # Note: Use one global connection to the DB across all handlers
@@ -153,24 +155,25 @@ class RseApplication(rawr.Rawr):
                 replica_set = config.get('mongodb', 'replica-set')
                 if replica_set == '[none]':
                     connection = pymongo.MongoClient(
-                        config.get('mongodb', 'uri'),
-                        read_preference=pymongo.ReadPreference.SECONDARY
+                        mongo_uri,
+                        read_preference=pymongo.ReadPreference.SECONDARY,
+                        ssl=use_ssl
                     )
                 else:
                     try:
                         connection = pymongo.MongoReplicaSetClient(
-                            config.get('mongodb', 'uri'),
+                            mongo_uri,
                             replicaSet=replica_set,
-                            read_preference=pymongo.ReadPreference.SECONDARY
+                            read_preference=pymongo.ReadPreference.SECONDARY,
+                            ssl=use_ssl
                         )
                     except Exception as ex:
                         logger.error(
                             "Mongo connection exception: %s" % (ex.message))
                         sys.exit(1)
 
-                mongo_db = connection[config.get('mongodb', 'database')]
-                mongo_db_master = connection_master[
-                    config.get('mongodb', 'database')]
+                mongo_db = connection[db_name]
+                mongo_db_master = connection_master[db_name]
                 db_connections_ok = True
 
             except pymongo.errors.AutoReconnect:
