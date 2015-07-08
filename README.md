@@ -4,18 +4,25 @@ Reference implementation for Really Simple Events, a simple event queueing proto
 
 Currently in production supporting Rackspace Cloud Backup.
 
-RSE is a light-weight, fast, scale-out alternative to other popular queueing systems. It is a good choice when you need a cloud message bus that supports 100's of thousands of clients, and was specifically designed for communicating across unreliable network partitions (read: the internet). 
+RSE is a light-weight, fast, scale-out alternative to other popular queueing systems. It is a good choice when you need a cloud message bus that supports 100's of thousands of clients, and was specifically designed for communicating across unreliable network partitions (read: the internet).
 
 Unlike simple timestamp-based protocols, RSE guarantees clients will never miss an event due to clock drift or ID collisions, while at the same time clients do not have to keep a sliding window of previously received events to detect duplicates.
 
-## Quick Start ##
+## Quick Start
 
+#### Local install
 1. Install MongoDB 2.2.
 1. Install Python 2.7. On Windows, you'll have to manually add it to your path (probably c:\python27\bin).
 1. ```pip install pymongo webob```
 1. Clone https://github.com/rackerlabs/rse-util, cd into the directory, then run: ```pip install -e .```
 1. Download rse, cd into the directory, then run: ```python rse.py```
-1. If that doesn't work, check ```rse.log``` for errors. 
+1. If that doesn't work, check ```rse.log``` for errors.
+
+#### Docker install
+1. `cd rse`
+1. Use ssh-keygen or copy existing ssh keys into the `rse` folder (used to perform git checkout of rse-util)
+1. docker-compose build
+1. docker-compose up -d
 
 ## Features
 
@@ -29,7 +36,7 @@ Unlike simple timestamp-based protocols, RSE guarantees clients will never miss 
 * Low-latency polling of ~8 ms (combine with keep-alive for [perceptually instantaneous][1] command and control)
 * Guaranteed delivery of events (within a specific time window)
 
-## Configuration ##
+## Configuration
 
 ```
 cp rse.default.conf /etc/rse.conf
