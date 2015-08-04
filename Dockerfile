@@ -2,17 +2,17 @@ FROM ubuntu:latest
 MAINTAINER John Heatherington <john.heatherington@rackspace.com>
 
 # Update packages
-RUN apt-get -qq update
-RUN apt-get -qq upgrade
-
-# Update packages
-RUN apt-get install -y \
-    curl \
+RUN apt-get -qq update && apt-get -qq upgrade && apt-get install -qqy \
     git-core \
+    libev4 \
+    libev-dev \
+    libffi-dev \
+    libssl-dev \
     python-dev \
     python-pip \
-    python-setuptools \
-    telnet
+    python-setuptools
+
+VOLUME /home/rse
 
 # SSH Settings
 RUN mkdir -p /root/.ssh
@@ -23,11 +23,7 @@ RUN ssh-keyscan github.com >> /root/.ssh/known_hosts
 # Install dependencies
 RUN pip install -U pip
 RUN pip install -U \
-    blist \
-    cassandra-driver \
-    gevent \
     gunicorn \
-    moecache \
     pymongo==2.4 \
     webob
 
@@ -36,8 +32,12 @@ RUN mkdir -p /home/rse-util
 RUN git clone git@github.com:rackerlabs/rse-util.git /home/rse-util
 RUN pip install -e /home/rse-util
 
+# eom
+RUN mkdir -p /home/eom
+RUN git clone git@github.com:racker/eom.git /home/eom
+RUN pip install -e /home/eom
+
 # rse
-RUN mkdir -p /home/rse
 ADD . /home/rse
 
 # rse configurations
