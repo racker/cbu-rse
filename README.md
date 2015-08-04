@@ -21,6 +21,7 @@ Unlike simple timestamp-based protocols, RSE guarantees clients will never miss 
 #### Docker install
 1. `cd rse`
 1. Use ssh-keygen or copy existing ssh keys into the `rse` folder (used to perform git checkout of rse-util)
+1. `cp rse.docker.template.conf rse.docker.conf` and modify configuration options as needed.
 1. docker-compose build
 1. docker-compose up -d
 

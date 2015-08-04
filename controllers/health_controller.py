@@ -75,13 +75,10 @@ class HealthController(rawr.Controller):
             try:
                 # dbstats is in JSON format. Retrieve individual item like
                 # dbstats['globalLock']['currentQueue']
-                # dbstats = self.mongo_db.command("serverStatus")
                 dbstats = self.mongo_db.server_info()
 
                 # Collection stats is in JSON format. docu on stat items:
                 # http://www.mongodb.org/display/DOCS/collStats+Command
-                # collstats_events = self.mongo_db.command(
-                #    {"collStats": "events"})
                 collstats_events = self.mongo_db.rse.command("collstats", "events")
 
                 max_event = self.mongo_db.events.find_one(
