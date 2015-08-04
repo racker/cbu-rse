@@ -37,36 +37,13 @@ def format_datetime(dt):
 class MainController(rawr.Controller):
     """Provides all RSE functionality"""
 
-    def __init__(self, mongo_db, shared, authtoken_prefix, test_mode=False):
+    def __init__(self, mongo_db, shared, test_mode=False):
         self.mongo_db = mongo_db  # MongoDB database for storing events
-        self.authtoken_prefix = authtoken_prefix
         self.test_mode = test_mode  # If true, relax auth/uuid requirements
         self.shared = shared  # Shared performance counters, logging, etc.
 
     def prepare(self):
-        auth_token = self.request.get_optional_header('X-Auth-Token')
-        if not auth_token:
-            if self.test_mode:
-                # Missing auth is OK in test mode
-                return
-            else:
-                # Auth token required in live mode
-                self.shared.logger.error(
-                    "Missing X-Auth-Token header (required in live mode)")
-                raise HttpUnauthorized()
-
-        # See if auth is cached by API
-        try:
-            if (self.shared.authtoken_cache.get(
-                self.authtoken_prefix + auth_token) is None):
-                raise HttpUnauthorized()
-
-        except HttpError:
-            raise
-
-        except Exception as ex:
-            self.shared.logger.error(str_utf8(ex))
-            raise HttpServiceUnavailable()
+        pass
 
     def _is_safe_user_agent(self, user_agent):
         """Quick heuristic to tell whether we can embed the given user_agent string in a JSON document"""

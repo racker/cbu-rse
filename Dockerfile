@@ -27,7 +27,6 @@ RUN pip install -U \
     cassandra-driver \
     gevent \
     gunicorn \
-    moecache \
     pymongo==2.4 \
     webob
 
@@ -35,6 +34,11 @@ RUN pip install -U \
 RUN mkdir -p /home/rse-util
 RUN git clone git@github.com:rackerlabs/rse-util.git /home/rse-util
 RUN pip install -e /home/rse-util
+
+# eom
+RUN mkdir -p /home/eom
+RUN git clone -b remove-deprecated-oslo-namespace git@github.com:isaacm/eom.git /home/eom
+RUN pip install -e /home/eom
 
 # rse
 RUN mkdir -p /home/rse

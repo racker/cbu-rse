@@ -17,18 +17,19 @@ ulimit -n 4096 # or better
 sysctl -w net.core.somaxconn="4096" # or better
 """
 
-import os
-import sys
-import time
+import argparse
 import logging
 import logging.handlers
+import os
 import os.path
+import sys
+import time
 import ConfigParser
 
+from eom import auth
+from eom import bastion
+from oslo_config import cfg
 import pymongo
-import argparse
-import moecache
-
 from rax.http import rawr
 
 from controllers.shared import *
@@ -52,7 +53,6 @@ class RseApplication(rawr.Rawr):
         config = ConfigParser.ConfigParser(
             defaults={
                 'timeout': '5',
-                'authtoken-prefix': '',
                 'replica-set': '[none]',
                 'filelog': 'yes',
                 'console': 'no',
@@ -94,16 +94,6 @@ class RseApplication(rawr.Rawr):
             handler.setFormatter(formatter)
             logger.addHandler(handler)
 
-        # FastCache for Auth Token
-        authtoken_prefix = config.get('authcache', 'authtoken-prefix')
-        memcached_shards = [(host, int(port)) for host, port in
-                            [addr.split(':') for addr in
-                             config.get('authcache',
-                                        'memcached-shards').split(',')]]
-        memcached_timeout = config.getint('authcache', 'memcached-timeout')
-        authtoken_cache = moecache.Client(memcached_shards,
-                                          timeout=memcached_timeout)
-
         # Connnect to MongoDB
         mongo_db, mongo_db_master = self.init_database(logger, config)
 
@@ -111,7 +101,7 @@ class RseApplication(rawr.Rawr):
         test_mode = config.getboolean('rse', 'test')
 
         # Setup routes
-        shared = Shared(logger, authtoken_cache)
+        shared = Shared(logger)
 
         health_options = dict(shared=shared,
                               mongo_db=mongo_db_master,
@@ -120,41 +110,51 @@ class RseApplication(rawr.Rawr):
 
         main_options = dict(shared=shared,
                             mongo_db=mongo_db,
-                            authtoken_prefix=authtoken_prefix,
                             test_mode=test_mode)
         self.add_route(r"/.+", MainController, main_options)
 
     def init_database(self, logger, config):
         event_ttl = config.getint('rse', 'event-ttl')
+        mongo_uri = config.get('mongodb', 'uri')
+        db_name = config.get('mongodb', 'database')
+        use_ssl = config.getboolean('mongodb', 'use_ssl')
 
         db_connections_ok = False
-        for i in range(10):
+        for _ in range(10):
             try:
                 # Master instance connection for the health checker
-                connection_master = pymongo.Connection(
-                    config.get('mongodb', 'uri'), read_preference=pymongo.ReadPreference.PRIMARY)
-                mongo_db_master = connection_master[
-                    config.get('mongodb', 'database')]
+                connection_master = pymongo.MongoClient(
+                    mongo_uri,
+                    read_preference=pymongo.ReadPreference.PRIMARY,
+                    ssl=use_ssl
+                )
+                mongo_db_master = connection_master[db_name]
 
                 # General connection for regular requests
                 # Note: Use one global connection to the DB across all handlers
                 # (pymongo manages its own connection pool)
                 replica_set = config.get('mongodb', 'replica-set')
                 if replica_set == '[none]':
-                    connection = pymongo.Connection(
-                        config.get('mongodb', 'uri'), read_preference=pymongo.ReadPreference.SECONDARY)
+                    connection = pymongo.MongoClient(
+                        mongo_uri,
+                        read_preference=pymongo.ReadPreference.SECONDARY,
+                        ssl=use_ssl
+                    )
                 else:
                     try:
-                        connection = pymongo.ReplicaSetConnection(
-                            config.get('mongodb', 'uri'), replicaSet=replica_set, read_preference=pymongo.ReadPreference.SECONDARY)
+                        connection = pymongo.MongoClient(
+                            mongo_uri,
+                            replicaSet=replica_set,
+                            read_preference=pymongo.ReadPreference.SECONDARY,
+                            ssl=use_ssl
+                        )
                     except Exception as ex:
                         logger.error(
                             "Mongo connection exception: %s" % (ex.message))
                         sys.exit(1)
 
-                mongo_db = connection[config.get('mongodb', 'database')]
-                mongo_db_master = connection_master[
-                    config.get('mongodb', 'database')]
+                mongo_db = connection[db_name]
+                mongo_db_master = connection_master[db_name]
                 db_connections_ok = True
 
             except pymongo.errors.AutoReconnect:
@@ -233,7 +233,17 @@ class RseApplication(rawr.Rawr):
         return (mongo_db, mongo_db_master)
 
 # WSGI app
-app = RseApplication()
+rse_app = RseApplication()
+
+rse_conf = cfg.CONF
+rse_conf(project='rse', args=[])
+auth.configure(rse_conf)
+bastion.configure(rse_conf)
+
+auth_redis_client = auth.get_auth_redis_client()
+
+auth_app = auth.wrap(rse_app, auth_redis_client)
+app = bastion.wrap(rse_app, auth_app)
 
 # If running this script directly, startup a basic WSGI server for testing
 if __name__ == "__main__":
