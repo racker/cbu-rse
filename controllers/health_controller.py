@@ -125,9 +125,9 @@ class HealthController(rawr.Controller):
                     datetime.datetime.utcnow() - db_test_start).seconds
 
                 if db_test_duration > 1:
-                    db_error_message = (
-                        "WARNING: DB is slow (%d seconds)" % db_test_duration
-                    )
+                    msg = "WARNING: DB is slow (%d seconds)" % db_test_duration
+                    self.shared.logger.warning(msg)
+                    db_error_message = (msg)
 
                 if validate_db:
                     validation_info = self.mongo_db.validate_collection(
@@ -338,10 +338,12 @@ class HealthController(rawr.Controller):
         elif self._basic_health_check():
             self.response.write("OK\n")
         else:
+            self.shared.logger.warning("Health check failed.")
             raise exceptions.HttpError(503)
 
     def head(self):
         if self._basic_health_check():
             self.response.write("OK\n")
         else:
+            self.shared.logger.warning("Health check failed.")
             raise exceptions.HttpError(503)
