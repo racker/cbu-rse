@@ -26,14 +26,13 @@ import os.path
 import ConfigParser
 
 import pymongo
-import argparse
 import moecache
 
 from rax.http import rawr
 
-from controllers.shared import *
-from controllers.health_controller import *
-from controllers.main_controller import *
+from controllers import shared
+from controllers import health_controller
+from controllers import main_controller
 
 
 class RseApplication(rawr.Rawr):
@@ -75,7 +74,9 @@ class RseApplication(rawr.Rawr):
             'logging', 'verbose') else logging.WARNING)
 
         formatter = logging.Formatter(
-            '%(asctime)s - RSE - PID %(process)d - %(funcName)s:%(lineno)d - %(levelname)s - %(message)s')
+            '%(asctime)s - RSE - PID %(process)d - %(funcName)s:%(lineno)d - '
+            '%(levelname)s - %(message)s'
+        )
 
         if config.getboolean('logging', 'console'):
             handler = logging.StreamHandler()
@@ -84,7 +85,10 @@ class RseApplication(rawr.Rawr):
 
         if config.getboolean('logging', 'filelog'):
             handler = logging.handlers.RotatingFileHandler(
-                config.get('logging', 'filelog-path'), maxBytes=5 * 1024 * 1024, backupCount=5)
+                config.get('logging', 'filelog-path'),
+                maxBytes=5 * 1024 * 1024,
+                backupCount=5
+            )
             handler.setFormatter(formatter)
             logger.addHandler(handler)
 
@@ -111,18 +115,22 @@ class RseApplication(rawr.Rawr):
         test_mode = config.getboolean('rse', 'test')
 
         # Setup routes
-        shared = Shared(logger, authtoken_cache)
+        shared_controller = shared.Shared(logger, authtoken_cache)
 
-        health_options = dict(shared=shared,
+        health_options = dict(shared=shared_controller,
                               mongo_db=mongo_db_master,
                               test_mode=test_mode)
-        self.add_route(r"/health$", HealthController, health_options)
+        self.add_route(
+            r"/health$",
+            health_controller.HealthController,
+            health_options
+        )
 
-        main_options = dict(shared=shared,
+        main_options = dict(shared=shared_controller,
                             mongo_db=mongo_db,
                             authtoken_prefix=authtoken_prefix,
                             test_mode=test_mode)
-        self.add_route(r"/.+", MainController, main_options)
+        self.add_route(r"/.+", main_controller.MainController, main_options)
 
     def init_database(self, logger, config):
         event_ttl = config.getint('rse', 'event-ttl')
@@ -132,7 +140,9 @@ class RseApplication(rawr.Rawr):
             try:
                 # Master instance connection for the health checker
                 connection_master = pymongo.Connection(
-                    config.get('mongodb', 'uri'), read_preference=pymongo.ReadPreference.PRIMARY)
+                    config.get('mongodb', 'uri'),
+                    read_preference=pymongo.ReadPreference.PRIMARY
+                )
                 mongo_db_master = connection_master[
                     config.get('mongodb', 'database')]
 
@@ -142,11 +152,16 @@ class RseApplication(rawr.Rawr):
                 replica_set = config.get('mongodb', 'replica-set')
                 if replica_set == '[none]':
                     connection = pymongo.Connection(
-                        config.get('mongodb', 'uri'), read_preference=pymongo.ReadPreference.SECONDARY)
+                        config.get('mongodb', 'uri'),
+                        read_preference=pymongo.ReadPreference.SECONDARY
+                    )
                 else:
                     try:
                         connection = pymongo.ReplicaSetConnection(
-                            config.get('mongodb', 'uri'), replicaSet=replica_set, read_preference=pymongo.ReadPreference.SECONDARY)
+                            config.get('mongodb', 'uri'),
+                            replicaSet=replica_set,
+                            read_preference=pymongo.ReadPreference.SECONDARY
+                        )
                     except Exception as ex:
                         logger.error(
                             "Mongo connection exception: %s" % (ex.message))
@@ -159,12 +174,16 @@ class RseApplication(rawr.Rawr):
 
             except pymongo.errors.AutoReconnect:
                 logger.warning(
-                    "Got AutoReconnect on startup while attempting to connect to DB. Retrying...")
+                    "Got AutoReconnect on startup while attempting to connect "
+                    "to DB. Retrying..."
+                )
                 time.sleep(0.5)
 
             except Exception as ex:
                 logger.error(
-                    "Error on startup while attempting to connect to DB: " + str_utf8(ex))
+                    "Error on startup while attempting to connect to DB: " +
+                    health_controller.str_utf8(ex)
+                )
                 sys.exit(1)
 
         if not db_connections_ok:
@@ -189,27 +208,40 @@ class RseApplication(rawr.Rawr):
                     # Index already deleted
                     pass
 
-                # Order matters - want exact matches first, and ones that will pair down the result set the fastest
-                # NOTE: MongoDB does not use multiple indexes per query, so we want to put all query fields in the
-                # index.
+                # Order matters - want exact matches first, and ones that will
+                # pare down the result set the fastest
+                # NOTE: MongoDB does not use multiple indexes per query, so we
+                # want to put all query fields in the index.
                 mongo_db_master.events.ensure_index(
-                    [('channel', pymongo.ASCENDING), ('_id', pymongo.ASCENDING), ('uuid', pymongo.ASCENDING)], name='get_events')
+                    [
+                        ('channel', pymongo.ASCENDING),
+                        ('_id', pymongo.ASCENDING),
+                        ('uuid', pymongo.ASCENDING)
+                    ],
+                    name='get_events'
+                )
 
                 # Drop TTL index if a different number of seconds was requested
                 index_info = mongo_db_master.events.index_information()
 
                 if 'ttl' in index_info:
                     index = index_info['ttl']
-                    if ('expireAfterSeconds' not in index) or index['expireAfterSeconds'] != event_ttl:
+                    if (
+                        ('expireAfterSeconds' not in index) or
+                        index['expireAfterSeconds'] != event_ttl
+                    ):
                         mongo_db_master.events.drop_index('ttl')
 
                 mongo_db_master.events.ensure_index(
                     'created_at', expireAfterSeconds=event_ttl, name='ttl')
 
-                # WARNING: Counter must start at a value greater than 0 per the RSE spec, so
-                # we set to 0 since the id generation logic always adds one to get
-                # the next id, so we will start at 1 for the first event
-                if not mongo_db_master.counters.find_one({'_id': 'last_known_id'}):
+                # WARNING: Counter must start at a value greater than 0 per the
+                # RSE spec, so we set to 0 since the id generation logic always
+                # adds one to get the next id, so we will start at 1 for the
+                # first event
+                if not mongo_db_master.counters.find_one(
+                    {'_id': 'last_known_id'}
+                ):
                     mongo_db_master.counters.insert(
                         {'_id': 'last_known_id', 'c': 0})
 
@@ -218,12 +250,16 @@ class RseApplication(rawr.Rawr):
 
             except pymongo.errors.AutoReconnect:
                 logger.warning(
-                    "Got AutoReconnect on startup while attempting to set up events collection. Retrying...")
+                    "Got AutoReconnect on startup while attempting to set up "
+                    "events collection. Retrying..."
+                )
                 time.sleep(0.5)
 
             except Exception as ex:
                 logger.error(
-                    "Error on startup while attempting to initialize events collection: " + str_utf8(ex))
+                    "Error on startup while attempting to initialize events "
+                    "collection: " + health_controller.tr_utf8(ex)
+                )
                 sys.exit(1)
 
         if not db_events_collection_ok:
