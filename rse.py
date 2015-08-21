@@ -171,6 +171,7 @@ class RseApplication(rawr.Rawr):
                 mongo_db_master = connection_master[
                     config.get('mongodb', 'database')]
                 db_connections_ok = True
+                break
 
             except pymongo.errors.AutoReconnect:
                 logger.warning(
