@@ -46,11 +46,15 @@ class MainController(rawr.Controller):
         if not auth_token:
             if self.test_mode:
                 # Missing auth is OK in test mode
+                self.shared.logger.warning(
+                    "TEST MODE: Bypassing token validation."
+                )
                 return
             else:
                 # Auth token required in live mode
                 self.shared.logger.error(
-                    "Missing X-Auth-Token header (required in live mode)")
+                    "Missing X-Auth-Token header (required in live mode)."
+                )
                 raise exceptions.HttpUnauthorized()
 
         # See if auth is cached by API
@@ -87,6 +91,9 @@ class MainController(rawr.Controller):
             return user_agent[start_pos:end_pos]
         except:
             if self.test_mode:
+                self.shared.logger.warning(
+                    "TEST MODE: Bypassing User-Agent validation"
+                )
                 return "550e8400-dead-beef-dead-446655440000"
             else:
                 raise exceptions.HttpBadRequest(
@@ -244,7 +251,6 @@ class MainController(rawr.Controller):
             try:
                 if not self._insert_event(channel_name, data, user_agent):
                     raise exceptions.HttpServiceUnavailable()
-
                 break
 
             except exceptions.HttpError as ex:

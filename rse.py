@@ -70,8 +70,11 @@ class RseApplication(rawr.Rawr):
         # Add the log message handler to the logger
         # Set up a specific logger with our desired output level
         logger = logging.getLogger(__name__)
-        logger.setLevel(logging.DEBUG if config.get(
-            'logging', 'verbose') else logging.WARNING)
+        logger.setLevel(
+            logging.DEBUG
+            if config.get('logging', 'verbose')
+            else logging.WARNING
+        )
 
         formatter = logging.Formatter(
             '%(asctime)s - RSE - PID %(process)d - %(funcName)s:%(lineno)d - '
@@ -94,16 +97,22 @@ class RseApplication(rawr.Rawr):
 
         if config.getboolean('logging', 'syslog'):
             handler = logging.handlers.SysLogHandler(
-                address=config.get('logging', 'syslog-address'))
+                address=config.get('logging', 'syslog-address')
+            )
             handler.setFormatter(formatter)
             logger.addHandler(handler)
 
         # FastCache for Auth Token
         authtoken_prefix = config.get('authcache', 'authtoken-prefix')
-        memcached_shards = [(host, int(port)) for host, port in
-                            [addr.split(':') for addr in
-                             config.get('authcache',
-                                        'memcached-shards').split(',')]]
+        memcached_shards = [
+            (host, int(port))
+            for host, port in [
+                addr.split(':') for addr in config.get(
+                    'authcache',
+                    'memcached-shards'
+                ).split(',')
+            ]
+        ]
         memcached_timeout = config.getint('authcache', 'memcached-timeout')
         authtoken_cache = moecache.Client(memcached_shards,
                                           timeout=memcached_timeout)
@@ -132,23 +141,30 @@ class RseApplication(rawr.Rawr):
                             test_mode=test_mode)
         self.add_route(r"/.+", main_controller.MainController, main_options)
 
+        logger.info("RSE Initialization completed.")
+
     def init_database(self, logger, config):
+        logger.info("Initializing connection to mongodb.")
+
         event_ttl = config.getint('rse', 'event-ttl')
 
         db_connections_ok = False
         for i in range(10):
             try:
                 # Master instance connection for the health checker
+                logger.debug("Establishing db health check connection.")
                 connection_master = pymongo.Connection(
                     config.get('mongodb', 'uri'),
                     read_preference=pymongo.ReadPreference.PRIMARY
                 )
                 mongo_db_master = connection_master[
-                    config.get('mongodb', 'database')]
+                    config.get('mongodb', 'database')
+                ]
 
                 # General connection for regular requests
                 # Note: Use one global connection to the DB across all handlers
                 # (pymongo manages its own connection pool)
+                logger.debug("Establishing replica set connection.")
                 replica_set = config.get('mongodb', 'replica-set')
                 if replica_set == '[none]':
                     connection = pymongo.Connection(
@@ -164,7 +180,8 @@ class RseApplication(rawr.Rawr):
                         )
                     except Exception as ex:
                         logger.error(
-                            "Mongo connection exception: %s" % (ex.message))
+                            "Mongo connection exception: %s" % (ex.message)
+                        )
                         sys.exit(1)
 
                 mongo_db = connection[config.get('mongodb', 'database')]
@@ -188,10 +205,11 @@ class RseApplication(rawr.Rawr):
                 sys.exit(1)
 
         if not db_connections_ok:
-            logger.error("Could not set up db connections")
+            logger.error("Could not set up db connections.")
             sys.exit(1)
 
         # Initialize events collection
+        logger.info("Initializing events collection.")
         db_events_collection_ok = False
         for i in range(10):
             try:
@@ -245,12 +263,12 @@ class RseApplication(rawr.Rawr):
             except Exception as ex:
                 logger.error(
                     "Error on startup while attempting to initialize events "
-                    "collection: " + health_controller.tr_utf8(ex)
+                    "collection: " + health_controller.str_utf8(ex)
                 )
                 sys.exit(1)
 
         if not db_events_collection_ok:
-            logger.error("Could not setup events connections")
+            logger.error("Could not setup events connections.")
             sys.exit(1)
 
         return (mongo_db, mongo_db_master)
