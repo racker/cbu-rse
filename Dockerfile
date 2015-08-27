@@ -40,6 +40,12 @@ RUN pip install -e /home/rse-util
 RUN mkdir -p /home/rse
 ADD . /home/rse
 
+# Preparation for cassandra configuration
+ADD ./cassandra_startup.sh /usr/local/bin/cassandra_startup
+RUN chmod 755 /usr/local/bin/cassandra_startup
+ADD ./seed_cassandra.py /usr/local/bin/seed_cassandra
+RUN chmod 755 /usr/local/bin/seed_cassandra
+
 # rse configurations
 ADD rse.docker.conf /etc/rse.conf
 

@@ -93,7 +93,10 @@ class CassandraAuthCache(AuthCacheBase):
             auth_provider=auth_provider,
             load_balancing_policy=load_balancing_policy,
             port=port,
-            ssl_options=ssl_options
+            ssl_options=ssl_options,
+            protocol_version=int(
+                config.get("cassandra", "protocol_version", 3)
+            )
         )
 
         # In case cassandra is not up prior to running RSE, retry every 5 sec
@@ -108,7 +111,7 @@ class CassandraAuthCache(AuthCacheBase):
     def get(self, token):
         select_statement = """SELECT *
             FROM {0}.auth_token_cache
-            WHERE auth_token = %(token)s
+            WHERE auth_token = %(auth_token)s
         """.format(self.keyspace)
 
         args = {

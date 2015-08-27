@@ -1,0 +1,22 @@
+rse:
+    build: .
+    links:
+        - cache
+        - db
+    ports:
+        - "8000:8000"
+    command:
+        cassandra_startup
+db:
+    image: mongo:2.4
+    command: --smallfiles
+    ports:
+        - "27017:27017"
+        - "27018:27018"
+        - "27019:27019"
+        - "28017:28017"
+cache:
+    image: cassandra:2.1
+    ports:
+        - "9160:9160"
+        - "9042:9042"
