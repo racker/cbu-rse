@@ -108,11 +108,11 @@ class CassandraAuthCache(AuthCacheBase):
     def get(self, token):
         select_statement = """SELECT *
             FROM {0}.auth_token_cache
-            WHERE token = %(token)s
+            WHERE auth_token = %(token)s
         """.format(self.keyspace)
 
         args = {
-            "token": (self.prefix + token),
+            "auth_token": (self.prefix + token),
         }
 
         try:
@@ -149,11 +149,11 @@ class CassandraAuthCache(AuthCacheBase):
         insert_statement = query.SimpleStatement(
             """INSERT INTO {0}.auth_token_cache
             (
-                token
+                auth_token
             )
             VALUES
             (
-                %(token)s
+                %(auth_token)s
             )
             USING TTL %(ttl)s
             """
@@ -162,7 +162,7 @@ class CassandraAuthCache(AuthCacheBase):
         self.session.execute(
             insert_statement,
             {
-                "token": (self.prefix + token),
+                "auth_token": (self.prefix + token),
                 "ttl": self._get_ttl(ttl),
             }
         )
