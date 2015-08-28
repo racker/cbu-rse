@@ -21,6 +21,14 @@ Unlike simple timestamp-based protocols, RSE guarantees clients will never miss 
 #### Docker install
 1. `cd rse`
 1. Use ssh-keygen or copy existing ssh keys into the `rse` folder (used to perform git checkout of rse-util)
+1. Generate `docker-compose.yml`:
+
+    `cp docker-compose-cassandra.template.yml docker-compose.yml`
+
+    or
+
+    `cp docker-compose-memcached.template.yml docker-compose.yml`
+1. `cp rse.docker.template.conf rse.docker.conf` and set the cache provider to memcached or cassandra, based on the compose file chosen above
 1. docker-compose build
 1. docker-compose up -d
 
