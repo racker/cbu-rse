@@ -46,6 +46,7 @@ class RseApplication(rawr.Rawr):
         dir_path = os.path.dirname(os.path.abspath(__file__))
         local_config_path = os.path.join(dir_path, 'rse.conf')
         global_config_path = '/etc/rse.conf'
+        global_config_dir_path = '/etc/rse/rse.conf'
         default_config_path = os.path.join(dir_path, 'rse.default.conf')
 
         # Parse options
@@ -67,6 +68,8 @@ class RseApplication(rawr.Rawr):
             config.read(local_config_path)
         elif os.path.exists(global_config_path):
             config.read(global_config_path)
+        elif os.path.exists(global_config_dir_path):
+            config.read(global_config_dir_path)
 
         # Add the log message handler to the logger
         # Set up a specific logger with our desired output level
