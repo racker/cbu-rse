@@ -1,3 +1,0 @@
-pymongo
-git+git://github.com/lichray/moecache.git
-git+git://github.com/rackerlabs/rse-util.git
