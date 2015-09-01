@@ -1,5 +1,4 @@
 from setuptools import setup, find_packages
-from glob import glob
 
 setup(
     name = "rse",
@@ -9,7 +8,7 @@ setup(
     maintainer = "ATL Devops",
     maintainer_email = "devops.atl@lists.rackspace.com",
     classifiers = ["Private :: Do Not Upload"],
-    install_requires = ["pymongo", "rax", "moecache", "cassandra-driver"],
+    install_requires = ["pymongo>=2.4.2,<3", "rax", "moecache", "cassandra-driver"],
     packages = ["controllers"],
     py_modules = ["rse", "json_validator", "auth_cache", "rseutils"]
 )
