@@ -14,6 +14,6 @@ db:
         - "27019:27019"
         - "28017:28017"
 cache:
-    image: memcached
+    image: redis:2.8
     ports:
-        - "11211:11211"
+        - "6379:6379"
