@@ -4,7 +4,7 @@ rse:
         - cache
         - db
     ports:
-        - "8000:8000"
+        - "8000"
 db:
     image: mongo:2.4
     command: --smallfiles
