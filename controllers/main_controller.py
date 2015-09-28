@@ -17,10 +17,8 @@ import pymongo
 # We got this off the web somewhere - put in the same dir as rse.py
 import json_validator
 
-from rax.http.exceptions import *
+from rax.http import exceptions
 from rax.http import rawr
-
-from .shared import *
 
 
 def str_utf8(instr):
@@ -48,28 +46,38 @@ class MainController(rawr.Controller):
         if not auth_token:
             if self.test_mode:
                 # Missing auth is OK in test mode
+                self.shared.logger.warning(
+                    "TEST MODE: Bypassing token validation."
+                )
                 return
             else:
                 # Auth token required in live mode
                 self.shared.logger.error(
-                    "Missing X-Auth-Token header (required in live mode)")
-                raise HttpUnauthorized()
+                    "Missing X-Auth-Token header (required in live mode)."
+                )
+                raise exceptions.HttpUnauthorized()
 
         # See if auth is cached by API
         try:
-            if (self.shared.authtoken_cache.get(
-                self.authtoken_prefix + auth_token) is None):
-                raise HttpUnauthorized()
+            if (
+                self.shared.authtoken_cache.get(
+                    self.authtoken_prefix + auth_token
+                ) is None
+            ):
+                raise exceptions.HttpUnauthorized()
 
-        except HttpError:
+        except exceptions.HttpError:
             raise
 
         except Exception as ex:
             self.shared.logger.error(str_utf8(ex))
-            raise HttpServiceUnavailable()
+            raise exceptions.HttpServiceUnavailable()
 
     def _is_safe_user_agent(self, user_agent):
-        """Quick heuristic to tell whether we can embed the given user_agent string in a JSON document"""
+        """
+        Quick heuristic to tell whether we can embed the given user_agent
+        string in a JSON document
+        """
         return not ('\\' in user_agent or '"' in user_agent)
 
     def _parse_client_uuid(self, user_agent):
@@ -83,23 +91,39 @@ class MainController(rawr.Controller):
             return user_agent[start_pos:end_pos]
         except:
             if self.test_mode:
+                self.shared.logger.warning(
+                    "TEST MODE: Bypassing User-Agent validation"
+                )
                 return "550e8400-dead-beef-dead-446655440000"
             else:
-                raise HttpBadRequest('Missing UUID in User-Agent header')
+                raise exceptions.HttpBadRequest(
+                    'Missing UUID in User-Agent header'
+                )
 
     def _serialize_events(self, events):
-        return "" if not events else ",".join([
-                                              '{"id":%d,"user_agent":"%s","created_at":"%s","age":%d,"data":%s}'
-                                              % (
-                                                  event['_id'],
-                                                  event['user_agent'],
-                                                  format_datetime(
-                                                      event['created_at']),
-                                                  #<--- Assumes nothing is older than a day
-                                                  (datetime.datetime.utcnow() - event[
-                                                   'created_at']).seconds,
-                                                  event['data'])
-                                              for event in events])
+        return (
+            ""
+            if not events
+            else ",".join(
+                [
+                    (
+                        '{"id":%d,"user_agent":"%s","created_at":"%s",'
+                        '"age":%d,"data":%s}'
+                    ) % (
+                        event['_id'],
+                        event['user_agent'],
+                        format_datetime(
+                            event['created_at']
+                        ),
+                        # Assumes nothing is older than a day
+                        (
+                            datetime.datetime.utcnow() - event['created_at']
+                        ).seconds,
+                        event['data']
+                    ) for event in events
+                ]
+            )
+        )
 
     def _debug_dump(self):
         sort_order = int(
@@ -141,20 +165,27 @@ class MainController(rawr.Controller):
         # approach is prone to race conditions. In this case
         # we likely won't get a race condition, since the server
         # cannot be very busy if the events collection was empty.
-        return self.mongo_db.counters.find_one({"_id": "last_known_id"})["c"] + 1
+        return self.mongo_db.counters.find_one(
+            {"_id": "last_known_id"}
+        )["c"] + 1
 
     def _insert_event(self, channel_name, data, user_agent):
-        # Since the agent is not stateless (remembers last_known_id), we must
-        # be careful to never insert one event with a larger ID, BEFORE inserting
-        # a different event with a smaller one. If that happens, then the agent
-        # could get the event with the larger ID first, and on the next query
-        # send last_known_id of that event which will cause us to miss the other
-        # event since that one has a smaller ID.
-        #
-        # Therefore, we can't use the usual method of keeping a side-counter
-        # and using it as the sole authority, like this:
-        #
-        # counter = self.mongo_db.counters.find_and_modify({'_id': 'event_id'}, {'$inc': {'c': 1}})
+        """
+        Since the agent is not stateless (remembers last_known_id), we must
+        be careful to never insert one event with a larger ID, BEFORE inserting
+        a different event with a smaller one. If that happens, then the agent
+        could get the event with the larger ID first, and on the next query
+        send last_known_id of that event which will cause us to miss the other
+        event since that one has a smaller ID.
+
+        Therefore, we can't use the usual method of keeping a side-counter
+        and using it as the sole authority, like this:
+
+            counter = self.mongo_db.counters.find_and_modify(
+                {'_id': 'event_id'},
+                {'$inc': {'c': 1}}
+            )
+        """
 
         # Retry until we get a unique _id (or die trying)
         event_insert_succeeded = False
@@ -167,16 +198,20 @@ class MainController(rawr.Controller):
             next_id = self._calculate_next_id()
 
             try:
-                # Most of the time this will succeed, unless a different instance
-                # beats us to the punch, in which case we'll just try again
-                self.mongo_db.events.insert({
-                                            "_id": next_id,
-                                            "data": data,
-                                            "channel": channel_name,
-                                            "user_agent": user_agent,
-                                            "uuid": self._parse_client_uuid(user_agent),
-                                            "created_at": datetime.datetime.utcnow()
-                                            }, safe=True)
+                # Most of the time this will succeed, unless a different
+                # instance beats us to the punch, in which case we'll just try
+                # again
+                self.mongo_db.events.insert(
+                    {
+                        "_id": next_id,
+                        "data": data,
+                        "channel": channel_name,
+                        "user_agent": user_agent,
+                        "uuid": self._parse_client_uuid(user_agent),
+                        "created_at": datetime.datetime.utcnow()
+                    },
+                    safe=True
+                )
 
                 # Succeeded. Increment the side counter to keep it in sync with
                 # next_id.
@@ -204,29 +239,36 @@ class MainController(rawr.Controller):
         user_agent = self.request.get_header("User-Agent")
 
         # Verify that the data is valid JSON
-        if not (json_validator.is_valid(data) and self._is_safe_user_agent(user_agent)):
-            raise HttpBadRequest('Invalid JSON')
+        if not (
+            json_validator.is_valid(data) and
+            self._is_safe_user_agent(user_agent)
+        ):
+            raise exceptions.HttpBadRequest('Invalid JSON')
 
         # Insert the new event into the DB
         num_retries = 10  # 5 seconds
         for i in xrange(num_retries):
             try:
                 if not self._insert_event(channel_name, data, user_agent):
-                    raise HttpServiceUnavailable()
-
+                    raise exceptions.HttpServiceUnavailable()
                 break
 
-            except HttpError as ex:
+            except exceptions.HttpError as ex:
                 self.shared.logger.error(str_utf8(ex))
                 raise
 
             except pymongo.errors.AutoReconnect as ex:
                 self.shared.logger.error(
-                    "Retry %d of %d. Details: %s" % (i, num_retries, str_utf8(ex)))
+                    "Retry %d of %d. Details: %s" % (
+                        i,
+                        num_retries,
+                        str_utf8(ex)
+                    )
+                )
 
                 if i == (num_retries - 1):  # Don't retry forever!
                     # Critical error (retrying probably won't help)
-                    raise HttpServiceUnavailable()
+                    raise exceptions.HttpServiceUnavailable()
                 else:
                     # Wait a moment for a new primary to be elected in case of
                     # failover
@@ -240,7 +282,7 @@ class MainController(rawr.Controller):
 
             # Security check
             if not self.shared.JSONP_CALLBACK_PATTERN.match(callback_name):
-                raise HttpBadRequest("Invalid callback name")
+                raise exceptions.HttpBadRequest("Invalid callback name")
 
             self.response.write("%s({});" % callback_name)
 
@@ -248,7 +290,14 @@ class MainController(rawr.Controller):
             # POST succeeded, i.e., new event was created
             self.response.set_status(201)
 
-    def _get_events(self, channel, last_known_id, uuid, sort_order, max_events):
+    def _get_events(
+        self,
+        channel,
+        last_known_id,
+        uuid,
+        sort_order,
+        max_events
+    ):
         # Get a list of events
         num_retries = 10
         for i in xrange(num_retries):
@@ -264,10 +313,15 @@ class MainController(rawr.Controller):
 
             except pymongo.errors.AutoReconnect as ex:
                 self.shared.logger.error(
-                    "Retry %d of %d. Details: %s" % (i, num_retries, str_utf8(ex)))
+                    "Retry %d of %d. Details: %s" % (
+                        i,
+                        num_retries,
+                        str_utf8(ex)
+                    )
+                )
 
                 if i == (num_retries - 1):  # Don't retry forever!
-                    raise HttpServiceUnavailable()
+                    raise exceptions.HttpServiceUnavailable()
                 else:
                     # Wait a moment for a new primary to be elected
                     time.sleep(0.5)
@@ -276,12 +330,15 @@ class MainController(rawr.Controller):
                 self.shared.logger.error(str_utf8(ex))
 
                 if i == num_retries - 1:  # Don't retry forever!
-                    raise HttpInternalServerError()
+                    raise exceptions.HttpInternalServerError()
 
         return events
 
     def get(self):
-        """Handles a "GET events" request for the specified channel (channel here includes the scope name)"""
+        """
+        Handles a "GET events" request for the specified channel (channel here
+        includes the scope name)
+        """
         channel_name = self.request.path
 
         if self.test_mode and channel_name == "/all":
@@ -311,18 +368,21 @@ class MainController(rawr.Controller):
             sort_order = pymongo.ASCENDING
 
         # Different values for "events" argument
-        #    all - Get all events for both main and sub channels (@todo Lock this down for Retail Release)
-        #    parent - Get anything that exactly matches the given sub channel, and each parent channel
-        # exact - Only get events that exactly match the given channel
-        # (default)
+        #    all - Get all events for both main and sub channels (@todo Lock
+        #          this down for Retail Release)
+        #    parent - Get anything that exactly matches the given sub channel,
+        #             and each parent channel
+        #    exact - Only get events that exactly match the given channel
+        #            (default)
         filter_type = self.request.get_optional_param("events", "exact")
         events = []
 
         if filter_type == "parent":  # most common case first for speed
 
-            # Note: We could do this in one query using a regex, but the regex would not be in a format
-            # that allows the DB to use the get_events index, so we split it up here. Note that this
-            # also sets us up for sharding based on channel name.
+            # Note: We could do this in one query using a regex, but the regex
+            # would not be in a format that allows the DB to use the get_events
+            # index, so we split it up here. Note that this also sets us up for
+            # sharding based on channel name.
             for each_channel in self._explode_channel(channel_name):
                 events += self._get_events(
                     each_channel, last_known_id, uuid, sort_order, max_events)
@@ -333,7 +393,8 @@ class MainController(rawr.Controller):
                 sort_order == pymongo.DESCENDING))
 
         else:
-            # @todo Remove this option so that we can shard based on channel name.
+            # @todo Remove this option so that we can shard based on channel
+            # name.
             if filter_type == "all":
                 channel_pattern = re.compile("^" + channel_name + "(/.+)?")
 
@@ -353,7 +414,7 @@ class MainController(rawr.Controller):
 
             # Security check
             if not self.shared.JSONP_CALLBACK_PATTERN.match(callback_name):
-                raise HttpBadRequest('Invalid callback name')
+                raise exceptions.HttpBadRequest('Invalid callback name')
 
             self.response.write("%s({\"channel\":\"%s\",\"events\":[%s]});" % (
                 callback_name, channel_name, str_utf8(entries_serialized)))
