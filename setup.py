@@ -8,7 +8,7 @@ setup(
     maintainer="ATL Devops",
     maintainer_email="devops.atl@lists.rackspace.com",
     classifiers=["Private :: Do Not Upload"],
-    install_requires=["rax", "eom"],
+    install_requires=["rax", "eom", "pymongo<3"],
     packages=["controllers"],
     py_modules=["rse", "json_validator", "rseutils"]
 )
