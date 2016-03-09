@@ -104,6 +104,10 @@ class RseApplication(rawr.Rawr):
 
         # FastCache for Auth Token
         authtoken_prefix = config.get('authcache', 'authtoken-prefix')
+        token_hashing_threshold = config.get(
+            'authcache',
+            'token_hashing_threshold'
+        )
         memcached_shards = [
             (host, int(port))
             for host, port in [
@@ -138,6 +142,7 @@ class RseApplication(rawr.Rawr):
         main_options = dict(shared=shared_controller,
                             mongo_db=mongo_db,
                             authtoken_prefix=authtoken_prefix,
+                            token_hashing_threshold=token_hashing_threshold,
                             test_mode=test_mode)
         self.add_route(r"/.+", main_controller.MainController, main_options)
 
