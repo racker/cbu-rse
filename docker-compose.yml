@@ -1,0 +1,19 @@
+rse:
+    build: .
+    links:
+        - cache
+        - db
+    ports:
+        - "8000:8000"
+db:
+    image: mongo:2.4
+    command: --smallfiles
+    ports:
+        - "27017:27017"
+        - "27018:27018"
+        - "27019:27019"
+        - "28017:28017"
+cache:
+    image: memcached
+    ports:
+        - "11211:11211"
