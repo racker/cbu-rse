@@ -90,7 +90,7 @@ class MainController(rawr.Controller):
         try:
             if (
                 self.shared.authtoken_cache.get(
-                    self.authtoken_prefix + auth_token
+                    self._format_key(auth_token)
                 ) is None
             ):
                 raise exceptions.HttpUnauthorized()
