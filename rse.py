@@ -104,7 +104,7 @@ class RseApplication(rawr.Rawr):
 
         # FastCache for Auth Token
         authtoken_prefix = config.get('authcache', 'authtoken-prefix')
-        token_hashing_threshold = config.get(
+        token_hashing_threshold = config.getint(
             'authcache',
             'token_hashing_threshold'
         )
