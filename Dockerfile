@@ -24,7 +24,6 @@ RUN ssh-keyscan github.com >> /root/.ssh/known_hosts
 RUN pip install -U pip
 RUN pip install -U \
     gunicorn \
-    pymongo==2.4 \
     webob
 
 # rse-util
@@ -32,13 +31,9 @@ RUN mkdir -p /home/rse-util
 RUN git clone git@github.com:rackerlabs/rse-util.git /home/rse-util
 RUN pip install -e /home/rse-util
 
-# eom
-RUN mkdir -p /home/eom
-RUN git clone git@github.com:racker/eom.git /home/eom
-RUN pip install -e /home/eom
-
 # rse
 ADD . /home/rse
+RUN pip install -e /home/rse
 
 # rse configurations
 ADD rse.docker.conf /etc/rse.conf
