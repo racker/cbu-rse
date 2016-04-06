@@ -14,12 +14,6 @@ RUN apt-get -qq update && apt-get -qq upgrade && apt-get install -qqy \
 
 VOLUME /home/rse
 
-# SSH Settings
-RUN mkdir -p /root/.ssh
-ADD ./id_rsa /root/.ssh/id_rsa
-RUN chmod 600 /root/.ssh/id_rsa
-RUN ssh-keyscan github.com >> /root/.ssh/known_hosts
-
 # Install dependencies
 RUN pip install -U pip
 RUN pip install -U \
@@ -28,7 +22,7 @@ RUN pip install -U \
 
 # rse-util
 RUN mkdir -p /home/rse-util
-RUN git clone git@github.com:rackerlabs/rse-util.git /home/rse-util
+RUN git clone https://github.com/rackerlabs/rse-util.git /home/rse-util
 RUN pip install -e /home/rse-util
 
 # rse
