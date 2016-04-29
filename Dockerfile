@@ -21,8 +21,7 @@ RUN pip install -U \
     webob
 
 # rse-util
-RUN mkdir -p /home/rse-util
-RUN git clone https://github.com/rackerlabs/rse-util.git /home/rse-util
+ADD ./rse-util /home/rse-util
 RUN pip install -e /home/rse-util
 
 # rse
