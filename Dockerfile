@@ -1,5 +1,5 @@
-FROM ubuntu:latest
-MAINTAINER John Heatherington <john.heatherington@rackspace.com>
+FROM ubuntu:16.04
+MAINTAINER RCBU <CloudBackup@rackspace.com>
 
 # Update packages
 RUN apt-get -qq update && apt-get -qq upgrade && apt-get install -qqy \
@@ -28,7 +28,8 @@ RUN pip install -U \
 
 # rse-util
 RUN mkdir -p /home/rse-util
-RUN git clone git@github.com:rackerlabs/rse-util.git /home/rse-util
+#RUN git clone git@github.com:rackerlabs/rse-util.git /home/rse-util
+RUN git clone https://github.com/rackerlabs/rse-util.git /home/rse-util
 RUN pip install -e /home/rse-util
 
 # rse
