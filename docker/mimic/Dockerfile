@@ -25,14 +25,14 @@ RUN git config --global user.email "mimic@docker-local" && git config --global u
 RUN git clone https://github.com/BenjamenMeyer/mimic .
 # Mimic: Support APIs not hosted by Mimic:
 RUN git checkout enhancement_internal-external_urls
-# Mimic: Add Cloud Backup to the special accounts
-RUN git merge origin/enhancement_cloudbackup_service
-# Mimic: Bug Fix Validating Tokens
-RUN git merge origin/bugfix_validate_token_for_repose
-# Mimic: List API Key in the generic case
-RUN git merge origin/enhancement_osksadm_credentials_also
-# Mimic: Swift in multiple data centers
-RUN git merge origin/enhancement_swift_in_dfw
+# Mimic: Add Cloud Backup to the special accounts (merged)
+#RUN git merge origin/enhancement_cloudbackup_service
+# Mimic: Bug Fix Validating Tokens (merged)
+#RUN git merge origin/bugfix_validate_token_for_repose
+# Mimic: List API Key in the generic case (merged)
+#RUN git merge origin/enhancement_osksadm_credentials_also
+# Mimic: Swift in multiple data centers (merged)
+#RUN git merge origin/enhancement_swift_in_dfw
 # Mimic: Swift diagnostics
 RUN git merge origin/bugfix_swift_object_paths
 # Mimic: Swift Head container/object support
