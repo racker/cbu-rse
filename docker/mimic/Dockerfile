@@ -39,6 +39,8 @@ RUN git merge origin/bugfix_swift_object_paths
 RUN git merge origin/bugfix_swift_head_operations
 # Mimic: Default Region for User
 RUN git merge origin/enhancement_default_region
+# Mimic: Fix Swift Head account support
+RUN git merge origin/bugfix_container_head_operation
 
 # Install Mimic
 RUN pip install -e .
