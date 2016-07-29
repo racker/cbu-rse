@@ -14,13 +14,20 @@ Unlike simple timestamp-based protocols, RSE guarantees clients will never miss 
 1. Install MongoDB 2.2.
 1. Install Python 2.7. On Windows, you'll have to manually add it to your path (probably c:\python27\bin).
 1. ```pip install pymongo webob```
-1. Clone https://github.com/rackerlabs/rse-util, cd into the directory, then run: ```pip install -e .```
-1. Download rse, cd into the directory, then run: ```python rse.py```
+1. Clone rse
+1. Cd into the directory, then run: ```init_repo.sh``` to download the `rse-util` submodule.
+1. Cd into the `rse-util` sub-directory, then run: ```pip install -e .```
+1. Return to the parent directory, then run: ```python rse.py```
 1. If that doesn't work, check ```rse.log``` for errors.
+
+###### Note
+
+One can also clone the rse-util repository (https://github.com/rackerlabs/rse-util) separately and install is as opposed to using `init_repo.sh` to utilize `git submodule`s.
 
 #### Docker install
 1. `cd rse`
 1. `cp rse.docker.template.conf rse.docker.conf` and modify configuration options as needed (currently, that's just `auth_url` in the `[eom:auth]` section).
+1. Run `./init_repo.sh` in order to initialize the `git submodule` for `rse-util`.
 1. docker-compose build
 1. docker-compose up -d
 
@@ -49,7 +56,7 @@ vim /etc/rse.conf
 * WebOb
 * Gunicorn
 * Pymongo
-* [RaxPy][2]
+* [Rse-Util][2] (formerly RaxPy)
 
 ## Reference Stack
 
@@ -66,4 +73,4 @@ vim /etc/rse.conf
 * ...and much more!
 
 [1]:http://asktog.com/basics/firstPrinciples.html#latencyReduction
-[2]:https://github.rackspace.com/atl/rax-py
+[2]:https://github.com/rackerlabs/rse-util
