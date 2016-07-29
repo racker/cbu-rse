@@ -1,0 +1,3 @@
+[submodule "rse-util"]
+	path = rse-util
+	url = git@github.com:rackerlabs/rse-util.git
