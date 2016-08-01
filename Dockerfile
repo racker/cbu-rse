@@ -1,5 +1,5 @@
-FROM ubuntu:latest
-MAINTAINER John Heatherington <john.heatherington@rackspace.com>
+FROM ubuntu:16.04
+MAINTAINER RCBU <CloudBackup@rackspace.com>
 
 # Update packages
 RUN apt-get -qq update && apt-get -qq upgrade && apt-get install -qqy \

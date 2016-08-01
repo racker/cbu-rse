@@ -3,6 +3,7 @@ rse:
     links:
         - cache
         - db
+        - mimic
     ports:
         - "8000"
 db:
@@ -17,3 +18,10 @@ cache:
     image: redis:2.8
     ports:
         - "6379:6379"
+mimic:
+    build: ./docker/mimic/.
+    environment:
+        CLOUD_BACKUP_API: phoenix
+        CLOUD_BACKUP_API_VERSION: v2
+    ports:
+        - "8900:8900"
