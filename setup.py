@@ -2,7 +2,7 @@ from setuptools import setup
 
 setup(
     name="rse",
-    version="2.0.1",
+    version="2.1.0",
     description="Real Simple Events",
     url="https://github.com/rackerlabs/rse/",
     maintainer="ATL Devops",
