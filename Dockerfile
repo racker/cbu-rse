@@ -1,27 +1,23 @@
-FROM ubuntu:latest
-MAINTAINER John Heatherington <john.heatherington@rackspace.com>
+FROM ubuntu:16.04
+MAINTAINER RCBU <CloudBackup@rackspace.com>
 
 # Update packages
-RUN apt-get -qq update
-RUN apt-get -qq upgrade
-
-# Update packages
-RUN apt-get install -y \
-    curl \
+RUN apt-get -qq update && apt-get -qq upgrade && apt-get install -qqy \
     git-core \
+    libev4 \
+    libev-dev \
+    libffi-dev \
+    libssl-dev \
     python-dev \
     python-pip \
-    python-setuptools \
-    telnet
+    python-setuptools
+
+VOLUME /home/rse
 
 # Install dependencies
 RUN pip install -U pip
 RUN pip install -U \
-    blist \
-    gevent \
     gunicorn \
-    moecache \
-    pymongo==2.4 \
     webob
 
 # rse-util
@@ -30,11 +26,16 @@ RUN pip install -e /home/rse-util
 
 # rse
 ADD . /home/rse
+RUN pip install -e /home/rse
 
 # rse configurations
 ADD rse.docker.conf /etc/rse.conf
 
+# Deploy startup script
+ADD docker_init.sh /usr/local/bin/rse-docker
+RUN chmod 755 /usr/local/bin/rse-docker
+
 EXPOSE 8000
 
 WORKDIR /home/rse
-CMD ["gunicorn", "rse:app", "-b", "0.0.0.0:8000", "--log-file", "-", "--log-level", "debug"]
+CMD rse-docker
