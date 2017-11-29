@@ -3,3 +3,5 @@
 id_rsa*
 rse.conf
 rse.docker.conf
+.tox
+rse.egg-info/
