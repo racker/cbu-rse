@@ -2,7 +2,7 @@
 
 set -m
 
-/usr/local/bin/twistd -n mimic -v &
+/usr/local/bin/twistd -n mimic -r -v &
 
 sleep 5
 
