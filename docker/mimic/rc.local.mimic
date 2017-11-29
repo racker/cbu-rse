@@ -1,0 +1,13 @@
+#!/bin/bash
+
+set -m
+
+/usr/local/bin/twistd -n mimic -r -v &
+
+sleep 5
+
+pushd /home/source
+
+./configure_service.sh
+
+fg
