@@ -1,3 +1,0 @@
-moecache==0.1
-pymongo<3
-git+git://github.com/rackerlabs/rse-util.git
