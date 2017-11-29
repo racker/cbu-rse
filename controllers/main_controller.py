@@ -36,71 +36,10 @@ def format_datetime(dt):
 class MainController(rawr.Controller):
     """Provides all RSE functionality"""
 
-    def __init__(
-        self,
-        mongo_db,
-        shared,
-        authtoken_prefix,
-        token_hashing_threshold,
-        test_mode=False
-    ):
+    def __init__(self, mongo_db, shared, test_mode=False):
         self.mongo_db = mongo_db  # MongoDB database for storing events
-        self.authtoken_prefix = authtoken_prefix
-        self.token_hashing_threshold = token_hashing_threshold
         self.test_mode = test_mode  # If true, relax auth/uuid requirements
         self.shared = shared  # Shared performance counters, logging, etc.
-
-    def _format_key(self, auth_token):
-        key = self.authtoken_prefix + auth_token
-
-        if len(key) < self.token_hashing_threshold:
-            return key
-
-        sha = hashlib.sha512()
-        sha.update(self.authtoken_prefix + auth_token)
-        hashed_token = sha.hexdigest().upper()
-
-        # Converts hashed token to the format output by .NET's BitConverter
-        # https://msdn.microsoft.com/en-us/library/3a733s97(v=vs.110).aspx
-        return '-'.join(
-            [
-                ''.join(pair)
-                for pair
-                in zip(hashed_token[::2], hashed_token[1::2])
-            ]
-        )
-
-    def prepare(self):
-        auth_token = self.request.get_optional_header('X-Auth-Token')
-        if not auth_token:
-            if self.test_mode:
-                # Missing auth is OK in test mode
-                self.shared.logger.warning(
-                    "TEST MODE: Bypassing token validation."
-                )
-                return
-            else:
-                # Auth token required in live mode
-                self.shared.logger.error(
-                    "Missing X-Auth-Token header (required in live mode)."
-                )
-                raise exceptions.HttpUnauthorized()
-
-        # See if auth is cached by API
-        try:
-            if (
-                self.shared.authtoken_cache.get(
-                    self._format_key(auth_token)
-                ) is None
-            ):
-                raise exceptions.HttpUnauthorized()
-
-        except exceptions.HttpError:
-            raise
-
-        except Exception as ex:
-            self.shared.logger.error(str_utf8(ex))
-            raise exceptions.HttpServiceUnavailable()
 
     def _is_safe_user_agent(self, user_agent):
         """
