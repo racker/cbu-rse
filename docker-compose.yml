@@ -3,8 +3,9 @@ rse:
     links:
         - cache
         - db
+        - mimic
     ports:
-        - "8000:8000"
+        - "8000"
 db:
     image: mongo:2.4
     command: --smallfiles
@@ -14,6 +15,13 @@ db:
         - "27019:27019"
         - "28017:28017"
 cache:
-    image: memcached
+    image: redis:2.8
     ports:
-        - "11211:11211"
+        - "6379:6379"
+mimic:
+    build: ./docker/mimic/.
+    environment:
+        CLOUD_BACKUP_API: phoenix
+        CLOUD_BACKUP_API_VERSION: v2
+    ports:
+        - "8900:8900"
