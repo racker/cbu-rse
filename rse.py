@@ -164,7 +164,6 @@ class RseApplication(rawr.Rawr):
                     )
                 else:
                     try:
-                        )
                         connection = pymongo.MongoClient(
                             mongo_uri,
                             replicaSet=replica_set,
