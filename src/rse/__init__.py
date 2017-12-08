@@ -277,14 +277,3 @@ class RseApplication(rawr.Rawr):
             sys.exit(1)
 
         return (mongo_db, mongo_db_master)
-
-# WSGI app
-app = RseApplication()
-
-# If running this script directly, startup a basic WSGI server for testing
-if __name__ == "__main__":
-    from wsgiref.simple_server import make_server
-
-    httpd = make_server('', 8000, app)
-    print "Serving on port 8000..."
-    httpd.serve_forever()
