@@ -32,7 +32,7 @@ RUN pip install -e /home/rse
 ADD rse.docker.conf /etc/rse.conf
 
 # Deploy startup script
-ADD docker_init.sh /usr/local/bin/rse-docker
+ADD docker/docker_init.sh /usr/local/bin/rse-docker
 RUN chmod 755 /usr/local/bin/rse-docker
 
 EXPOSE 8000
