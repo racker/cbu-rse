@@ -2,6 +2,7 @@
 *.log
 id_rsa*
 .tox
+.cache
 rse.egg-info/
 venv
 build
