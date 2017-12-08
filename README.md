@@ -11,23 +11,18 @@ Unlike simple timestamp-based protocols, RSE guarantees clients will never miss 
 ## Quick Start
 
 #### Local install
-1. Install MongoDB 2.2.
-1. Install Python 2.7. On Windows, you'll have to manually add it to your path (probably c:\python27\bin).
-1. ```pip install pymongo webob```
-1. Clone rse
-1. Cd into the directory, then run: ```init_repo.sh``` to download the `rse-util` submodule.
-1. Cd into the `rse-util` sub-directory, then run: ```pip install -e .```
-1. Return to the parent directory, then run: ```python rse.py```
-1. If that doesn't work, check ```rse.log``` for errors.
 
-###### Note
-
-One can also clone the rse-util repository (https://github.com/rackerlabs/rse-util) separately and install is as opposed to using `init_repo.sh` to utilize `git submodule`s.
+1. Install python and python-pip
+2. Optionally, install build-essential and python-dev (for pymongo C extensions)
+3. Optionally, create and switch into a virtualenv
+4. Run `python setup.py install`
 
 #### Docker install
+
+FIXME: Probably outdated
+
 1. `cd rse`
 1. `cp rse.docker.template.conf rse.docker.conf` and modify configuration options as needed (currently, that's just `auth_url` in the `[eom:auth]` section).
-1. Run `./init_repo.sh` in order to initialize the `git submodule` for `rse-util`.
 1. docker-compose build
 1. docker-compose up -d
 
@@ -52,7 +47,15 @@ vim /etc/rse.conf
 
 ## RSE Dependencies
 
-* Python 2 (2.6 or better)
+System (assuming Ubuntu):
+
+* python (2.6 or better)
+* python-pip
+* build-essential (needed for pymongo C extensions, optional)
+* python-dev (seems to be also be needed for pymongo C extensions)
+
+Python:
+
 * WebOb
 * Gunicorn
 * Pymongo
@@ -73,4 +76,3 @@ vim /etc/rse.conf
 * ...and much more!
 
 [1]:http://asktog.com/basics/firstPrinciples.html#latencyReduction
-[2]:https://github.com/rackerlabs/rse-util
