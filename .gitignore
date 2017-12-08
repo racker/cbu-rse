@@ -1,7 +1,9 @@
 *.pyc
 *.log
 id_rsa*
-rse.conf
-rse.docker.conf
 .tox
+.cache
 rse.egg-info/
+venv
+build
+dist

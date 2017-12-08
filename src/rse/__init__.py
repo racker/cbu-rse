@@ -264,23 +264,18 @@ class RseApplication(rawr.Rawr):
 
         return (mongo_db, mongo_db_master)
 
-# WSGI app
-rse_app = RseApplication()
+def instantiate():
+    """ Initialize a wsgi callable for use by gunicorn """
 
-rse_conf = cfg.CONF
-rse_conf(project='rse', args=[])
-auth.configure(rse_conf)
-bastion.configure(rse_conf)
+    rse_app = RseApplication()
 
-auth_redis_client = auth.get_auth_redis_client()
+    rse_conf = cfg.CONF
+    rse_conf(project='rse', args=[])
+    auth.configure(rse_conf)
+    bastion.configure(rse_conf)
 
-auth_app = auth.wrap(rse_app, auth_redis_client)
-app = bastion.wrap(rse_app, auth_app)
+    auth_redis_client = auth.get_auth_redis_client()
 
-# If running this script directly, startup a basic WSGI server for testing
-if __name__ == "__main__":
-    from wsgiref.simple_server import make_server
-
-    httpd = make_server('', 8000, app)
-    print "Serving on port 8000..."
-    httpd.serve_forever()
+    auth_app = auth.wrap(rse_app, auth_redis_client)
+    app = bastion.wrap(rse_app, auth_app)
+    return app
