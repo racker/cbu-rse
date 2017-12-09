@@ -20,22 +20,22 @@ RUN pip install -U \
     gunicorn \
     webob
 
-# rse-util
-ADD ./rse-util /home/rse-util
-RUN pip install -e /home/rse-util
-
-# rse
-ADD . /home/rse
-RUN pip install -e /home/rse
-
-# rse configurations
-ADD rse.docker.conf /etc/rse.conf
+# rse docker configuration
+ADD docker/rse/rse.docker.conf /etc/rse.conf
 
 # Deploy startup script
-ADD docker/docker_init.sh /usr/local/bin/rse-docker
+ADD docker/rse/rse-docker /usr/local/bin/rse-docker
 RUN chmod 755 /usr/local/bin/rse-docker
 
-EXPOSE 8000
+# Install the EOM Logging Config
+RUN mkdir -p /etc/eom
+ADD etc/logging.conf-sample /etc/eom/logging.conf-sample
 
+# add source and install
+ADD . /home/rse
 WORKDIR /home/rse
+RUN pip install -e .
+
+# finally run
+EXPOSE 8000
 CMD rse-docker

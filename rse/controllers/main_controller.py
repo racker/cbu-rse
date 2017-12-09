@@ -16,10 +16,10 @@ import random
 import pymongo
 
 # We got this off the web somewhere - put in the same dir
-from . import json_validator
+from rse.controllers import json_validator
 
-from rax.http import exceptions
-from rax.http import rawr
+from rse.rax.http import exceptions
+from rse.rax.http import rawr
 
 
 def str_utf8(instr):
