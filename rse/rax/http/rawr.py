@@ -15,7 +15,7 @@ Requires Python 2.7 and webob
 import httplib
 import re
 import webob
-from exceptions import *
+from rse.rax.http.exceptions import *
 
 class Rawr:
   """Responsible for routing (set in initialization as a dictionary)"""
@@ -181,41 +181,3 @@ class Controller:
   # Provide stub to avoid being slowed down by getattr exceptions
   def options(self):
     raise HttpMethodNotAllowed("OPTIONS")
-
-
-class HelloTest(Controller):
-  def __init__(self, foo):
-    pass
-  
-  def get(self, name):
-    self.response.write_header('Content-type','text/plain')
-    self.response.write(self.request.get_optional_param('foo', 'Once upon a time...\n'))
-    self.response.write('Hello %s!\n' % name)
-    
-class GoFishTest(Controller):
-  def get(self):
-    self.response.write('Hello world!\n')    
-    raise HttpError(404, 'Go fish!')
-      
-class StreamTest(Controller):
-  def get(self):
-    self.response.write_header('Content-type','text/plain')    
-
-    data = "Row, row, row your boat, gently down the stream!\n"
-    self.response.stream = [data]
-    self.response.stream_length = len(data)
-
-testapp = Rawr()    
-testapp.add_route(r'/hello/(.*)', HelloTest, dict(foo=1))
-testapp.add_route(r'/go-fish$', GoFishTest) # Dollar is necessary to require the entire string be matched
-testapp.add_route(re.compile('/stream', re.IGNORECASE), StreamTest)    
-
-# @todo: What is the standard unit testing framework for Python? Use that!
-# @todo: Test all self.request helper functions
-if __name__ == "__main__":
-  from wsgiref.simple_server import make_server
-  
-  httpd = make_server('', 8000, testapp)
-  print "Serving on port 8000..."
-  httpd.serve_forever()    
-

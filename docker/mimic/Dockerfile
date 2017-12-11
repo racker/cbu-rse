@@ -24,9 +24,9 @@ RUN git clone https://github.com/rackerlabs/mimic .
 
 # Install Mimic
 RUN pip install -e .
-COPY ./configure_service.sh /home/source/configure_service.sh
-COPY ./register_backup_api.py /home/source/register_backup_api.py
-COPY ./rc.local.mimic /home/source/rc.local.mimic
+COPY ./docker/mimic/configure_service.sh /home/source/configure_service.sh
+COPY ./docker/mimic/register_backup_api.py /home/source/register_backup_api.py
+COPY ./docker/mimic/rc.local.mimic /home/source/rc.local.mimic
 
 EXPOSE 8900
 CMD ["./rc.local.mimic"]

@@ -30,11 +30,11 @@ from eom import auth
 from eom import bastion
 from oslo_config import cfg
 import pymongo
-from rax.http import rawr
+from rse.rax.http import rawr
 
-from controllers import shared
-from controllers import health_controller
-from controllers import main_controller
+from rse.controllers import shared
+from rse.controllers import health_controller
+from rse.controllers import main_controller
 
 
 class RseApplication(rawr.Rawr):
@@ -113,7 +113,7 @@ class RseApplication(rawr.Rawr):
         test_mode = config.getboolean('rse', 'test')
 
         # Setup routes
-        shared_controller = Shared(logger)
+        shared_controller = shared.Shared(logger)
 
         health_options = dict(shared=shared_controller,
                               mongo_db=mongo_db_master,

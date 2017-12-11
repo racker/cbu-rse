@@ -1,3 +1,4 @@
+*.sw?
 *.pyc
 *.log
 id_rsa*
@@ -7,3 +8,5 @@ rse.egg-info/
 venv
 build
 dist
+docker-compose.yml
+rse.docker.conf

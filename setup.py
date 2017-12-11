@@ -1,13 +1,12 @@
 from setuptools import setup, find_packages
 
 # It's annoying to track dependencies inline with install_requires
-deps = """
-    eom>=0.8.0
-    pymongo<3
-    webob
-"""
-dependencies = [s.strip() for s in deps.splitlines() if s]
-version = "2.2.0" # NOTE: Makefile greps for this line.
+dependencies = [
+    "eom>=0.8.0",
+    "pymongo<3",
+    "webob",
+]
+version = "2.2.0"  # NOTE: Makefile greps for this line.
 
 setup(
     name="rse",
@@ -17,8 +16,13 @@ setup(
     classifiers=["Private :: Do Not Upload"],
     maintainer="ATL Devops",
     maintainer_email="devops.atl@lists.rackspace.com",
-    packages = find_packages("src"),
-    package_dir={'':"src"},
+    packages=find_packages(exclude=['tests*', 'rse/tests']),
     install_requires=dependencies,
     tests_require=['tox'],
+    zip_safe=True,
+    entry_points={
+        'console_scripts': [
+            'dev-rse = rse.cmd:main'
+        ]
+    },
 )
