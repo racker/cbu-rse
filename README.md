@@ -1,19 +1,27 @@
 # Really Simple Events
 
-Reference implementation for Really Simple Events, a simple event queueing protocol inspired by RSS.
+Reference implementation for Really Simple Events, a simple event queueing
+protocol inspired by RSS.
 
 Currently in production supporting Rackspace Cloud Backup.
 
-RSE is a light-weight, fast, scale-out alternative to other popular queueing systems. It is a good choice when you need a cloud message bus that supports 100's of thousands of clients, and was specifically designed for communicating across unreliable network partitions (read: the internet).
+RSE is a light-weight, fast, scale-out alternative to other popular queueing
+systems. It is a good choice when you need a cloud message bus that supports
+100's of thousands of clients, and was specifically designed for communicating
+across unreliable network partitions (read: the internet).
 
-Unlike simple timestamp-based protocols, RSE guarantees clients will never miss an event due to clock drift or ID collisions, while at the same time clients do not have to keep a sliding window of previously received events to detect duplicates.
+Unlike simple timestamp-based protocols, RSE guarantees clients will never miss
+an event due to clock drift or ID collisions, while at the same time clients do
+not have to keep a sliding window of previously received events to detect
+duplicates.
 
 ## Quick Start
 
 #### Local install
 
 1. Install python and python-pip
-2. Optionally, install build-essential and python-dev (for pymongo C extensions)
+2. Optionally, install build-essential and python-dev (for pymongo C
+   extensions)
 3. Optionally, create and switch into a virtualenv
 4. Run `python setup.py install`
 
@@ -22,7 +30,9 @@ Unlike simple timestamp-based protocols, RSE guarantees clients will never miss 
 FIXME: Probably outdated
 
 1. `cd rse`
-1. `cp rse.docker.template.conf rse.docker.conf` and modify configuration options as needed (currently, that's just `auth_url` in the `[eom:auth]` section).
+1. `cp rse.docker.template.conf rse.docker.conf` and modify configuration
+   options as needed (currently, that's just `auth_url` in the `[eom:auth]`
+   section).
 1. docker-compose build
 1. docker-compose up -d
 
@@ -30,13 +40,28 @@ FIXME: Probably outdated
 
 * Clients communicate over channels and sub-channels
 * Supports both eventing and command-and-control semantics
-* Designed in an elegant fashion so that communication styles are only limited by your imagination (point-to-point and pubsub are emergent features, not hard-wired into the protocol)  
+* Designed in an elegant fashion so that communication styles are only limited
+  by your imagination (point-to-point and pubsub are emergent features, not
+  hard-wired into the protocol)  
 * Uses a simple, compact, and human-readable HTTP+JSON protocol
 * Plays nice with standard web servers, firewalls, routers, proxies, etc.
 * Stateless app servers with high utilization
 * Does not require long-lived connections
-* Low-latency polling of ~8 ms (combine with keep-alive for [perceptually instantaneous][1] command and control)
+* Low-latency polling of ~8 ms (combine with keep-alive for [perceptually
+  instantaneous][1] command and control)
 * Guaranteed delivery of events (within a specific time window)
+
+## Developing
+
+The package source is under a src/ subtree. This is not common for python
+projects. The intent is to make packaging and testing less error-prone.  More
+information [here](https://blog.ionelmc.ro/2014/05/25/python-packaging/#the-structure).
+
+There are sample config files and startup scripts under `etc` and `scripts`, and
+some minor docs under `doc`. All three are out of date. Don't trust them.
+
+There is a makefile available for convenience. The default recipe builds a
+wheel.
 
 ## Configuration
 
@@ -59,7 +84,6 @@ Python:
 * WebOb
 * Gunicorn
 * Pymongo
-* [Rse-Util][2] (formerly RaxPy)
 
 ## Reference Stack
 
