@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 # It's annoying to track dependencies inline with install_requires
 dependencies = [
-    "eom>=0.8.0",
+    "eom>=0.8.2",
     "pymongo<3",
     "webob",
 ]
@@ -16,7 +16,11 @@ setup(
     classifiers=["Private :: Do Not Upload"],
     maintainer="ATL Devops",
     maintainer_email="devops.atl@lists.rackspace.com",
-    packages=find_packages(exclude=['tests*', 'rse/tests']),
+    # The exclude below is a bit of prophylactic. If someone puts a tests dir
+    # under src in future, it won't get included in the package (note: don't do
+    # that).
+    packages=find_packages("src", exclude=['tests*', 'rse/tests']),
+    package_dir={'': "src"},
     install_requires=dependencies,
     tests_require=['tox'],
     zip_safe=True,
