@@ -16,7 +16,10 @@ setup(
     classifiers=["Private :: Do Not Upload"],
     maintainer="ATL Devops",
     maintainer_email="devops.atl@lists.rackspace.com",
-    packages=find_packages("src"),
+    # The exclude below is a bit of prophylactic. If someone puts a tests dir
+    # under src in future, it won't get included in the package (note: don't do
+    # that).
+    packages=find_packages("src", exclude=['tests*', 'rse/tests']),
     package_dir={'': "src"},
     install_requires=dependencies,
     tests_require=['tox'],
