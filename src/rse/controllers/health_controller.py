@@ -13,8 +13,8 @@ import json
 
 import pymongo
 
-from rse.rax.http import exceptions
-from rse.rax.http import rawr
+from rax.http import exceptions
+from rax.http import rawr
 
 
 def str_utf8(instr):
@@ -75,11 +75,12 @@ class HealthController(rawr.Controller):
             try:
                 # dbstats is in JSON format. Retrieve individual item like
                 # dbstats['globalLock']['currentQueue']
-                dbstats = self.mongo_db.server_info()
+                dbstats = self.mongo_db.command("serverStatus")
 
                 # Collection stats is in JSON format. docu on stat items:
                 # http://www.mongodb.org/display/DOCS/collStats+Command
-                collstats_events = self.mongo_db.rse.command("collstats", "events")
+                collstats_events = self.mongo_db.command(
+                    {"collStats": "events"})
 
                 max_event = self.mongo_db.events.find_one(
                     sort=[('created_at', pymongo.ASCENDING)])

@@ -12,7 +12,8 @@ import re
 
 class Shared:
     """Encapsulates performance counters and hard-coded options"""
-    def __init__(self, logger):
+    def __init__(self, logger, authtoken_cache):
+        self.authtoken_cache = authtoken_cache
         self.logger = logger
 
         self.id_totalcnt = 0

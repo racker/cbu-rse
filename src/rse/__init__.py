@@ -17,24 +17,22 @@ ulimit -n 4096 # or better
 sysctl -w net.core.somaxconn="4096" # or better
 """
 
-import argparse
-import logging
-import logging.handlers
 import os
-import os.path
 import sys
 import time
+import logging
+import logging.handlers
+import os.path
 import ConfigParser
 
-from eom import auth
-from eom import bastion
-from oslo_config import cfg
 import pymongo
-from rse.rax.http import rawr
+import moecache
 
-from rse.controllers import shared
-from rse.controllers import health_controller
-from rse.controllers import main_controller
+from rax.http import rawr
+
+from controllers import shared
+from controllers import health_controller
+from controllers import main_controller
 
 
 class RseApplication(rawr.Rawr):
@@ -47,13 +45,13 @@ class RseApplication(rawr.Rawr):
         dir_path = os.path.dirname(os.path.abspath(__file__))
         local_config_path = os.path.join(dir_path, 'rse.conf')
         global_config_path = '/etc/rse.conf'
-        global_config_dir_path = '/etc/rse/rse.conf'
         default_config_path = os.path.join(dir_path, 'rse.default.conf')
 
         # Parse options
         config = ConfigParser.ConfigParser(
             defaults={
                 'timeout': '5',
+                'authtoken-prefix': '',
                 'replica-set': '[none]',
                 'filelog': 'yes',
                 'console': 'no',
@@ -68,8 +66,6 @@ class RseApplication(rawr.Rawr):
             config.read(local_config_path)
         elif os.path.exists(global_config_path):
             config.read(global_config_path)
-        elif os.path.exists(global_config_dir_path):
-            config.read(global_config_dir_path)
 
         # Add the log message handler to the logger
         # Set up a specific logger with our desired output level
@@ -106,6 +102,25 @@ class RseApplication(rawr.Rawr):
             handler.setFormatter(formatter)
             logger.addHandler(handler)
 
+        # FastCache for Auth Token
+        authtoken_prefix = config.get('authcache', 'authtoken-prefix')
+        token_hashing_threshold = config.getint(
+            'authcache',
+            'token_hashing_threshold'
+        )
+        memcached_shards = [
+            (host, int(port))
+            for host, port in [
+                addr.split(':') for addr in config.get(
+                    'authcache',
+                    'memcached-shards'
+                ).split(',')
+            ]
+        ]
+        memcached_timeout = config.getint('authcache', 'memcached-timeout')
+        authtoken_cache = moecache.Client(memcached_shards,
+                                          timeout=memcached_timeout)
+
         # Connnect to MongoDB
         mongo_db, mongo_db_master = self.init_database(logger, config)
 
@@ -113,7 +128,7 @@ class RseApplication(rawr.Rawr):
         test_mode = config.getboolean('rse', 'test')
 
         # Setup routes
-        shared_controller = shared.Shared(logger)
+        shared_controller = shared.Shared(logger, authtoken_cache)
 
         health_options = dict(shared=shared_controller,
                               mongo_db=mongo_db_master,
@@ -126,6 +141,8 @@ class RseApplication(rawr.Rawr):
 
         main_options = dict(shared=shared_controller,
                             mongo_db=mongo_db,
+                            authtoken_prefix=authtoken_prefix,
+                            token_hashing_threshold=token_hashing_threshold,
                             test_mode=test_mode)
         self.add_route(r"/.+", main_controller.MainController, main_options)
 
@@ -135,21 +152,19 @@ class RseApplication(rawr.Rawr):
         logger.info("Initializing connection to mongodb.")
 
         event_ttl = config.getint('rse', 'event-ttl')
-        mongo_uri = config.get('mongodb', 'uri')
-        db_name = config.get('mongodb', 'database')
-        use_ssl = config.getboolean('mongodb', 'use_ssl')
 
         db_connections_ok = False
-        for _ in range(10):
+        for i in range(10):
             try:
                 # Master instance connection for the health checker
                 logger.debug("Establishing db health check connection.")
-                connection_master = pymongo.MongoClient(
-                    mongo_uri,
-                    read_preference=pymongo.ReadPreference.PRIMARY,
-                    ssl=use_ssl
+                connection_master = pymongo.Connection(
+                    config.get('mongodb', 'uri'),
+                    read_preference=pymongo.ReadPreference.PRIMARY
                 )
-                mongo_db_master = connection_master[db_name]
+                mongo_db_master = connection_master[
+                    config.get('mongodb', 'database')
+                ]
 
                 # General connection for regular requests
                 # Note: Use one global connection to the DB across all handlers
@@ -157,18 +172,16 @@ class RseApplication(rawr.Rawr):
                 logger.debug("Establishing replica set connection.")
                 replica_set = config.get('mongodb', 'replica-set')
                 if replica_set == '[none]':
-                    connection = pymongo.MongoClient(
-                        mongo_uri,
-                        read_preference=pymongo.ReadPreference.SECONDARY,
-                        ssl=use_ssl
+                    connection = pymongo.Connection(
+                        config.get('mongodb', 'uri'),
+                        read_preference=pymongo.ReadPreference.SECONDARY
                     )
                 else:
                     try:
-                        connection = pymongo.MongoClient(
-                            mongo_uri,
+                        connection = pymongo.ReplicaSetConnection(
+                            config.get('mongodb', 'uri'),
                             replicaSet=replica_set,
-                            read_preference=pymongo.ReadPreference.SECONDARY,
-                            ssl=use_ssl
+                            read_preference=pymongo.ReadPreference.SECONDARY
                         )
                     except Exception as ex:
                         logger.error(
@@ -176,8 +189,9 @@ class RseApplication(rawr.Rawr):
                         )
                         sys.exit(1)
 
-                mongo_db = connection[db_name]
-                mongo_db_master = connection_master[db_name]
+                mongo_db = connection[config.get('mongodb', 'database')]
+                mongo_db_master = connection_master[
+                    config.get('mongodb', 'database')]
                 db_connections_ok = True
                 break
 
@@ -202,7 +216,7 @@ class RseApplication(rawr.Rawr):
         # Initialize events collection
         logger.info("Initializing events collection.")
         db_events_collection_ok = False
-        for _ in range(10):
+        for i in range(10):
             try:
                 # Order matters - want exact matches first, and ones that will
                 # pare down the result set the fastest
@@ -264,18 +278,13 @@ class RseApplication(rawr.Rawr):
 
         return (mongo_db, mongo_db_master)
 
-def instantiate():
-    """ Initialize a wsgi callable for use by gunicorn """
+# WSGI app
+app = RseApplication()
 
-    rse_app = RseApplication()
+# If running this script directly, startup a basic WSGI server for testing
+if __name__ == "__main__":
+    from wsgiref.simple_server import make_server
 
-    rse_conf = cfg.CONF
-    rse_conf(project='rse', args=[])
-    auth.configure(rse_conf)
-    bastion.configure(rse_conf)
-
-    auth_redis_client = auth.get_auth_redis_client()
-
-    auth_app = auth.wrap(rse_app, auth_redis_client)
-    app = bastion.wrap(rse_app, auth_app)
-    return app
+    httpd = make_server('', 8000, app)
+    print "Serving on port 8000..."
+    httpd.serve_forever()
