@@ -4,6 +4,7 @@
 id_rsa*
 .tox
 .cache
+.pytest_cache
 rse.egg-info/
 venv
 build
