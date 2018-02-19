@@ -1,6 +1,6 @@
 # This is just for convenience.
 
-.PHONY : all wheel venv clean
+.PHONY : all wheel venv clean rebuild
 
 pyfiles = $(shell find src -type f -name '*.py')
 # Probably breaks if the version is an alpha/beta or something.
@@ -18,3 +18,5 @@ venv : wheel
 
 clean :
 	-rm -rf build dist venv *.egg-info src/*.egg-info *.pyc .tox .pytest_cache
+
+rebuild : clean all
