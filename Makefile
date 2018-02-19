@@ -17,4 +17,4 @@ venv : wheel
 	virtualenv venv; . venv/bin/activate; pip install dist/$(wheel); deactivate
 
 clean :
-	-rm -rf build dist venv *.egg-info src/*.egg-info *.pyc
+	-rm -rf build dist venv *.egg-info src/*.egg-info *.pyc .tox .pytest_cache
