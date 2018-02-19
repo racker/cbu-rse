@@ -278,13 +278,9 @@ class RseApplication(rawr.Rawr):
 
         return (mongo_db, mongo_db_master)
 
-# WSGI app
-app = RseApplication()
+def instantiate():
+    """ Initialize a wsgi callable for use by gunicorn """
 
-# If running this script directly, startup a basic WSGI server for testing
-if __name__ == "__main__":
-    from wsgiref.simple_server import make_server
-
-    httpd = make_server('', 8000, app)
-    print "Serving on port 8000..."
-    httpd.serve_forever()
+    # FIXME: This almost certainly doesn't work as is.
+    app = RseApplication()
+    return app

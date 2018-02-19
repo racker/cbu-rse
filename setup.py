@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 # It's annoying to track dependencies inline with install_requires
 dependencies = [
-    "eom>=0.8.2",
+    "moecache>=1,<2",
     "pymongo<3",
     "webob",
 ]
