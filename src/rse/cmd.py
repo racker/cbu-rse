@@ -5,7 +5,7 @@ from wsgiref.simple_server import make_server
 import rse
 
 # If running rse directly, startup a basic WSGI server for testing
-def main()
+def main():
     app = rse.instantiate()
 
     httpd = make_server('', 8000, app)
