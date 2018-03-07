@@ -6,7 +6,7 @@ dependencies = [
     "pymongo<3",
     "webob",
 ]
-version = "1.3.0"  # NOTE: Makefile greps for this line.
+version = "1.4.0"  # NOTE: Makefile greps for this line.
 
 setup(
     name="rse",
