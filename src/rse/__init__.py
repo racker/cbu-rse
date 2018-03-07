@@ -38,14 +38,8 @@ from controllers import main_controller
 class RseApplication(rawr.Rawr):
     """RSE app for encapsulating initialization"""
 
-    def __init__(self):
+    def __init__(self, conf=None):
         rawr.Rawr.__init__(self)
-
-        # Initialize config paths
-        dir_path = os.path.dirname(os.path.abspath(__file__))
-        local_config_path = os.path.join(dir_path, 'rse.conf')
-        global_config_path = '/etc/rse.conf'
-        default_config_path = os.path.join(dir_path, 'rse.default.conf')
 
         # Parse options
         config = ConfigParser.ConfigParser(
@@ -53,19 +47,19 @@ class RseApplication(rawr.Rawr):
                 'timeout': '5',
                 'authtoken-prefix': '',
                 'replica-set': '[none]',
-                'filelog': 'yes',
-                'console': 'no',
+                'filelog': 'no',
+                'console': 'yes',
                 'syslog': 'no',
                 'event-ttl': '120'
             }
         )
 
-        config.read(default_config_path)
-
-        if os.path.exists(local_config_path):
-            config.read(local_config_path)
-        elif os.path.exists(global_config_path):
-            config.read(global_config_path)
+        conf_paths = [
+                '/etc/rse/rse.conf',
+                os.path.expanduser('~/.config/rse/rse.conf'),
+                conf,
+                ]
+        config.read(filter(None, conf_paths))
 
         # Add the log message handler to the logger
         # Set up a specific logger with our desired output level
@@ -277,10 +271,3 @@ class RseApplication(rawr.Rawr):
             sys.exit(1)
 
         return (mongo_db, mongo_db_master)
-
-def instantiate():
-    """ Initialize a wsgi callable for use by gunicorn """
-
-    # FIXME: This almost certainly doesn't work as is.
-    app = RseApplication()
-    return app

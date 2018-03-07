@@ -4,4 +4,4 @@
 
 import rse
 
-app = rse.instantiate()
+app = rse.RseApplication()
