@@ -40,36 +40,22 @@ from rse.controllers import main_controller
 class RseApplication(rawr.Rawr):
     """RSE app for encapsulating initialization"""
 
-    def __init__(self):
+    def __init__(self, cfg_files=None):
         rawr.Rawr.__init__(self)
-
-        # Initialize config paths
-        dir_path = os.path.dirname(os.path.abspath(__file__))
-        local_config_path = os.path.join(dir_path, 'rse.conf')
-        global_config_path = '/etc/rse.conf'
-        global_config_dir_path = '/etc/rse/rse.conf'
-        default_config_path = os.path.join(dir_path, 'rse.default.conf')
 
         # Parse options
         config = ConfigParser.ConfigParser(
             defaults={
                 'timeout': '5',
                 'replica-set': '[none]',
-                'filelog': 'yes',
-                'console': 'no',
+                'filelog': 'no',
+                'console': 'yes',
                 'syslog': 'no',
                 'event-ttl': '120'
             }
         )
 
-        config.read(default_config_path)
-
-        if os.path.exists(local_config_path):
-            config.read(local_config_path)
-        elif os.path.exists(global_config_path):
-            config.read(global_config_path)
-        elif os.path.exists(global_config_dir_path):
-            config.read(global_config_dir_path)
+        config.read(os.path.expanduser(f) for f in cfg_files)
 
         # Add the log message handler to the logger
         # Set up a specific logger with our desired output level
@@ -267,15 +253,26 @@ class RseApplication(rawr.Rawr):
 def instantiate():
     """ Initialize a wsgi callable for use by gunicorn """
 
-    rse_app = RseApplication()
+    confs = ['/etc/rse/rse.conf',
+             '~/.config/rse/rse.conf']
 
-    rse_conf = cfg.CONF
-    rse_conf(project='rse', args=[])
-    auth.configure(rse_conf)
-    bastion.configure(rse_conf)
+    try:
+        cfg.CONF(default_config_files=confs)
+    except cfg.ConfigFilesNotFoundError:
+        # This gets generated if *any* file isn't found, when what we actually
+        # want is for at least one to be found.
+        if cfg.CONF.config_file:
+            pass
 
+    rse_app = RseApplication(cfg.CONF.config_file)
+
+    auth.configure(cfg.CONF)
+    bastion.configure(cfg.CONF)
+
+    # This gets confusing.
+    rse_app = RseApplication(cfg.CONF.config_file)
     auth_redis_client = auth.get_auth_redis_client()
-
     auth_app = auth.wrap(rse_app, auth_redis_client)
     app = bastion.wrap(rse_app, auth_app)
+
     return app
