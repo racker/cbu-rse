@@ -28,11 +28,11 @@ import ConfigParser
 import pymongo
 import moecache
 
-from rax.http import rawr
+from .rax.http import rawr
 
-from controllers import shared
-from controllers import health_controller
-from controllers import main_controller
+from .controllers import shared
+from .controllers import health_controller
+from .controllers import main_controller
 
 
 class RseApplication(rawr.Rawr):

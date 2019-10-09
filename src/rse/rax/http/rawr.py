@@ -15,7 +15,7 @@ Requires Python 2.7 and webob
 import httplib
 import re
 import webob
-from exceptions import *
+from .exceptions import *
 
 class Rawr:
   """Responsible for routing (set in initialization as a dictionary)"""
