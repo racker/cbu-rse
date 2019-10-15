@@ -1,0 +1,16 @@
+# Conf file for rse running in docker
+
+mongodb:
+  uri: mongodb://mongo/
+
+memcached:
+  servers:
+    - memcache
+
+routes:
+  main:
+    args:
+      test_mode: true
+  health:
+    args:
+      test_mode: true
