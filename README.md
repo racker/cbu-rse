@@ -16,36 +16,21 @@ never miss an event due to clock drift or ID collisions, while at the
 same time clients do not have to keep a sliding window of previously
 received events to detect duplicates.
 
-## Quick Start
+## Installation
 
-### Local install
-
-1. Install MongoDB 2.2.
 1. Install Python 2.7. On Windows, you'll have to manually add it to
-   your path (probably c:\python27\bin).
-1. `pip install pymongo webob`
-1. Clone rse
-1. Cd into the directory, then run: `init_repo.sh` to download the
-   `rse-util` submodule.
-1. Cd into the `rse-util` sub-directory, then run: `pip install -e .`
-1. Return to the parent directory, then run: `ptyno rse.py`
-1. If that doesn't work, check `rse.log` for errors.
+   your path (probably `c:\python27\bin`).
+1. Clone this repository.
+1. `pip install .`
 
-#### Note
+That's it. When developing, you may want to add pip's `--editable`
+switch.
 
-One can also clonse the rse-util repository
-(https://github.com/rackerlabs/rse-util) separately and install is as
-opposed to using `init_repo.sh` to utilize `git submodule`s.
+### Docker Installation
 
-### Docker install
-
-1. `cd rse`
-1. Use ssh-keygen or copy existing ssh keys into the `rse` folder (used
-   to perform git checkout of rse-util)
-1. Run `./init_repo.sh` in order to initialize the `git submodule` for
-   `rse-util`.
-1. docker-compose build
-1. docker-compose up -d
+1. Clone this repository.
+1. `docker-compose build`
+1. `docker-compose up`
 
 ## Features
 
@@ -65,32 +50,34 @@ opposed to using `init_repo.sh` to utilize `git submodule`s.
 
 ## Configuration
 
-```
-cp rse.default.conf /etc/rse.conf
-vim /etc/rse.conf
-```
+RSE has two config files, `rse.yaml` and `logging.yaml`. The defaults
+for both are visible under `src/rse/config`, along with suggested usage.
+On startup, RSE looks for them at the following locations:
 
-## RSE Dependencies
+- `$RSE_CONF_DIR`, if set.
+- `~/.config/rse`
+- `/etc/rse`
 
-* Python 2 (2.6 or better)
-* WebOb
-* Gunicorn
-* Pymongo
-* [RseUtil][2] (formerly RaxPy)
+The first one found is used. Values in the config files override the
+defaults. You do not need to re-provide the defaults. Hence most RSE
+deployments can have very small conf files.
 
-## Reference Stack
+## Dependencies
 
-* Nginx
-* Gunicorn => rse.py
-* MongoDB
-* Linux (CentOS, RHEL or Ubuntu)
+Python is the only system-level dependency. All others are brought in
+via pip during installation. See `setup.py` for the complete list.
+Currently only Python 2.7 is supported.
 
-## Coming soon
+RSE relies on `memcached` (for auth token verification) and `mongodb`
+(for event storage).
 
-* Modular design (storage driver, auth, etc.)
-* Improved scale-out for writes
-* Transactional semantics (to support job queues)
-* ...and much more!
+We suggest `gunicorn` as a WSGI server. RSE is capable of self-running,
+but it's not recommended in production.
+
+`nginx` or a similar web server should run in front. There's a sample
+configuration under `docker/nginx.rse.conf`.
+
+RSE is typically deployed on Ubuntu, but theoretically can run on any
+system with an appropriate Python.
 
 [1]:http://asktog.com/basics/firstPrinciples.html#latencyReduction
-[2]:https://github.com/rackerlabs/rse-util
