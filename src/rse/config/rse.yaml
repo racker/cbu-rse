@@ -1,0 +1,39 @@
+# Default configuration data. This file doubles as documentation of the
+# available config settings.
+#
+# Values here are overridden by values in /etc/rse/rse.conf.
+# *Most* of them can be left as-is, but some must be set per-deployment.
+# See the inline comments for details. If adding new options, be sure
+# to check proper override behavior; config.py may have bugs.
+#
+# The default settings are based on a standalone server, with mongo and
+# memcache both running locally in a default configuration. This is a
+# common testing setup.
+
+mongodb:
+  uri: mongodb://localhost
+  replica-set: "[none]"
+  database: rse
+  event-ttl: 120
+
+memcached:
+  timeout: 5
+  servers:
+    - localhost:11211
+
+routes:
+  # Note: Right now route priority is alphabetical. This may break if we
+  # add routes in the future. There are no plans to do so at the present
+  # time, so it's fine for now.
+  health:
+    pattern: "/health$"
+    controller: HealthController
+    args:
+      test_mode: false
+  main:
+    pattern: "/.+"
+    controller: MainController
+    args:
+      test_mode: false
+      authtoken_prefix: ''
+      token_hashing_threshold: 250

@@ -17,135 +17,64 @@ ulimit -n 4096 # or better
 sysctl -w net.core.somaxconn="4096" # or better
 """
 
-import os
 import sys
 import time
 import logging
 import logging.handlers
-import os.path
-import ConfigParser
 
 import pymongo
 import moecache
 
 from .rax.http import rawr
 
+from . import config
+from . import controllers
+from . import util
 from .controllers import shared
 from .controllers import health_controller
-from .controllers import main_controller
+
+logger = logging.getLogger(__name__)
 
 
 class RseApplication(rawr.Rawr):
     """RSE app for encapsulating initialization"""
 
-    def __init__(self, conf=None):
+    def __init__(self, conf):
         rawr.Rawr.__init__(self)
 
-        # Parse options
-        config = ConfigParser.ConfigParser(
-            defaults={
-                'timeout': '5',
-                'authtoken-prefix': '',
-                'replica-set': '[none]',
-                'filelog': 'yes',
-                'console': 'no',
-                'syslog': 'no',
-                'event-ttl': '120'
-            }
-        )
-
-        conf_paths = [
-                '/etc/rse/rse.conf',
-                os.path.expanduser('~/.config/rse/rse.conf'),
-                conf,
-                ]
-        config.read(filter(None, conf_paths))
-
-        # Add the log message handler to the logger
-        # Set up a specific logger with our desired output level
-        logger = logging.getLogger(__name__)
-        logger.setLevel(
-            logging.DEBUG
-            if config.get('logging', 'verbose')
-            else logging.WARNING
-        )
-
-        formatter = logging.Formatter(
-            '%(asctime)s - RSE - PID %(process)d - %(funcName)s:%(lineno)d - '
-            '%(levelname)s - %(message)s'
-        )
-
-        if config.getboolean('logging', 'console'):
-            handler = logging.StreamHandler()
-            handler.setFormatter(formatter)
-            logger.addHandler(handler)
-
-        if config.getboolean('logging', 'filelog'):
-            handler = logging.handlers.RotatingFileHandler(
-                config.get('logging', 'filelog-path'),
-                maxBytes=5 * 1024 * 1024,
-                backupCount=5
-            )
-            handler.setFormatter(formatter)
-            logger.addHandler(handler)
-
-        if config.getboolean('logging', 'syslog'):
-            handler = logging.handlers.SysLogHandler(
-                address=config.get('logging', 'syslog-address')
-            )
-            handler.setFormatter(formatter)
-            logger.addHandler(handler)
+        # Do any necessary conversions on the incoming configuration
+        def split_mc_nodes(nodes):
+            return [util.splitport(n, 11211) for n in nodes]
+        conf_converters = {'memcached:servers': split_mc_nodes}
+        config.process(conf, conf_converters)
 
         # FastCache for Auth Token
-        authtoken_prefix = config.get('authcache', 'authtoken-prefix')
-        token_hashing_threshold = config.getint(
-            'authcache',
-            'token_hashing_threshold'
-        )
-        memcached_shards = [
-            (host, int(port))
-            for host, port in [
-                addr.split(':') for addr in config.get(
-                    'authcache',
-                    'memcached-shards'
-                ).split(',')
-            ]
-        ]
-        memcached_timeout = config.getint('authcache', 'memcached-timeout')
-        authtoken_cache = moecache.Client(memcached_shards,
-                                          timeout=memcached_timeout)
+        authtoken_cache = moecache.Client(**conf['memcached'])
 
         # Connnect to MongoDB
-        mongo_db, mongo_db_master = self.init_database(logger, config)
-
-        # Get auth requirements
-        test_mode = config.getboolean('rse', 'test')
+        mongo_db, mongo_db_master = self.init_database(logger, conf)
 
         # Setup routes
         shared_controller = shared.Shared(logger, authtoken_cache)
-
-        health_options = dict(shared=shared_controller,
-                              mongo_db=mongo_db_master,
-                              test_mode=test_mode)
-        self.add_route(
-            r"/health$",
-            health_controller.HealthController,
-            health_options
-        )
-
-        main_options = dict(shared=shared_controller,
-                            mongo_db=mongo_db,
-                            authtoken_prefix=authtoken_prefix,
-                            token_hashing_threshold=token_hashing_threshold,
-                            test_mode=test_mode)
-        self.add_route(r"/.+", main_controller.MainController, main_options)
-
+        for routeid, settings in sorted(conf['routes'].items()):
+            logger.info("Adding route: %s", routeid)
+            pattern = settings['pattern']
+            controller = getattr(controllers, settings['controller'])
+            kwargs = dict(shared=shared_controller,
+                          mongo_db=mongo_db_master,
+                          **settings['args'])
+            self.add_route(pattern, controller, kwargs)
         logger.info("RSE Initialization completed.")
 
-    def init_database(self, logger, config):
+    def init_database(self, logger, conf):
         logger.info("Initializing connection to mongodb.")
 
-        event_ttl = config.getint('rse', 'event-ttl')
+        uri = conf['mongodb']['uri']
+        database = conf['mongodb']['database']
+        replica_set = conf['mongodb']['replica-set']
+        event_ttl = conf['mongodb']['event-ttl']
+
+        logger.info("Connecting to mongodb:%s:%s", uri, database)
 
         db_connections_ok = False
         for i in range(10):
@@ -153,27 +82,24 @@ class RseApplication(rawr.Rawr):
                 # Master instance connection for the health checker
                 logger.debug("Establishing db health check connection.")
                 connection_master = pymongo.Connection(
-                    config.get('mongodb', 'uri'),
+                    uri,
                     read_preference=pymongo.ReadPreference.PRIMARY
                 )
-                mongo_db_master = connection_master[
-                    config.get('mongodb', 'database')
-                ]
+                mongo_db_master = connection_master[database]
 
                 # General connection for regular requests
                 # Note: Use one global connection to the DB across all handlers
                 # (pymongo manages its own connection pool)
                 logger.debug("Establishing replica set connection.")
-                replica_set = config.get('mongodb', 'replica-set')
                 if replica_set == '[none]':
                     connection = pymongo.Connection(
-                        config.get('mongodb', 'uri'),
+                        uri,
                         read_preference=pymongo.ReadPreference.SECONDARY
                     )
                 else:
                     try:
                         connection = pymongo.ReplicaSetConnection(
-                            config.get('mongodb', 'uri'),
+                            uri,
                             replicaSet=replica_set,
                             read_preference=pymongo.ReadPreference.SECONDARY
                         )
@@ -183,9 +109,8 @@ class RseApplication(rawr.Rawr):
                         )
                         sys.exit(1)
 
-                mongo_db = connection[config.get('mongodb', 'database')]
-                mongo_db_master = connection_master[
-                    config.get('mongodb', 'database')]
+                mongo_db = connection[database]
+                mongo_db_master = connection_master[database]
                 db_connections_ok = True
                 break
 

@@ -1,40 +1,32 @@
+# RSE local dev testing setup
+
 FROM ubuntu:latest
-MAINTAINER John Heatherington <john.heatherington@rackspace.com>
 
-# Update packages
-RUN apt-get -qq update
-RUN apt-get -qq upgrade
+# Install required APT packages. RSE looks at localhost for
+# mongo/memcache by default, so keeping them in the same container
+# simplifies configuration.
+#
+# The loop is there to deal with intermittent network failures that
+# would otherwise break this step. Yes, it's ugly. Sorry.
 
-# Update packages
-RUN apt-get install -y \
-    curl \
-    git-core \
+RUN apt-get update && \
+    until apt-get install -y \
     python-dev \
     python-pip \
     python-setuptools \
-    telnet
+    memcached \
+    mongodb \
+    nginx \
+    ; do sleep 2; done
 
-# Install dependencies
-RUN pip install -U pip
-RUN pip install -U \
-    blist \
-    gevent \
-    gunicorn \
-    moecache \
-    pymongo==2.4 \
-    webob
+# Install RSE
+ADD . /root/rse
+WORKDIR /root/rse
+RUN pip install .
 
-# rse-util
-ADD ./rse-util /home/rse-util
-RUN pip install -e /home/rse-util
+# Configure nginx
+COPY ./docker/nginx.rse.conf /etc/nginx/sites-enabled/default
 
-# rse
-ADD . /home/rse
-
-# rse configurations
-ADD rse.docker.conf /etc/rse.conf
-
+WORKDIR /root
 EXPOSE 8000
-
-WORKDIR /home/rse
-CMD ["gunicorn", "rse:app", "-b", "0.0.0.0:8000", "--log-file", "-", "--log-level", "debug"]
+CMD service nginx restart && rse

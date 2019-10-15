@@ -11,6 +11,10 @@ $Date$  <=== populated-by-subversion
 RSE utility functions
 """
 import time
+import logging
+import logging.config
+
+from . import config
 
 
 def time_id(offset_sec=0):
@@ -20,3 +24,18 @@ def time_id(offset_sec=0):
     # Convert floating point timestamp to a long with plenty of headroom.
     # Note: 1302000000 is an arbitrary epoch/offset used to free up some bits
     return long((time.time() - 1302000000 + offset_sec) * 100000)
+
+
+def splitport(nodestring, defaultport):
+    """ Turn host strings into server/port tuples"""
+    try:
+        host, port = nodestring.split(':')
+    except ValueError:  # Produced when no :port is specified
+        host, port = nodestring, defaultport
+    return (host, int(port))
+
+
+def initlog(path=None):
+    """ Set up logging """
+    logconf = config.load('logging.yaml', path)
+    logging.config.dictConfig(logconf)

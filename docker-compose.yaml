@@ -1,0 +1,24 @@
+rse:
+    build: .
+    dockerfile: docker/Dockerfile
+    environment:
+      - RSE_CONF_DIR=/root/rse/docker
+    links:
+        - memcache
+        - mongo
+    ports:
+        - 8000:80
+mongo:
+    # FIXME: obsolete mongo needs updating, but causes issues with
+    # verbose healthcheck right now. Maybe other stuff too.
+    image: mongo:2.4
+    command: --smallfiles
+    ports:
+        - 27017:27017
+        - 27018:27018
+        - 27019:27019
+        - 28017:28017
+memcache:
+    image: memcached
+    ports:
+        - 11211:11211
