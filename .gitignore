@@ -1,3 +1,9 @@
 *.pyc
 *.log
 id_rsa*
+*.egg-info
+.tox
+build
+dist
+.eggs
+version.py

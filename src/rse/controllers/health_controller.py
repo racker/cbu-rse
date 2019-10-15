@@ -13,8 +13,8 @@ import json
 
 import pymongo
 
-from rax.http import exceptions
-from rax.http import rawr
+from ..rax.http import exceptions
+from ..rax.http import rawr
 
 
 def str_utf8(instr):

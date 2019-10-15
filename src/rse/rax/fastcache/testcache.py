@@ -6,7 +6,7 @@ Fastcache unit tests
 
 import unittest
 from time import sleep, time
-from fastcache import FastCache
+from .fastcache import FastCache
 from random import random
 
 
