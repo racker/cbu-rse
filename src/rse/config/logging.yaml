@@ -1,0 +1,43 @@
+# Default logging configuration
+#
+# This is suitable for running standalone. By default it places logs
+# under /var/log/rse, and sends abbreviated ones to stderr. Default
+# loglevel is INFO.
+#
+# If running under gunicorn, you should probably log to syslog instead
+# -- python doesn't technically support multiple processes writing to
+# the same log file. A convenience syslog handler is included as an
+# example
+
+version: 1
+root:
+  level: INFO
+  handlers:
+    - console
+    - file
+handlers:
+  file:
+    class: logging.handlers.WatchedFileHandler
+    formatter: full
+    filename: /var/log/rse/rse.log
+  console:
+    class: logging.StreamHandler
+    formatter: brief
+    stream: ext://sys.stderr
+  syslog:
+    class: logging.handlers.SysLogHandler
+    formatter: full
+    facility: LOG_USER
+formatters:
+  full:
+    # [timestamp].[milsecs] [level] [module] [line] [message]
+    format: "%(asctime)s.%(msecs)03d\t%(levelname)s\t%(module)s:%(lineno)d\t%(message)s"
+    datefmt: '%Y-%m-%dT%H:%M:%S'
+  full_with_pid:
+    # As above, but with PID added, for multiple-worker deployments.
+    format: "%(asctime)s.%(msecs)03d\t%(process)d\t%(levelname)s\t%(module)s:%(lineno)d\t%(message)s"
+    datefmt: '%Y-%m-%dT%H:%M:%S'
+  brief:
+    # [timestamp] [level] [message]
+    format: "%(asctime)s\t%(levelname)s\t%(message)s"
+    datefmt: '%Y-%m-%dT%H:%M:%S'

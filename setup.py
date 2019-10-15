@@ -5,6 +5,7 @@ dependencies = [
     "moecache>=1,<2",
     "pymongo<3",
     "webob",
+    "pyyaml",
 ]
 
 scm_version_options = {
@@ -24,6 +25,7 @@ setup(
     # that).
     packages=find_packages("src", exclude=['tests*', 'rse/tests']),
     package_dir={'': "src"},
+    include_package_data=True,
     install_requires=dependencies,
     setup_requires=['setuptools_scm'],
     use_scm_version=scm_version_options,

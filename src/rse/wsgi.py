@@ -2,6 +2,10 @@
 #
 # `gunicorn rse.wsgi:app`
 
-import rse
+from rse import RseApplication
+from rse import config
+from rse.util import initlog
 
-app = rse.RseApplication()
+initlog()
+conf = config.load('rse.yaml')
+app = RseApplication(conf)
