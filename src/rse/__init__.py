@@ -76,7 +76,9 @@ class RseApplication(rawr.Rawr):
         replica_set = conf['mongodb']['replica-set']
         event_ttl = conf['mongodb']['event-ttl']
 
-        logger.info("Connecting to mongodb:%s:%s", uri, database)
+        logger.info("Connecting to mongodb")
+        logger.debug("mongodb URI: %s", uri)
+        logger.debug("mongodb DB : %s", database)
 
         db_connections_ok = False
         for i in range(10):
