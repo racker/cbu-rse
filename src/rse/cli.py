@@ -15,14 +15,12 @@ def main():
     rse.util.initlog()
     log.warn("Starting RSE in standalone mode!")
 
+    log.info("Loading configuration")
     path = sys.argv[1] if len(sys.argv) > 1 else None
-    log.info("Looking for conf files")
     conf = rse.config.load('rse.yaml', path)
-    log.info("Conf file loaded")
 
     log.info("Creating application")
     app = rse.RseApplication(conf)
-    log.info("Application created")
 
     log.info("Making server")
     httpd = make_server('', 8000, app)

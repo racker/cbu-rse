@@ -46,17 +46,17 @@ def load(name, path=None):
         dataset = yaml.safe_load(f.read())
 
     for path in paths:
-        logging.info("looking for %s at %s", name, path)
+        logging.debug("looking for %s at %s", name, path)
         try:
             with open(path) as conf_file:
                 logging.debug("found %s at %s", name, path)
                 overrides = yaml.safe_load(conf_file.read())
-            logging.info("loaded %s from %s", name, path)
+            logging.debug("loaded %s from %s", name, path)
             break
         except IOError:
             pass
     else:
-        msg = "couldn't find %s anywhere, using defaults"
+        msg = "couldn't find %s anywhere, using defaults only"
         logging.warn(msg, name)
         overrides = {}
 
