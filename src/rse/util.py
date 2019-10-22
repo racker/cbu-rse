@@ -41,7 +41,7 @@ def splitport(nodestring, defaultport):
 def initlog(path=None):
     """ Set up logging """
     logconf = config.load('logging.yaml', path)
-    logging.config.dictConfig(logconf, disable_existing_loggers=False)
+    logging.config.dictConfig(logconf)
     log.critical("LOGLEVEL ENABLED: CRITICAL")
     log.error("LOGLEVEL ENABLED: ERROR")
     log.warn("LOGLEVEL ENABLED: WARN")
