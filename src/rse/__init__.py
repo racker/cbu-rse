@@ -46,7 +46,7 @@ class RseApplication(rawr.Rawr):
         def split_mc_nodes(nodes):
             return [util.splitport(n, 11211) for n in nodes]
         conf_converters = {'memcached:servers': split_mc_nodes}
-        config.process(conf, conf_converters)
+        conf = config.process(conf, conf_converters)
 
         # FastCache for Auth Token
         authtoken_cache = moecache.Client(**conf['memcached'])
