@@ -24,8 +24,7 @@ def main():
 
     conf = rse.config.load('rse.yaml', args.conf)
     if args.dbgconf:
-        log.info("Dumping effective configuration, as requested.")
-        yaml.dump(conf, default_flow_style=False)
+        print yaml.dump(conf, default_flow_style=False)
         sys.exit()
 
     rse.util.initlog()
