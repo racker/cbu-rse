@@ -19,10 +19,17 @@ def main():
     parser.add_argument('--port', default=8000, help="listen port")
     parser.add_argument('--dbgconf', action='store_true',
                         help="print effective configuration and exit.")
+    parser.add_argument('-V', '--version', action='store_true',
+                        help="print version and exit")
     args = parser.parse_args()
 
 
     conf = rse.config.load('rse.yaml', args.conf)
+    if args.version:
+        from rse.version import version
+        print version
+        sys.exit()
+
     if args.dbgconf:
         print yaml.dump(conf, default_flow_style=False)
         sys.exit()
