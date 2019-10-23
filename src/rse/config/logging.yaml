@@ -42,3 +42,6 @@ formatters:
     # [timestamp] [level] [message]
     format: "%(asctime)s\t%(levelname)s\t%(message)s"
     datefmt: '%Y-%m-%dT%H:%M:%S'
+  brief_with_pid:
+    format: "%(asctime)s\t%(process)d\t%(levelname)s\t%(message)s"
+    datefmt: '%Y-%m-%dT%H:%M:%S'
