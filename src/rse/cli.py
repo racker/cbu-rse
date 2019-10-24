@@ -2,22 +2,47 @@
 
 import sys
 import logging
+import argparse
 
 from wsgiref.simple_server import make_server
 
 import rse
+import yaml
 
 
-# If running rse directly, startup a basic WSGI server for testing
+log = logging.getLogger(__name__)
+
 def main():
+    """ Start RSE standalone for testing """
+    parser = argparse.ArgumentParser(description="Really Simple Events")
+    parser.add_argument('--conf', help="override conf directory path")
+    parser.add_argument('--port', default=8000, help="listen port")
+    parser.add_argument('--dbgconf', action='store_true',
+                        help="print effective configuration and exit.")
+    parser.add_argument('-V', '--version', action='store_true',
+                        help="print version and exit")
+    args = parser.parse_args()
+
+
+    conf = rse.config.load('rse.yaml', args.conf)
+    if args.version:
+        from rse.version import version
+        print version
+        sys.exit()
+
+    if args.dbgconf:
+        print yaml.dump(conf, default_flow_style=False)
+        sys.exit()
+
     rse.util.initlog()
+    log.warn("Starting RSE in standalone mode!")
 
-    path = sys.argv[1] if len(sys.argv) > 1 else None
-    conf = rse.config.load('rse.yaml', path)
-
+    log.debug("Creating application")
     app = rse.RseApplication(conf)
-    httpd = make_server('', 8000, app)
-    logging.info("Serving on port 8000...")
+
+    log.debug("Making server")
+    httpd = make_server('', args.port, app)
+    log.info("Serving on port %s...", args.port)
     httpd.serve_forever()
 
 
