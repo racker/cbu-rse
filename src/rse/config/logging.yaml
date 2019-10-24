@@ -19,7 +19,7 @@ root:
 handlers:
   file:
     class: logging.handlers.WatchedFileHandler
-    formatter: full
+    formatter: std
     filename: /var/log/rse/rse.log
   console:
     class: logging.StreamHandler
@@ -27,18 +27,33 @@ handlers:
     stream: ext://sys.stderr
   syslog:
     class: logging.handlers.SysLogHandler
-    formatter: full
+    formatter: std
     facility: LOG_USER
 formatters:
+  # 'brief' is intended for the simplest useful output, suitable for
+  # viewing at the console. 'std' adds the logger name (typically
+  # __name__). 'full' adds the line number, which can be expensive,
+  # hence disabled by default. The PID variants are intended for use
+  # when running under gunicorn, so log messages from different workers
+  # can be distinguished.
+
+  brief:
+    format: "%(asctime)s\t%(levelname)s\t%(message)s"
+    datefmt: '%Y-%m-%dT%H:%M:%S'
+  std:
+    format: "%(asctime)s\t%(levelname)s\t%(name)s\t%(message)s"
+    datefmt: '%Y-%m-%dT%H:%M:%S'
   full:
-    # [timestamp].[milsecs] [level] [module] [line] [message]
-    format: "%(asctime)s.%(msecs)03d\t%(levelname)s\t%(module)s:%(lineno)d\t%(message)s"
+    format: "%(asctime)s.%(msecs)03d\t%(levelname)s\t%(name)s:%(lineno)d\t%(message)s"
+    datefmt: '%Y-%m-%dT%H:%M:%S'
+
+  brief_with_pid:
+    format: "%(asctime)s\t%(process)d\t%(levelname)s\t%(message)s"
+    datefmt: '%Y-%m-%dT%H:%M:%S'
+  std_with_pid:
+    format: "%(asctime)s\t%(levelname)s\t%(process)d\t%(name)s\t%(message)s"
     datefmt: '%Y-%m-%dT%H:%M:%S'
   full_with_pid:
     # As above, but with PID added, for multiple-worker deployments.
-    format: "%(asctime)s.%(msecs)03d\t%(process)d\t%(levelname)s\t%(module)s:%(lineno)d\t%(message)s"
-    datefmt: '%Y-%m-%dT%H:%M:%S'
-  brief:
-    # [timestamp] [level] [message]
-    format: "%(asctime)s\t%(levelname)s\t%(message)s"
+    format: "%(asctime)s.%(msecs)03d\t%(process)d\t%(levelname)s\t%(name)s:%(lineno)d\t%(message)s"
     datefmt: '%Y-%m-%dT%H:%M:%S'

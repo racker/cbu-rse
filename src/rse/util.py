@@ -17,6 +17,9 @@ import logging.config
 from . import config
 
 
+log = logging.getLogger(__name__)
+
+
 def time_id(offset_sec=0):
     """Returns a long ID based on the current POSIX time with (at least)
      microsecond precision"""
@@ -39,3 +42,8 @@ def initlog(path=None):
     """ Set up logging """
     logconf = config.load('logging.yaml', path)
     logging.config.dictConfig(logconf)
+    log.critical("LOGLEVEL ENABLED: CRITICAL")
+    log.error("LOGLEVEL ENABLED: ERROR")
+    log.warn("LOGLEVEL ENABLED: WARN")
+    log.info("LOGLEVEL ENABLED: INFO")
+    log.debug("LOGLEVEL ENABLED: DEBUG")

@@ -8,6 +8,7 @@ Health controller for Rackspace RSE Server.
 
 import datetime
 import time
+import logging
 
 import json
 
@@ -15,6 +16,8 @@ import pymongo
 
 from ..rax.http import exceptions
 from ..rax.http import rawr
+
+log = logging.getLogger(__name__)
 
 
 def str_utf8(instr):
@@ -50,12 +53,12 @@ class HealthController(rawr.Controller):
                 db_ok = True
                 break
             except pymongo.errors.AutoReconnect:
-                self.shared.logger.error(
+                log.error(
                     "AutoReconnect caught from events.count() in health "
                     "check. Retrying..."
                 )
             except Exception as ex:
-                self.shared.logger.error(
+                log.error(
                     'Could not count events collection: ' + str_utf8(ex))
                 break
 
@@ -126,7 +129,7 @@ class HealthController(rawr.Controller):
 
                 if db_test_duration > 1:
                     msg = "WARNING: DB is slow (%d seconds)" % db_test_duration
-                    self.shared.logger.warning(msg)
+                    log.warning(msg)
                     db_error_message = (msg)
 
                 if validate_db:
@@ -147,7 +150,7 @@ class HealthController(rawr.Controller):
                 break
 
             except pymongo.errors.AutoReconnect:
-                self.shared.logger.error(
+                log.error(
                     "AutoReconnect caught from stats query")
                 time.sleep(1)
 
@@ -338,12 +341,12 @@ class HealthController(rawr.Controller):
         elif self._basic_health_check():
             self.response.write("OK\n")
         else:
-            self.shared.logger.warning("Health check failed.")
+            log.warning("Health check failed.")
             raise exceptions.HttpError(503)
 
     def head(self):
         if self._basic_health_check():
             self.response.write("OK\n")
         else:
-            self.shared.logger.warning("Health check failed.")
+            log.warning("Health check failed.")
             raise exceptions.HttpError(503)

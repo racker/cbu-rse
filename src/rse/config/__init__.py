@@ -6,6 +6,8 @@ from os.path import join as pathjoin
 
 import yaml
 
+
+log = logging.getLogger(__name__)
 # Default conf search paths
 CONF_SEARCH_DIRS = [
         os.environ.get('RSE_CONF_DIR'),
@@ -41,22 +43,23 @@ def load(name, path=None):
 
     here = pathjoin(dirname(realpath(__file__)))
     defaults_path = pathjoin(here, name)
-    logging.debug("Loading %s defaults from %s", name, defaults_path)
+    log.debug("Loading %s defaults from %s", name, defaults_path)
     with open(defaults_path) as f:
         dataset = yaml.safe_load(f.read())
 
     for path in paths:
+        log.debug("looking for %s at %s", name, path)
         try:
             with open(path) as conf_file:
+                log.debug("found %s at %s", name, path)
                 overrides = yaml.safe_load(conf_file.read())
-            logging.info("loaded %s from %s", name, path)
+            log.debug("loaded %s from %s", name, path)
             break
         except IOError:
-            logging.warn("couldn't find %s at %s", name, path)
             pass
     else:
-        msg = "couldn't find %s anywhere, using defaults"
-        logging.warn(msg, name)
+        msg = "couldn't find %s anywhere, using defaults only"
+        log.warn(msg, name)
         overrides = {}
 
     merge(dataset, overrides)
@@ -117,7 +120,7 @@ def convert(dataset, keypath, converter, sep=":", replace=True):
 
     newval = converter(node)
     if replace:
-        logging.debug("conf conversion: %s -> %s", node, newval)
+        log.debug("conf conversion: %s -> %s", node, newval)
         parent[keys[-1]] = newval
 
     return newval

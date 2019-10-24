@@ -12,6 +12,7 @@ import hashlib
 import time
 import re
 import random
+import logging
 
 import pymongo
 
@@ -20,6 +21,9 @@ from . import json_validator
 
 from ..rax.http import exceptions
 from ..rax.http import rawr
+
+
+log = logging.getLogger(__name__)
 
 
 def str_utf8(instr):
@@ -74,13 +78,13 @@ class MainController(rawr.Controller):
         if not auth_token:
             if self.test_mode:
                 # Missing auth is OK in test mode
-                self.shared.logger.warning(
+                log.warning(
                     "TEST MODE: Bypassing token validation."
                 )
                 return
             else:
                 # Auth token required in live mode
-                self.shared.logger.error(
+                log.error(
                     "Missing X-Auth-Token header (required in live mode)."
                 )
                 raise exceptions.HttpUnauthorized()
@@ -98,7 +102,7 @@ class MainController(rawr.Controller):
             raise
 
         except Exception as ex:
-            self.shared.logger.error(str_utf8(ex))
+            log.error(str_utf8(ex))
             raise exceptions.HttpServiceUnavailable()
 
     def _is_safe_user_agent(self, user_agent):
@@ -119,7 +123,7 @@ class MainController(rawr.Controller):
             return user_agent[start_pos:end_pos]
         except:
             if self.test_mode:
-                self.shared.logger.warning(
+                log.warning(
                     "TEST MODE: Bypassing User-Agent validation"
                 )
                 return "550e8400-dead-beef-dead-446655440000"
@@ -257,7 +261,7 @@ class MainController(rawr.Controller):
                 time.sleep(backoff + jitter)
 
             except pymongo.errors.AutoReconnect:
-                self.shared.logger.error("AutoReconnect caught from insert")
+                log.error("AutoReconnect caught from insert")
                 raise
 
         return event_insert_succeeded
@@ -282,11 +286,11 @@ class MainController(rawr.Controller):
                 break
 
             except exceptions.HttpError as ex:
-                self.shared.logger.error(str_utf8(ex))
+                log.error(str_utf8(ex))
                 raise
 
             except pymongo.errors.AutoReconnect as ex:
-                self.shared.logger.error(
+                log.error(
                     "Retry %d of %d. Details: %s" % (
                         i,
                         num_retries,
@@ -340,7 +344,7 @@ class MainController(rawr.Controller):
                 break
 
             except pymongo.errors.AutoReconnect as ex:
-                self.shared.logger.error(
+                log.error(
                     "Retry %d of %d. Details: %s" % (
                         i,
                         num_retries,
@@ -355,7 +359,7 @@ class MainController(rawr.Controller):
                     time.sleep(0.5)
 
             except Exception as ex:
-                self.shared.logger.error(str_utf8(ex))
+                log.error(str_utf8(ex))
 
                 if i == num_retries - 1:  # Don't retry forever!
                     raise exceptions.HttpInternalServerError()

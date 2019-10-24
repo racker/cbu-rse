@@ -8,13 +8,15 @@ hard-coded options
 """
 
 import re
+import logging
+
+log = logging.getLogger(__name__)
 
 
 class Shared:
     """Encapsulates performance counters and hard-coded options"""
-    def __init__(self, logger, authtoken_cache, test_mode):
+    def __init__(self, authtoken_cache, test_mode):
         self.authtoken_cache = authtoken_cache
-        self.logger = logger
         self.test_mode = test_mode
 
         self.id_totalcnt = 0

@@ -9,8 +9,8 @@ from wsgiref.simple_server import make_server
 import rse
 import yaml
 
-
 log = logging.getLogger(__name__)
+
 
 def main():
     """ Start RSE standalone for testing """
