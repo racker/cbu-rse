@@ -32,11 +32,11 @@ class HealthController(rawr.Controller):
     """Provides web service health info"""
     """@todo Move this class into a separate file"""
 
-    def __init__(self, mongo_db, test_mode, shared):
+    def __init__(self, mongo_db, shared):
         self.mongo_db = mongo_db  # MongoDB database for storing events
         # MongoDB connection for storing events
         self.mongo_db_connection = mongo_db.connection
-        self.test_mode = test_mode  # If true, relax auth/uuid requirements
+        self.test_mode = shared.test_mode  # If true, relax auth/uuid requirements
         self.shared = shared  # Shared performance counters, logging, etc.
 
     def _basic_health_check(self):

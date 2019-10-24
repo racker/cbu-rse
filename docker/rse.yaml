@@ -7,10 +7,5 @@ memcached:
   servers:
     - memcache
 
-routes:
-  main:
-    args:
-      test_mode: true
-  health:
-    args:
-      test_mode: true
+shared:
+  test_mode: true

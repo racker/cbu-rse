@@ -41,13 +41,12 @@ class MainController(rawr.Controller):
         mongo_db,
         shared,
         authtoken_prefix,
-        token_hashing_threshold,
-        test_mode=False
+        token_hashing_threshold
     ):
         self.mongo_db = mongo_db  # MongoDB database for storing events
         self.authtoken_prefix = authtoken_prefix
         self.token_hashing_threshold = token_hashing_threshold
-        self.test_mode = test_mode  # If true, relax auth/uuid requirements
+        self.test_mode = shared.test_mode  # If true, relax auth/uuid requirements
         self.shared = shared  # Shared performance counters, logging, etc.
 
     def _format_key(self, auth_token):

@@ -55,7 +55,9 @@ class RseApplication(rawr.Rawr):
         mongo_db, mongo_db_master = self.init_database(logger, conf)
 
         # Setup routes
-        shared_controller = shared.Shared(logger, authtoken_cache)
+        shared_controller = shared.Shared(logger,
+                                          authtoken_cache,
+                                          **conf['shared'])
         for routeid, settings in sorted(conf['routes'].items()):
             logger.info("Adding route: %s", routeid)
             pattern = settings['pattern']

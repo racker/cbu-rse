@@ -21,6 +21,9 @@ memcached:
   servers:
     - localhost:11211
 
+shared:
+  test_mode: false
+
 routes:
   # Note: Right now route priority is alphabetical. This may break if we
   # add routes in the future. There are no plans to do so at the present
@@ -28,12 +31,10 @@ routes:
   health:
     pattern: "/health$"
     controller: HealthController
-    args:
-      test_mode: false
+    args: {}
   main:
     pattern: "/.+"
     controller: MainController
     args:
-      test_mode: false
       authtoken_prefix: ''
       token_hashing_threshold: 250
