@@ -50,6 +50,8 @@ class RseApplication(rawr.Rawr):
 
         # FastCache for Auth Token
         authtoken_cache = moecache.Client(**conf['memcached'])
+        # Force moecache to raise an exception if something is wrong.
+        authtoken_cache.stats()
 
         # Connnect to MongoDB
         mongo_db, mongo_db_master = self.init_database(logger, conf)
