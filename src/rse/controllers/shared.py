@@ -24,3 +24,12 @@ class Shared:
 
         # Precompiled regex for validating JSONP callback name
         self.JSONP_CALLBACK_PATTERN = re.compile("\A[a-zA-Z0-9_]+\Z")
+
+    @property
+    def retry_rate(self):
+        if self.id_totalcnt == 0:
+            return None
+        elif self.id_retrycnt == 0:
+            return 0
+        else:
+            return float(self.id_retrycnt) / self.id_totalcnt

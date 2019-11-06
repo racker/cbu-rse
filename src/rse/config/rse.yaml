@@ -27,3 +27,48 @@ memcached:
   timeout: 5
   servers:
     - localhost  # ports can be added with a colon if desired
+
+health_fields:
+  # Fields returned by the verbose health check. You probably don't need
+  # to change these unless you're doing some serious debugging.
+  mongo:
+    srvstats:
+      - ok
+      - backgroundFlushing
+      - connections
+      - uptime
+      - opcounters
+      - process
+      - asserts
+      - uptimeEstimate
+      - mem
+      - host
+      - version
+      - cursor
+      - globalLock
+      - locks
+      - localTime
+      - network:
+        - numRequests
+        - bytesOut
+        - bytesIn
+    evtstats:
+      - count
+      - ok
+      - ns
+      - lastExtentSize
+      - avgObjSize
+      - totalIndexSize
+      - userFlags
+      - systemFlags
+      - numExtents
+      - nindexes
+      - storageSize
+      - paddingFactor
+      - index_sizes
+      - size
+  profiling:
+    - responseLength
+    - nreturned
+    - nscanned
+    - keysExamined  # newer name of nscanned

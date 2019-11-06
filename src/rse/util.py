@@ -38,6 +38,48 @@ def splitport(nodestring, defaultport):
     return (host, int(port))
 
 
+def filter_dataset(dataset, keyset):
+    """ Get a subset of keys from a nested dict structure
+
+    This is ugly and I don't like it, but it works. Both inputs are
+    nested structures. This walks 'keyset' until it finds a sequence,
+    and then filters the corresponding element of 'dataset', removing
+    all items not in the keyset.
+
+    It's intended to pare down the huge structures returned by various
+    mongo diagnostics to just the elements we actually want.
+    """
+
+    if isinstance(keyset, dict):
+        out = dataset
+        for key, sub_keyset in keyset.items():
+            out[key] = filter_dataset(out[key], sub_keyset)
+        return out
+
+    out = {}
+    str_keys = [item for item in keyset if isinstance(item, str)]
+    dct_keys = [item for item in keyset if isinstance(item, dict)]
+    include = [k for k in str_keys if k in dataset]
+    recurse = {key: subkeys for key, subkeys
+               in mergedicts(dct_keys).items()
+               if key in dataset}
+
+    for key in include:
+        out[key] = dataset[key]
+    for key, subkeys in recurse.items():
+        out[key] = filter_dataset(dataset[key], subkeys)
+
+    return out
+
+
+def mergedicts(dicts):
+    """ Merge a sequence of dictionaries. Last collision wins. """
+    out = {}
+    for d in dicts:
+        out.update(d)
+    return out
+
+
 def initlog(path=None):
     """ Set up logging """
     logconf = config.load('logging.yaml', path)

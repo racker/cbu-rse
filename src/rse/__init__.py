@@ -73,6 +73,7 @@ class RseApplication(rawr.Rawr):
         args_health = {
                 'mongo_db': db_primary,
                 'shared': ctl_shared,
+                'fields': conf['health_fields'],
                 }
         args_main = {
                 'mongo_db': db_secondary,
