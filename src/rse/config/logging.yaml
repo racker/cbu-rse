@@ -23,7 +23,7 @@ handlers:
     filename: /var/log/rse/rse.log
   console:
     class: logging.StreamHandler
-    formatter: brief
+    formatter: std
     stream: ext://sys.stderr
   syslog:
     class: logging.handlers.SysLogHandler
