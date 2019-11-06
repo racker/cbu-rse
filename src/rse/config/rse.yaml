@@ -10,31 +10,19 @@
 # memcache both running locally in a default configuration. This is a
 # common testing setup.
 
+test_mode: false  # Disables auth checking and enables /all debug channel
+token_prefix: ''
+
+# You are unlikely to need to change these.
+event_ttl: 120
+token_hashing_threshold: 250
+
 mongodb:
-  uri: mongodb://localhost
-  replica-set: "[none]"
+  host: localhost  # Accepts a hostname, mongo URI, or list of either
+  replica-set: null
   database: rse
-  event-ttl: 120
 
 memcached:
   timeout: 5
   servers:
-    - localhost:11211
-
-shared:
-  test_mode: false
-
-routes:
-  # Note: Right now route priority is alphabetical. This may break if we
-  # add routes in the future. There are no plans to do so at the present
-  # time, so it's fine for now.
-  health:
-    pattern: "/health$"
-    controller: HealthController
-    args: {}
-  main:
-    pattern: "/.+"
-    controller: MainController
-    args:
-      authtoken_prefix: ''
-      token_hashing_threshold: 250
+    - localhost  # ports can be added with a colon if desired

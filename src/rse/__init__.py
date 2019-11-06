@@ -29,8 +29,8 @@ from .rax.http import rawr
 from . import config
 from . import controllers
 from . import util
-from .controllers import shared
 from .controllers import health_controller
+from .controllers import Shared, MainController, HealthController
 
 log = logging.getLogger(__name__)
 
@@ -47,37 +47,45 @@ class RseApplication(rawr.Rawr):
         conf_converters = {'memcached:servers': split_mc_nodes}
         conf = config.process(conf, conf_converters)
 
-        # FastCache for Auth Token
+        # Set up backend connections
+        cache = self.init_authcache(conf)
+        mdb, mdbmaster = self.init_database(conf)
+
+        # Set up routes. This is ugly and I would like to find a better
+        # way.
+        ctl_shared = controllers.Shared(cache, conf['test_mode'])
+        args_health = {
+                'mongo_db': mdbmaster,
+                'shared': ctl_shared,
+                }
+        args_main = {
+                'mongo_db': mdb,
+                'shared': ctl_shared,
+                'authtoken_prefix': conf['token_prefix'],
+                'token_hashing_threshold': conf['token_hashing_threshold'],
+                }
+        log.info("Setting up routes")
+        self.add_route(r'/health$', controllers.HealthController, args_health)
+        self.add_route(r'/.+', controllers.MainController, args_main)
+
+    def init_authcache(self, conf):
+        log.info("Initializing auth cache.")
+
         authtoken_cache = moecache.Client(**conf['memcached'])
         # Force moecache to raise an exception if something is wrong.
         authtoken_cache.stats()
-
-        # Connnect to MongoDB
-        mongo_db, mongo_db_master = self.init_database(conf)
-
-        # Setup routes
-        shared_controller = shared.Shared(authtoken_cache,
-                                          **conf['shared'])
-        for routeid, settings in sorted(conf['routes'].items()):
-            log.info("Adding route: %s", routeid)
-            pattern = settings['pattern']
-            controller = getattr(controllers, settings['controller'])
-            kwargs = dict(shared=shared_controller,
-                          mongo_db=mongo_db_master,
-                          **settings['args'])
-            self.add_route(pattern, controller, kwargs)
-        log.info("RSE Initialization completed.")
+        return authtoken_cache
 
     def init_database(self, conf):
         log.info("Initializing connection to mongodb.")
 
-        uri = conf['mongodb']['uri']
+        host = conf['mongodb']['host']
         database = conf['mongodb']['database']
         replica_set = conf['mongodb']['replica-set']
-        event_ttl = conf['mongodb']['event-ttl']
+        event_ttl = conf['event_ttl']
 
         log.info("Connecting to mongodb")
-        log.debug("mongodb URI: %s", uri)
+        log.debug("mongodb host(s): %s", host)
         log.debug("mongodb DB : %s", database)
 
         db_connections_ok = False
@@ -86,7 +94,7 @@ class RseApplication(rawr.Rawr):
                 # Master instance connection for the health checker
                 log.debug("Establishing db health check connection.")
                 connection_master = pymongo.Connection(
-                    uri,
+                    host,
                     read_preference=pymongo.ReadPreference.PRIMARY
                 )
                 mongo_db_master = connection_master[database]
@@ -95,15 +103,15 @@ class RseApplication(rawr.Rawr):
                 # Note: Use one global connection to the DB across all handlers
                 # (pymongo manages its own connection pool)
                 log.debug("Establishing replica set connection.")
-                if replica_set == '[none]':
+                if not replica_set:
                     connection = pymongo.Connection(
-                        uri,
+                        host,
                         read_preference=pymongo.ReadPreference.SECONDARY
                     )
                 else:
                     try:
                         connection = pymongo.ReplicaSetConnection(
-                            uri,
+                            host,
                             replicaSet=replica_set,
                             read_preference=pymongo.ReadPreference.SECONDARY
                         )
