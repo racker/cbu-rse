@@ -10,11 +10,13 @@ $Date$  <=== populated-by-subversion
 @brief
 RSE utility functions
 """
+import sys
 import time
 import logging
 import logging.config
 
 from . import config
+from pkg_resources import get_distribution
 
 
 log = logging.getLogger(__name__)
@@ -78,6 +80,18 @@ def mergedicts(dicts):
     for d in dicts:
         out.update(d)
     return out
+
+
+def versions_report():
+    """ Get versions of RSE and all dependencies, if possible."""
+
+    rse = get_distribution('rse')
+    deps = [get_distribution(req.project_name)
+            for req in rse.requires()]
+    versions = [('Python', sys.version),
+                ('RSE', rse.version)]
+    versions.extend((dep.project_name, dep.version) for dep in deps)
+    return versions
 
 
 def initlog(path=None):

@@ -21,6 +21,8 @@ def main():
                         help="print effective configuration and exit.")
     parser.add_argument('-V', '--version', action='store_true',
                         help="print version and exit")
+    parser.add_argument('--versions', action='store_true',
+                        help="print version of RSE and all dependencies")
     args = parser.parse_args()
 
 
@@ -28,6 +30,11 @@ def main():
     if args.version:
         from rse.version import version
         print version
+        sys.exit()
+
+    if args.versions:
+        for name, version in rse.util.versions_report():
+            print '{}\t{}'.format(name, version)
         sys.exit()
 
     if args.dbgconf:

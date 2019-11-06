@@ -7,6 +7,7 @@ dependencies = [
     "webob",
     "pyyaml",
     "tenacity",
+    "setuptools",
 ]
 
 scm_version_options = {

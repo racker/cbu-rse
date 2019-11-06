@@ -123,6 +123,7 @@ class HealthController(rawr.Controller):
         sub_reports = (
                 ('rse', None, self._subreport_rse),
                 ('mongo', None, self._subreport_mongo),
+                ('versions', None, util.versions_report),
                 ('profiling', 'profile_db', self._subreport_profiling),
                 ('integrity', 'validate_db', self._subreport_integrity),
                 )
@@ -130,7 +131,8 @@ class HealthController(rawr.Controller):
         req = self.request
         for key, option, func in sub_reports:
             if option is None or req.get_optional_param(option) == "true":
-                report[key] = func()
+                log.debug("Running report: %s", key)
+                report[key] = dict(func())
             else:
                 report[key] = "N/A. Pass %s=true to enable" % option
 
