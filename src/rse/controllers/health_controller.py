@@ -38,7 +38,7 @@ class HealthController(rawr.Controller):
     def __init__(self, mongo_db, shared):
         self.mongo_db = mongo_db  # MongoDB database for storing events
         # MongoDB connection for storing events
-        self.mongo_db_connection = mongo_db.connection
+        self.mongo_db_connection = mongo_db.client
         self.test_mode = shared.test_mode  # If true, relax auth/uuid requirements
         self.shared = shared  # Shared performance counters, logging, etc.
 

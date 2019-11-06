@@ -9,10 +9,7 @@ rse:
     ports:
         - 8000:80
 mongo:
-    # FIXME: obsolete mongo needs updating, but causes issues with
-    # verbose healthcheck right now. Maybe other stuff too.
-    image: mongo:2.4
-    command: --smallfiles
+    image: mongo
     ports:
         - 27017:27017
         - 27018:27018

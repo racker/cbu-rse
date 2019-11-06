@@ -14,13 +14,14 @@ test_mode: false  # Disables auth checking and enables /all debug channel
 token_prefix: ''
 
 # You are unlikely to need to change these.
+database: rse
 event_ttl: 120
 token_hashing_threshold: 250
 
 mongodb:
-  host: localhost  # Accepts a hostname, mongo URI, or list of either
-  replica-set: null
-  database: rse
+  # Any options given here are passed on to pymongo.MongoClient
+  host: localhost
+  replicaSet: null
 
 memcached:
   timeout: 5
