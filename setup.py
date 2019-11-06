@@ -3,7 +3,7 @@ from setuptools import setup, find_packages
 # It's annoying to track dependencies inline with install_requires
 dependencies = [
     "moecache>=1,<2",
-    "pymongo>=3,<4",
+    "pymongo>=2,<4",
     "webob",
     "pyyaml",
     "tenacity",

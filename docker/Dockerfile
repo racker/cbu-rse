@@ -18,6 +18,8 @@ RUN apt-get update && \
 # Install RSE
 ADD . /root/rse
 WORKDIR /root/rse
+COPY ./deps/*.pip.txt /root/deps/
+RUN pip install -r /root/deps/docker.pip.txt
 RUN pip install .
 
 # Configure nginx

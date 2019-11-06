@@ -102,7 +102,7 @@ class HealthController(rawr.Controller):
         self.mongo_db.set_profiling_level(pymongo.ALL)
         time.sleep(2)
         # profile_info = self.mongo_db.profiling_info()
-        stats = self.mongo_db.system.profile.find_one()
+        stats = self.mongo_db.system.profile.find()[0]
         self.mongo_db.set_profiling_level(pymongo.OFF)
         return stats
 
