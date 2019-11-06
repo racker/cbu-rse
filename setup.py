@@ -29,7 +29,7 @@ setup(
     package_dir={'': "src"},
     include_package_data=True,
     install_requires=dependencies,
-    setup_requires=['setuptools_scm'],
+    setup_requires=['setuptools_scm>=3.3.0'],
     use_scm_version=scm_version_options,
     tests_require=['tox'],
     zip_safe=True,
