@@ -1,0 +1,4 @@
+bsdmainutils
+less
+nginx
+vim
