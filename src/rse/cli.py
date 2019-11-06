@@ -19,6 +19,8 @@ def main():
     parser.add_argument('--port', default=8000, help="listen port")
     parser.add_argument('--dbgconf', action='store_true',
                         help="print effective configuration and exit.")
+    parser.add_argument('--debug', action='store_true',
+                        help="enable debug mode.")
     parser.add_argument('-V', '--version', action='store_true',
                         help="print version and exit")
     parser.add_argument('--versions', action='store_true',
@@ -42,15 +44,22 @@ def main():
         sys.exit()
 
     rse.util.initlog()
+
     log.warn("Starting RSE in standalone mode!")
 
-    log.debug("Creating application")
-    app = rse.RseApplication(conf)
-
-    log.debug("Making server")
-    httpd = make_server('', args.port, app)
-    log.info("Serving on port %s...", args.port)
-    httpd.serve_forever()
+    try:
+        log.debug("Creating application")
+        app = rse.RseApplication(conf)
+        log.debug("Making server")
+        httpd = make_server('', args.port, app)
+        log.info("Serving on port %s...", args.port)
+        httpd.serve_forever()
+    except Exception as e:
+        log.critical(e)
+        if args.debug:
+            raise
+        else:
+            sys.exit(2)
 
 
 if __name__ == "__main__":
