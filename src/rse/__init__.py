@@ -54,7 +54,7 @@ class RseApplication(rawr.Rawr):
         log.info("Connecting to memcache")
         cache = moecache.Client(**conf['memcached'])
         # Force moecache to raise an exception if something is wrong.
-        cache.stats()
+        log.debug("Cache check: %s : %s", "_key_", cache.get("_key_"))
 
         log.info("Connecting to mongo")
         dbname = conf['database']
