@@ -61,7 +61,7 @@ class HealthController(rawr.Controller):
             if event:
                 event['data'] = json.loads(event['data'])
                 event['name'] = event['data'].get('Event', None)
-                event['age'] = datetime.utcnow() - event['created_at'].seconds
+                event['age'] = (datetime.utcnow() - event['created_at']).seconds
             out[evt] = event
         return out
 
