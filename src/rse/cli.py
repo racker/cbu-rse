@@ -31,16 +31,16 @@ def main():
     conf = rse.config.load('rse.yaml', args.conf)
     if args.version:
         from rse.version import version
-        print version
+        print(version)
         sys.exit()
 
     if args.versions:
         for name, version in rse.util.versions_report():
-            print '{}\t{}'.format(name, version)
+            print('{}\t{}'.format(name, version))
         sys.exit()
 
     if args.dbgconf:
-        print yaml.dump(conf, default_flow_style=False)
+        print(yaml.dump(conf, default_flow_style=False))
         sys.exit()
 
     rse.util.initlog()

@@ -74,7 +74,7 @@ def merge(dataset, overrides):
     `dataset` in-place!
     """
 
-    for key, node in overrides.iteritems():
+    for key, node in overrides.items():
         tgtnode = dataset.setdefault(key, {})
         if isinstance(node, dict) and isinstance(tgtnode, dict):
                 merge(tgtnode, node)
@@ -136,7 +136,7 @@ def process(dataset, converter_table):
     """
 
     new_dataset = deepcopy(dataset)
-    for keypath, converter in converter_table.iteritems():
+    for keypath, converter in converter_table.items():
         try:
             convert(new_dataset, keypath, converter)
         except (KeyError, TypeError):

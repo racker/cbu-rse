@@ -12,7 +12,7 @@ Rawr is a micro WSGI/REST framework designed for simplicity and speed. Run behin
 Requires Python 2.7 and webob
 """
 
-import httplib
+import http.client
 import re
 import webob
 from .exceptions import *
@@ -32,7 +32,7 @@ class Rawr:
         match = route[0].match(request.path)
       
         if match:
-          kwargs = dict((k, v) for (k, v) in match.groupdict().iteritems())
+          kwargs = dict((k, v) for (k, v) in match.groupdict().items())
           args = None
           
           # match.groups() includes both named and unnamed groups, so
@@ -110,7 +110,7 @@ class Response:
     pass
     
   def set_status(self, status_code):
-    self.status = '%d %s' % (status_code, httplib.responses[status_code])
+    self.status = '%d %s' % (status_code, http.client.responses[status_code])
     
 class Controller:
   """

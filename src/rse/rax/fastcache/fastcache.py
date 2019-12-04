@@ -68,7 +68,7 @@ class FastCache:
         self._values = dict()  # Holds the values
         self._time_hash = list()  # Holds the values indexed by time
 
-        self._time_hash = [list() for _ in xrange(0, self._slice_count)]
+        self._time_hash = [list() for _ in range(0, self._slice_count)]
 
     def count(self):
         """Returns the total number of cached objects """
@@ -81,7 +81,7 @@ class FastCache:
         """
         item_count = 0
 
-        for slice_index in xrange(0, self._slice_count):
+        for slice_index in range(0, self._slice_count):
             item_count += len(self._time_hash[slice_index])
 
         if item_count != len(self._values):
@@ -107,7 +107,7 @@ class FastCache:
                 slice_delta = self._slice_count + slice_delta
 
             if slice_delta > 0:
-                for x in xrange(self._last_slice + 1, self._last_slice + slice_delta + 1):
+                for x in range(self._last_slice + 1, self._last_slice + slice_delta + 1):
                     s = x % self._slice_count
                     self._clear_slice(s)
 

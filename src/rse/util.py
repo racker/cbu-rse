@@ -28,7 +28,7 @@ def time_id(offset_sec=0):
 
     # Convert floating point timestamp to a long with plenty of headroom.
     # Note: 1302000000 is an arbitrary epoch/offset used to free up some bits
-    return long((time.time() - 1302000000 + offset_sec) * 100000)
+    return int((time.time() - 1302000000 + offset_sec) * 100000)
 
 
 def splitport(nodestring, defaultport):
@@ -54,7 +54,7 @@ def filter_dataset(dataset, keyset):
 
     if isinstance(keyset, dict):
         out = dataset
-        for key, sub_keyset in keyset.items():
+        for key, sub_keyset in list(keyset.items()):
             out[key] = filter_dataset(out[key], sub_keyset)
         return out
 
@@ -63,12 +63,12 @@ def filter_dataset(dataset, keyset):
     dct_keys = [item for item in keyset if isinstance(item, dict)]
     include = [k for k in str_keys if k in dataset]
     recurse = {key: subkeys for key, subkeys
-               in mergedicts(dct_keys).items()
+               in list(mergedicts(dct_keys).items())
                if key in dataset}
 
     for key in include:
         out[key] = dataset[key]
-    for key, subkeys in recurse.items():
+    for key, subkeys in list(recurse.items()):
         out[key] = filter_dataset(dataset[key], subkeys)
 
     return out

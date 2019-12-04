@@ -28,7 +28,7 @@ log = logging.getLogger(__name__)
 
 def str_utf8(instr):
     # @todo Move this into raxPy, give namespace
-    return unicode(instr).encode("utf-8")
+    return str(instr).encode("utf-8")
 
 
 def format_datetime(dt):
@@ -221,7 +221,7 @@ class MainController(rawr.Controller):
 
         # Retry until we get a unique _id (or die trying)
         event_insert_succeeded = False
-        for retry_on_duplicate_key in xrange(100):
+        for retry_on_duplicate_key in range(100):
             # Increment stats counter
             self.shared.id_totalcnt += 1
 
@@ -279,7 +279,7 @@ class MainController(rawr.Controller):
 
         # Insert the new event into the DB
         num_retries = 10  # 5 seconds
-        for i in xrange(num_retries):
+        for i in range(num_retries):
             try:
                 if not self._insert_event(channel_name, data, user_agent):
                     raise exceptions.HttpServiceUnavailable()
@@ -332,7 +332,7 @@ class MainController(rawr.Controller):
     ):
         # Get a list of events
         num_retries = 10
-        for i in xrange(num_retries):
+        for i in range(num_retries):
             try:
                 events = self.mongo_db.events.find(
                     {'_id': {'$gt': last_known_id}, 'channel':
@@ -383,7 +383,7 @@ class MainController(rawr.Controller):
             return
 
         # Parse query params
-        last_known_id = long(
+        last_known_id = int(
             self.request.get_optional_param("last-known-id", 0))
         sort_order = int(
             self.request.get_optional_param("sort", pymongo.ASCENDING))
