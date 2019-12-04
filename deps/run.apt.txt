@@ -2,7 +2,7 @@
 # package first improves performance (in pymongo's case) and
 # installation time (if something would otherwise need compiling)
 
-python-yaml
-python-tenacity
-python-pymongo
-python-pymongo-ext
+python3-yaml
+python3-tenacity
+python3-pymongo
+python3-pymongo-ext

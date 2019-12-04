@@ -1,4 +1,4 @@
-rse:
+rse-py3:
     build: .
     dockerfile: docker/Dockerfile
     environment:
