@@ -359,7 +359,7 @@ class MainController(rawr.Controller):
                     time.sleep(0.5)
 
             except Exception as ex:
-                log.error(str_utf8(ex))
+                log.error("%s", ex)
 
                 if i == num_retries - 1:  # Don't retry forever!
                     raise exceptions.HttpInternalServerError()

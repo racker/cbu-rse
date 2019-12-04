@@ -26,11 +26,6 @@ from ..rax.http import rawr
 log = logging.getLogger(__name__)
 
 
-def str_utf8(instr):
-    # @todo Move this into raxPy, give namespace
-    return str(instr).encode("utf-8")
-
-
 def format_datetime(dt):
     # @todo Move this into raxPy, put inside a namespace
     """Formats a datetime instance according to ISO 8601-Extended"""
