@@ -33,7 +33,7 @@ class FastCache:
                 "Retention period must be evenly divisible by the slice_size")
 
         self._slice_size = slice_size
-        self._slice_count = retention_period / self._slice_size
+        self._slice_count = retention_period // self._slice_size
 
         self._retention_period = retention_period
 
@@ -129,4 +129,4 @@ class FastCache:
 
     def _timetoslice(self, t):
         """Converts specified time to a slice index"""
-        return (t / self._slice_size) % self._slice_count
+        return (t // self._slice_size) % self._slice_count
