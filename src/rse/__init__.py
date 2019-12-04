@@ -25,8 +25,9 @@ from tenacity import retry
 from tenacity import stop_after_attempt as saa
 from tenacity import wait_fixed as wait
 from tenacity import retry_if_exception_type as extype
+from tenacity import before_sleep_log as bsl
 from pymongo import MongoClient
-from pymongo.errors import AutoReconnect
+from pymongo.errors import AutoReconnect, ConnectionFailure
 
 from .rax.http import rawr
 
@@ -59,9 +60,7 @@ class RseApplication(rawr.Rawr):
 
         log.info("Connecting to mongo")
         dbname = conf['database']
-        settings = conf['mongodb']
-        mc_primary = MongoClient(readPreference='primary', **settings)
-        mc_secondary = MongoClient(readPreference='secondary', **settings)
+        mc_primary, mc_secondary = self._init_mongo(**conf['mongodb'])
         db_primary = mc_primary[dbname]
         db_secondary = mc_secondary[dbname]
 
@@ -84,6 +83,15 @@ class RseApplication(rawr.Rawr):
                 }
         self.add_route(r'/health$', controllers.HealthController, args_health)
         self.add_route(r'/.+', controllers.MainController, args_main)
+
+    @retry(stop=saa(5), wait=wait(5), retry=extype(ConnectionFailure), before_sleep=bsl(log, logging.WARN))
+    def _init_mongo(self, **settings):
+        """ Wrapper for mongo connection setup.
+
+        This will try several times before giving up.
+        """
+        return [MongoClient(readPreference=pref, **settings)
+                for pref in ['primary', 'secondary']]
 
     def __call__(self, environ, start_response):
         if nr:

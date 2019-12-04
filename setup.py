@@ -6,7 +6,7 @@ dependencies = [
     "pymongo>=2,<4",
     "webob",
     "pyyaml",
-    "tenacity",
+    "tenacity>=5",
     "setuptools",
     "jsonschema",
 ]
