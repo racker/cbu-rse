@@ -2,12 +2,9 @@
 
 FROM ubuntu:latest
 
-# Install required APT packages. RSE looks at localhost for
-# mongo/memcache by default, so keeping them in the same container
-# simplifies configuration.
-#
-# The loop is there to deal with intermittent network failures that
-# would otherwise break this step. Yes, it's ugly. Sorry.
+# Install required APT packages. The loop is there to deal with
+# intermittent network failures that would otherwise break this step.
+# Yes, it's ugly. Sorry.
 
 COPY ./deps/*.apt.txt /root/deps/
 RUN cat /root/deps/*.apt.txt | grep -v ^# > /root/install.apt.txt
@@ -19,8 +16,8 @@ RUN apt-get update && \
 ADD . /root/rse
 WORKDIR /root/rse
 COPY ./deps/*.pip.txt /root/deps/
-RUN pip install -r /root/deps/docker.pip.txt
-RUN pip install .
+RUN pip3 install -r /root/deps/docker.pip.txt
+RUN pip3 install .
 
 # Configure nginx
 COPY ./docker/nginx.rse.conf /etc/nginx/sites-enabled/default

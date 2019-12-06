@@ -12,7 +12,7 @@ Rawr is a micro WSGI/REST framework designed for simplicity and speed. Run behin
 Requires Python 2.7 and webob
 """
 
-import httplib
+import http.client
 import re
 import webob
 from .exceptions import *
@@ -32,7 +32,7 @@ class Rawr:
         match = route[0].match(request.path)
       
         if match:
-          kwargs = dict((k, v) for (k, v) in match.groupdict().iteritems())
+          kwargs = dict((k, v) for (k, v) in match.groupdict().items())
           args = None
           
           # match.groups() includes both named and unnamed groups, so
@@ -67,13 +67,13 @@ class Request(webob.Request):
   # paramter was not specified in the URL.
   def get_optional_param(self, param_name, default_value = None):
     # Note: This approach should be more efficient than handling exceptions...
-    # but only if it is common to not have this param  
-    return self.GET[param_name].encode("utf_8") if param_name in self.GET else default_value
-    
+    # but only if it is common to not have this param
+    return self.GET[param_name] if param_name in self.GET else default_value
+
   # Returns the specified query string parameter or throws an HttpException if not found
   def get_param(self, param_name):
     try:
-      return self.GET[param_name].encode("utf_8")
+      return self.GET[param_name]
     except:
       raise HttpBadRequest('Missing query parameter: %s' % param_name)
     
@@ -95,14 +95,14 @@ class Response:
   __slots__ = ['response_body', 'response_headers', 'status', 'stream', 'stream_length']
   
   def __init__(self):
-    self.response_body = '' 
+    self.response_body = b''
     self.response_headers = []
     self.status = '200 OK'
     self.stream = None
     self.stream_length = 0
         
   def write(self, str):
-    self.response_body += str
+    self.response_body += str.encode()
     pass
 
   def write_header(self, header, value):
@@ -110,7 +110,7 @@ class Response:
     pass
     
   def set_status(self, status_code):
-    self.status = '%d %s' % (status_code, httplib.responses[status_code])
+    self.status = '%d %s' % (status_code, http.client.responses[status_code])
     
 class Controller:
   """

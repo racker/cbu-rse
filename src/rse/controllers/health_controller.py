@@ -26,11 +26,6 @@ from ..rax.http import rawr
 log = logging.getLogger(__name__)
 
 
-def str_utf8(instr):
-    # @todo Move this into raxPy, give namespace
-    return unicode(instr).encode("utf-8")
-
-
 def format_datetime(dt):
     # @todo Move this into raxPy, put inside a namespace
     """Formats a datetime instance according to ISO 8601-Extended"""
@@ -55,7 +50,7 @@ class HealthController(rawr.Controller):
         events = {'first': pymongo.ASCENDING,
                   'last': pymongo.DESCENDING, }
         out = {}
-        for evt, sortdir in events.items():
+        for evt, sortdir in list(events.items()):
             sorter = [('created_at', sortdir)]
             event = self.mongo_db.events.find_one(sort=sorter)
             if event:

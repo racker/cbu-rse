@@ -15,7 +15,7 @@ Requires Python 2.x (tested with 2.7)
 Convert class comments to python-style 
 """
 
-import httplib
+import http.client
 
 # Represents a generic HTTP error status. Raise this or one of the
 # predefined child classes to return a status other than "200 OK"
@@ -31,7 +31,7 @@ class HttpError(Exception):
     return "HttpError: %d (%s)" % (self.status_code, self.info)
     
   def status(self):
-    return '%d %s' % (self.status_code, httplib.responses[self.status_code])
+    return '%d %s' % (self.status_code, http.client.responses[self.status_code])
    
 # 204 No Content
 class HttpNoContent(HttpError):

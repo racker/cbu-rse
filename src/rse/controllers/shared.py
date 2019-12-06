@@ -32,4 +32,4 @@ class Shared:
         elif self.id_retrycnt == 0:
             return 0
         else:
-            return float(self.id_retrycnt) / self.id_totalcnt
+            return self.id_retrycnt / self.id_totalcnt
