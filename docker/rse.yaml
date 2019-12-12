@@ -1,0 +1,10 @@
+# Conf file for rse running in docker
+
+test_mode: true
+
+mongodb:
+  host: mongo
+
+memcached:
+  servers:
+    - memcache

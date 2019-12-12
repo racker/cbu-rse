@@ -1,0 +1,4 @@
+# Ignore dotfiles and build artifacts.
+.*
+build
+dist

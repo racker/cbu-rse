@@ -1,0 +1,8 @@
+# Our ancient prod mongodb (2.2) does not work with recent pymongo
+# versions. RSE itself does, but since we need to test against what we
+# have in prod, force an older version here.
+#
+# We can remove this file once the prod and docker-compose mongo
+# versions are updated.
+
+pymongo<3

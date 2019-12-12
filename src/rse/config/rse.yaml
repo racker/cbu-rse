@@ -1,0 +1,74 @@
+# Default configuration data. This file doubles as documentation of the
+# available config settings.
+#
+# Values here are overridden by values in /etc/rse/rse.conf.
+# *Most* of them can be left as-is, but some must be set per-deployment.
+# See the inline comments for details. If adding new options, be sure
+# to check proper override behavior; config.py may have bugs.
+#
+# The default settings are based on a standalone server, with mongo and
+# memcache both running locally in a default configuration. This is a
+# common testing setup.
+
+test_mode: false  # Disables auth checking and enables /all debug channel
+token_prefix: ''
+
+# You are unlikely to need to change these.
+database: rse
+event_ttl: 120
+token_hashing_threshold: 250
+
+mongodb:
+  # Any options given here are passed on to pymongo.MongoClient
+  host: localhost
+  replicaSet: null
+
+memcached:
+  timeout: 5
+  servers:
+    - localhost  # ports can be added with a colon if desired
+
+health_fields:
+  # Fields returned by the verbose health check. You probably don't need
+  # to change these unless you're doing some serious debugging.
+  mongo:
+    srvstats:
+      - ok
+      - backgroundFlushing
+      - connections
+      - uptime
+      - opcounters
+      - process
+      - asserts
+      - uptimeEstimate
+      - mem
+      - host
+      - version
+      - cursor
+      - globalLock
+      - locks
+      - localTime
+      - network:
+        - numRequests
+        - bytesOut
+        - bytesIn
+    evtstats:
+      - count
+      - ok
+      - ns
+      - lastExtentSize
+      - avgObjSize
+      - totalIndexSize
+      - userFlags
+      - systemFlags
+      - numExtents
+      - nindexes
+      - storageSize
+      - paddingFactor
+      - index_sizes
+      - size
+  profiling:
+    - responseLength
+    - nreturned
+    - nscanned
+    - keysExamined  # newer name of nscanned

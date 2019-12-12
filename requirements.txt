@@ -1,3 +1,5 @@
-moecache==0.1
-pymongo
-git+git://github.com/rackerlabs/rse-util.git
+# Yes, this is intentionally just a dot. The dot means "install whatever's in
+# this directory according to its setup.py." This file is only here to keep
+# people confused by its absence from trying to create it.
+
+.

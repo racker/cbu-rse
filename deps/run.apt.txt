@@ -1,0 +1,8 @@
+# Most of these are also included by pip, but installing the system
+# package first improves performance (in pymongo's case) and
+# installation time (if something would otherwise need compiling)
+
+python-yaml
+python-tenacity
+python-pymongo
+python-pymongo-ext
