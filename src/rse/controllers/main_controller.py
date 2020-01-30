@@ -26,11 +26,6 @@ from ..rax.http import rawr
 log = logging.getLogger(__name__)
 
 
-def str_utf8(instr):
-    # @todo Move this into raxPy, give namespace
-    return str(instr).encode("utf-8")
-
-
 def format_datetime(dt):
     # @todo Move this into raxPy, put inside a namespace
     """Formats a datetime instance according to ISO 8601-Extended"""
@@ -168,7 +163,7 @@ class MainController(rawr.Controller):
         entries_serialized = self._serialize_events(events)
         self.response.write_header(
             "Content-Type", "application/json; charset=utf-8")
-        self.response.write("[%s]" % str_utf8(entries_serialized))
+        self.response.write("[" + entries_serialized + "]")
         return
 
     def _explode_channel(self, channel):
@@ -269,6 +264,12 @@ class MainController(rawr.Controller):
     def _post(self, channel_name, data):
         """Handles a client submitting a new event (the data parameter)"""
         user_agent = self.request.get_header("User-Agent")
+
+        # Other bits of the program sometimes send this function bytes
+        # and sometimes strings. Rather than track them all down, just
+        # detect and convert.
+        if isinstance(data, bytes):
+            data = data.decode()
 
         # Verify that the data is valid JSON
         if not (
@@ -449,7 +450,7 @@ class MainController(rawr.Controller):
                 raise exceptions.HttpBadRequest('Invalid callback name')
 
             self.response.write("%s({\"channel\":\"%s\",\"events\":[%s]});" % (
-                callback_name, channel_name, str_utf8(entries_serialized)))
+                callback_name, channel_name, entries_serialized))
         else:
             if not entries_serialized:
                 self.response.set_status(204)
@@ -457,7 +458,7 @@ class MainController(rawr.Controller):
                 self.response.write_header(
                     "Content-Type", "application/json; charset=utf-8")
                 self.response.write("{\"channel\":\"%s\",\"events\":[%s]}" % (
-                    channel_name, str_utf8(entries_serialized)))
+                    channel_name, entries_serialized))
 
     def post(self):
         """Handle a true HTTP POST event"""

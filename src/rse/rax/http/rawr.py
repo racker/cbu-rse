@@ -48,8 +48,8 @@ class Rawr:
       
     except HttpError as ex:
       start_response(ex.status(), [('Content-type','application/json; charset=utf-8')])
-      return ['{ "message": "%s" }' % ex.info]
-    
+      return ['{{ "message": "{}" }}'.format(ex.info).encode()]
+
   def add_route(self, pattern, controller, kwargs = {}):
     if type(pattern) is str:
       pattern = re.compile(pattern) 
