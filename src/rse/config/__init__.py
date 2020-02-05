@@ -77,7 +77,7 @@ def merge(dataset, overrides):
     for key, node in overrides.items():
         tgtnode = dataset.setdefault(key, {})
         if isinstance(node, dict) and isinstance(tgtnode, dict):
-                merge(tgtnode, node)
+            merge(tgtnode, node)
         else:
             dataset[key] = node
 
