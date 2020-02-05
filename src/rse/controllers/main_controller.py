@@ -97,7 +97,7 @@ class MainController(rawr.Controller):
             raise
 
         except Exception as ex:
-            log.error(str_utf8(ex))
+            log.error(str(ex))
             raise exceptions.HttpServiceUnavailable()
 
     def _is_safe_user_agent(self, user_agent):
@@ -287,7 +287,7 @@ class MainController(rawr.Controller):
                 break
 
             except exceptions.HttpError as ex:
-                log.error(str_utf8(ex))
+                log.error(str(ex))
                 raise
 
             except pymongo.errors.AutoReconnect as ex:
@@ -295,7 +295,7 @@ class MainController(rawr.Controller):
                     "Retry %d of %d. Details: %s" % (
                         i,
                         num_retries,
-                        str_utf8(ex)
+                        str(ex)
                     )
                 )
 
@@ -349,7 +349,7 @@ class MainController(rawr.Controller):
                     "Retry %d of %d. Details: %s" % (
                         i,
                         num_retries,
-                        str_utf8(ex)
+                        str(ex)
                     )
                 )
 
