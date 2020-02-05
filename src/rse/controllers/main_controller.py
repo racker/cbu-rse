@@ -55,7 +55,7 @@ class MainController(rawr.Controller):
             return key
 
         sha = hashlib.sha512()
-        sha.update(self.authtoken_prefix + auth_token)
+        sha.update((self.authtoken_prefix + auth_token).encode())
         hashed_token = sha.hexdigest().upper()
 
         # Converts hashed token to the format output by .NET's BitConverter
