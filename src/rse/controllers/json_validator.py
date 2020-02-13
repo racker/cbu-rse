@@ -64,18 +64,19 @@ def _add_rule(startState, characters, endState, token):
     """Add a rule to the transformations map.
 
     Args:
-      startState: This rule only applies if the parser is in this state.
-      characters: This rule only applies if the current character is one of these.
+      startState: Apply the rule when the parser is in this state.
+      characters: Apply the rule when the current character is one of these.
       endState: When applied, this rule changes the state this.
       token: When applied, this rule adds this token to the stack.
     """
     # None is treated as a wildcard character.
-    if characters == None:
+    if characters is None:
         TRANSFORMATIONS[(startState, None)] = (endState, token)
     else:
         # Create a rule for every character.
         for char in characters:
             TRANSFORMATIONS[(startState, char)] = (endState, token)
+
 
 _add_rule(GROUND, " \r\n", GROUND, None)
 _add_rule(GROUND, "[", GROUND, ARRAYSTART)
@@ -164,15 +165,15 @@ def is_valid(string):
     for char in string:
         # Transform from this state to the next state.
         next = TRANSFORMATIONS.get((state, char))
-        if next == None:
+        if next is None:
             # No matching character, check for a wildcard match.
             next = TRANSFORMATIONS.get((state, None))
-            if next == None:
+            if next is None:
                 return False
         (state, token) = next
-        if token != None:
+        if token is not None:
             tokens.append(token)
-    if not state in EXITSTATES:
+    if state not in EXITSTATES:
         # A half-defined value.
         return False
     if not tokens or (tokens[0] != ARRAYSTART and tokens[0] != OBJECTSTART):
