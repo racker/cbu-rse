@@ -1,7 +1,7 @@
 import logging
 import os
 from copy import deepcopy
-from os.path import dirname, basename, realpath
+from os.path import dirname, realpath
 from os.path import join as pathjoin
 
 import yaml

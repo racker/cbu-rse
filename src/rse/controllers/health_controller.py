@@ -24,6 +24,7 @@ from ..rax.http import exceptions
 from ..rax.http import rawr
 
 log = logging.getLogger(__name__)
+utcnow = datetime.utcnow  # Convenience
 
 
 def format_datetime(dt):
@@ -56,14 +57,14 @@ class HealthController(rawr.Controller):
             if event:
                 event['data'] = json.loads(event['data'])
                 event['name'] = event['data'].get('Event', None)
-                event['age'] = (datetime.utcnow() - event['created_at']).seconds
+                event['age'] = (utcnow() - event['created_at']).seconds
             out[evt] = event
         return out
 
     def _speedtest(self):
-        db_test_start = datetime.utcnow()
+        db_test_start = utcnow()
         self.mongo_db.events.count()
-        db_test_duration = (datetime.utcnow() - db_test_start).seconds
+        db_test_duration = (utcnow() - db_test_start).seconds
         return db_test_duration
 
     def _subreport_rse(self):

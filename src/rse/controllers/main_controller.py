@@ -45,7 +45,7 @@ class MainController(rawr.Controller):
         self.mongo_db = mongo_db  # MongoDB database for storing events
         self.authtoken_prefix = authtoken_prefix
         self.token_hashing_threshold = token_hashing_threshold
-        self.test_mode = shared.test_mode  # If true, relax auth/uuid requirements
+        self.test_mode = shared.test_mode  # relaxes auth/uuid requirements
         self.shared = shared  # Shared performance counters, logging, etc.
 
     def _format_key(self, auth_token):
@@ -116,7 +116,7 @@ class MainController(rawr.Controller):
             end_pos = start_pos + 36
 
             return user_agent[start_pos:end_pos]
-        except:
+        except Exception:
             if self.test_mode:
                 log.warning(
                     "TEST MODE: Bypassing User-Agent validation"
