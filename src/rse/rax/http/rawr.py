@@ -53,7 +53,9 @@ class Rawr:
             start_response(ex.status(), headers)
             return ['{{ "message": "{}" }}'.format(ex.info).encode()]
 
-    def add_route(self, pattern, controller, kwargs = {}):
+    def add_route(self, pattern, controller, kwargs=None):
+        if kwargs is None:
+            kwargs = {}
         if type(pattern) is str:
             pattern = re.compile(pattern)
 
