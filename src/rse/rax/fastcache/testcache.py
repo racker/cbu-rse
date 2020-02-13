@@ -53,11 +53,12 @@ class TestCache(unittest.TestCase):
         x = 0
 
         while time() - start_time < 12:
-            self.assertFalse(
-                self.c.is_cached("really long bogus value that doesn't really exist"))
+            bogus = "really long bogus value that doesn't really exist"
+            self.assertFalse(self.c.is_cached(bogus))
             x += 1
 
         self.assertEqual(self.c.count(), 0)
+
 
 if __name__ == '__main__':
     unittest.main()

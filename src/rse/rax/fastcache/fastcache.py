@@ -7,12 +7,13 @@ from random import random
 fastcache.py
 Author: Jamie Painter
 
-A fast, just-in-time, in-memory cache for storing tokens/strings/objects which may expire.
+A fast, just-in-time, in-memory cache for storing tokens/strings/objects
+which may expire.
 
 Note 1: This module is not thread-safe
 Note 2: All times are expessed in seconds
-Note 3: Cache purging is only as fine-grained as the resolution. A cached value
-        may expire +/- the slice size.
+Note 3: Cache purging is only as fine-grained as the resolution. A
+        cached value may expire +/- the slice size.
 """
 
 
@@ -101,13 +102,15 @@ class FastCache:
 
             slice_delta = self._current_slice - self._last_slice
 
-            # Adjust the slice delta for the case where the the last slice's index
-            # is greater than the current slice's index.
+            # Adjust the slice delta for the case where the the last
+            # slice's index is greater than the current slice's index.
             if slice_delta < 0:
                 slice_delta = self._slice_count + slice_delta
 
             if slice_delta > 0:
-                for x in range(self._last_slice + 1, self._last_slice + slice_delta + 1):
+                start = self._last_slice + 1
+                end = self._last_slice + slice_delta + 1
+                for x in range(start, end):
                     s = x % self._slice_count
                     self._clear_slice(s)
 
