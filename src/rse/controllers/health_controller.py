@@ -9,7 +9,7 @@ Health controller for Rackspace RSE Server.
 import time
 import logging
 from datetime import datetime
-
+import hashlib
 import json
 
 import pymongo
@@ -36,7 +36,7 @@ class HealthController(rawr.Controller):
     """Provides web service health info"""
     """@todo Move this class into a separate file"""
 
-    def __init__(self, mongo_db, shared, fields):
+    def __init__(self, mongo_db, shared, fields, authtoken_prefix):
         self.mongo_db = mongo_db  # MongoDB database for storing events
         # MongoDB connection for storing events
         self.mongo_db_connection = mongo_db.client
@@ -106,7 +106,19 @@ class HealthController(rawr.Controller):
         # Do something to exercise the db. Note that this must work on
         # secondaries (e.g. read-only slaves)
         self.mongo_db.events.count()
-        return True
+        try:
+            healthcheckval = 'healthCheck_Value';
+            self.shared.authtoken_cache.set('healthCheck',healthcheckval)
+            savedvalue = self.shared.authtoken_cache.get('healthCheck')
+            if savedvalue == healthcheckval:
+                log.info(str('Memcache works!'))
+                return True
+            else:
+                log.error(str('Some issue with memcache ..... '))
+                return False
+        except Exception as e:
+            log.error('Health Check failed...:' + str(e))
+            return False
 
     @retry(stop=saa(10), wait=wait(0.5), retry=extype(AutoReconnect))
     def _full_report(self):
@@ -149,11 +161,11 @@ class HealthController(rawr.Controller):
             self.response.write("OK\n")
         else:
             log.warning("Health check failed.")
-            raise exceptions.HttpError(503)
+            raise exceptions.HttpError(503, 'Health check failed. Have a look on rse.log file.')
 
     def head(self):
         if self._basic_health_check():
             self.response.write("OK\n")
         else:
             log.warning("Health check failed.")
-            raise exceptions.HttpError(503)
+            raise exceptions.HttpError(503, info ='Health check failed.')

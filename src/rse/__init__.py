@@ -74,6 +74,7 @@ class RseApplication(rawr.Rawr):
                 'mongo_db': db_primary,
                 'shared': ctl_shared,
                 'fields': conf['health_fields'],
+                'authtoken_prefix': conf['token_prefix'],
                 }
         args_main = {
                 'mongo_db': db_secondary,
