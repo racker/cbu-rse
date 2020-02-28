@@ -9,7 +9,7 @@ Health controller for Rackspace RSE Server.
 import time
 import logging
 from datetime import datetime
-
+import hashlib
 import json
 
 import pymongo
@@ -36,7 +36,7 @@ class HealthController(rawr.Controller):
     """Provides web service health info"""
     """@todo Move this class into a separate file"""
 
-    def __init__(self, mongo_db, shared, fields):
+    def __init__(self, mongo_db, shared, fields, authtoken_prefix, token_hashing_threshold):
         self.mongo_db = mongo_db  # MongoDB database for storing events
         # MongoDB connection for storing events
         self.mongo_db_connection = mongo_db.client
@@ -45,6 +45,8 @@ class HealthController(rawr.Controller):
         self.test_mode = shared.test_mode
         self.shared = shared  # Shared performance counters, logging, etc.
         self.fields = fields
+        self.authtoken_prefix = authtoken_prefix
+        self.token_hashing_threshold = token_hashing_threshold
 
     def _event_range(self):
         events = {'first': pymongo.ASCENDING,
@@ -141,15 +143,16 @@ class HealthController(rawr.Controller):
         return json.dumps(report, default=lambda o: str(o))
 
     def get(self):
-        self.response.write_header(
-            "Content-Type", "application/json; charset=utf-8")
-        if self.request.get_optional_param("verbose") == "true":
-            self.response.write(self._full_report())
-        elif self._basic_health_check():
-            self.response.write("OK\n")
+        if self._prepare():
+            self.response.write_header(
+                "Content-Type", "application/json; charset=utf-8")
+            if self.request.get_optional_param("verbose") == "true":
+                self.response.write(self._full_report())
+            elif self._basic_health_check():
+                self.response.write("OK\n")
         else:
             log.warning("Health check failed.")
-            raise exceptions.HttpError(503)
+            raise exceptions.HttpError(503, 'Health check failed. Have a look on rse.log file.')
 
     def head(self):
         if self._basic_health_check():
@@ -157,3 +160,59 @@ class HealthController(rawr.Controller):
         else:
             log.warning("Health check failed.")
             raise exceptions.HttpError(503)
+
+    def _format_key(self, auth_token):
+        key = self.authtoken_prefix + auth_token
+
+        if len(key) < self.token_hashing_threshold:
+            return key
+
+        sha = hashlib.sha512()
+        sha.update((self.authtoken_prefix + auth_token).encode())
+        hashed_token = sha.hexdigest().upper()
+
+        # Converts hashed token to the format output by .NET's BitConverter
+        # https://msdn.microsoft.com/en-us/library/3a733s97(v=vs.110).aspx
+        return '-'.join(
+            [
+                ''.join(pair)
+                for pair
+                in zip(hashed_token[::2], hashed_token[1::2])
+            ]
+        )
+
+    def _prepare(self):
+        auth_token = self.request.get_optional_header('X-Auth-Token')
+        if not auth_token:
+            if self.test_mode:
+                # Missing auth is OK in test mode
+                log.warning(
+                    "TEST MODE: Bypassing token validation."
+                )
+                return True
+            else:
+                # Auth token required in live mode
+                log.error("Missing X-Auth-Token header (required in live mode).")
+                return False
+                # raise exceptions.HttpUnauthorized()
+
+        # See if auth is cached by API
+        try:
+            if (
+                    self.shared.authtoken_cache.get(
+                        self._format_key(auth_token)
+                    ) is None
+            ):
+                log.info('Unauthorized, Token is not cached by API into memcache.')
+                return False
+                #raise exceptions.HttpUnauthorized()
+
+            else:
+                return True
+
+        except exceptions.HttpError:
+            raise
+
+        except Exception as ex:
+            log.error(str(ex))
+            raise exceptions.HttpServiceUnavailable()
