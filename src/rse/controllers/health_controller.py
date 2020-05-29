@@ -101,12 +101,29 @@ class HealthController(rawr.Controller):
         self.mongo_db.set_profiling_level(pymongo.OFF)
         return stats
 
+    def _subreport_memcache(self):
+        return {
+                "slabs_memory": self.shared.authtoken_cache.stats(additional_args='slabs'),
+                #"slabs_memory": You can query the current memory statistics using
+                "sizes": self.shared.authtoken_cache.stats(additional_args='sizes'),
+                "items_keys": self.shared.authtoken_cache.stats(additional_args='items'),
+                #"items_keys": command to determine how many keys do exist.
+                "stats_general": self.shared.authtoken_cache.stats(additional_args=None),
+                #"stats_general": You will get a listing which serves the number of connections, bytes in/out and much more.
+                }
+
     @retry(stop=saa(10), wait=wait(0.5), retry=extype(AutoReconnect))
     def _basic_health_check(self):
         # Do something to exercise the db. Note that this must work on
         # secondaries (e.g. read-only slaves)
         self.mongo_db.events.count()
-        return True
+        try:
+            self.shared.authtoken_cache.set('health', 'ok')
+            self.shared.authtoken_cache.get('health')
+            return True
+        except Exception as e:
+            log.error('Health Check failed...:' + str(e))
+            return False
 
     @retry(stop=saa(10), wait=wait(0.5), retry=extype(AutoReconnect))
     def _full_report(self):
@@ -121,6 +138,7 @@ class HealthController(rawr.Controller):
                 ('versions', None, util.versions_report),
                 ('profiling', 'profile_db', self._subreport_profiling),
                 ('integrity', 'validate_db', self._subreport_integrity),
+                ('memcache', None, self._subreport_memcache),
                 )
 
         req = self.request
