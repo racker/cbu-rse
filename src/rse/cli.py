@@ -27,7 +27,6 @@ def main():
                         help="print version of RSE and all dependencies")
     args = parser.parse_args()
 
-
     conf = rse.config.load('rse.yaml', args.conf)
     if args.version:
         from rse.version import version
@@ -35,8 +34,8 @@ def main():
         sys.exit()
 
     if args.versions:
-        for name, version in rse.util.versions_report():
-            print('{}\t{}'.format(name, version))
+        for name, ver in rse.util.versions_report():
+            print('{}\t{}'.format(name, ver))
         sys.exit()
 
     if args.dbgconf:
