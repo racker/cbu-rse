@@ -135,7 +135,9 @@ class HealthController(rawr.Controller):
                 ('versions', None, util.versions_report),
                 ('profiling', 'profile_db', self._subreport_profiling),
                 ('integrity', 'validate_db', self._subreport_integrity),
-                ('memcache', None, self._subreport_memcache),
+                # FIXME: memcache stats check broken in current moecache
+                # Uncomment when upstream bug is fixed
+                # ('memcache', None, self._subreport_memcache),
                 )
 
         req = self.request
