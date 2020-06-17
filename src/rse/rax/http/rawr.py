@@ -14,6 +14,7 @@ Requires Python 2.7 and webob
 """
 
 from functools import partial
+from distutils.util import strtobool
 
 import http.client
 import re
@@ -82,6 +83,17 @@ class Request(webob.Request):
             return self.GET[param_name]
         else:
             return default_value
+
+    def get_bool(self, param_name, default=False):
+        """ Get true/false param as bool
+
+        Interprets anything strtobool does, e.g. the param can be
+        specified as 'true', 'True', 'yes', 'on', whatever.
+        """
+        value = self.GET.get(param_name, default)
+        if not isinstance(value, bool):
+            value = strtobool(value)
+        return value
 
     # Returns the specified query string parameter or throws an HttpException
     # if not found
