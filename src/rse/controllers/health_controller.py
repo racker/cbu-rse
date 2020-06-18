@@ -119,8 +119,12 @@ class HealthController(rawr.Controller):
         self.mongo_db.events.count()
         try:
             self.shared.authtoken_cache.set('health', 'ok')
-            self.shared.authtoken_cache.get('health')
-            return True
+            key_value = self.shared.authtoken_cache.get('health')
+            if key_value == None:
+                log.warning('Memcached returned None. key not found. Health check failed.')
+                return False
+            elif key_value == 'ok':
+                return True
         except Exception as e:
             log.error('Health Check failed...:' + str(e))
             return False
@@ -167,11 +171,11 @@ class HealthController(rawr.Controller):
             self.response.write("OK\n")
         else:
             log.warning("Health check failed.")
-            raise exceptions.HttpError(503)
+            raise exceptions.HttpError(503, "Health check failed.")
 
     def head(self):
         if self._basic_health_check():
             self.response.write("OK\n")
         else:
             log.warning("Health check failed.")
-            raise exceptions.HttpError(503)
+            raise exceptions.HttpError(503, "Health check failed.")
