@@ -18,8 +18,8 @@ received events to detect duplicates.
 
 ## Installation
 
-1. Install Python 2.7. On Windows, you'll have to manually add it to
-   your path (probably `c:\python27\bin`).
+1. Install Python 3. On Windows, you'll have to manually add it to
+   your path (probably `c:\python3\bin`).
 1. Clone this repository.
 1. `pip install .`
 
@@ -31,6 +31,10 @@ switch.
 1. Clone this repository.
 1. `docker-compose build`
 1. `docker-compose up`
+
+RSE will listen on local port 8000; you can test that it is running with
+`curl http://localhost:8000/health` or similar. The response body will
+read "OK".
 
 ## Features
 
@@ -64,15 +68,16 @@ deployments can have very small conf files.
 
 ## Dependencies
 
-Python is the only system-level dependency. All others are brought in
+Python 3 is the only system-level dependency. All others are brought in
 via pip during installation. See `setup.py` for the complete list.
-Currently only Python 2.7 is supported.
 
 RSE relies on `memcached` (for auth token verification) and `mongodb`
 (for event storage).
 
-We suggest `gunicorn` as a WSGI server. RSE is capable of self-running,
-but it's not recommended in production.
+We suggest `gunicorn` as a WSGI server. The WSGI application path is
+`rse.wsgi:app`. RSE is capable of self-running, but it's not recommended
+in production. If you do need to self-run it, `rse --help` will list the
+available options.
 
 `nginx` or a similar web server should run in front. There's a sample
 configuration under `docker/nginx.rse.conf`.
@@ -80,4 +85,12 @@ configuration under `docker/nginx.rse.conf`.
 RSE is typically deployed on Ubuntu, but theoretically can run on any
 system with an appropriate Python.
 
-[1]:http://asktog.com/basics/firstPrinciples.html#latencyReduction
+## External Documentation
+
+These should be moved into the source at some point, but for now they
+are on the wiki:
+
+* [RSE Developer Guide](https://one.rackspace.com/pages/viewpage.action?spaceKey=atlanta&title=RSE+Messages+for+Cloud+Backup)
+* [RSE Messages for Cloud Backup](https://one.rackspace.com/pages/viewpage.action?spaceKey=atlanta&title=RSE+Messages+for+Cloud+Backup)
+
+[1]: http://asktog.com/basics/firstPrinciples.html#latencyReduction
