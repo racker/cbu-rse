@@ -19,6 +19,7 @@ COPY ./deps/*.apt.txt /root/deps/
 RUN dos2unix /root/deps/*.apt.txt
 
 RUN cat /root/deps/*.apt.txt | grep -v ^# > /root/install.apt.txt
+ENV DEBIAN_FRONTEND=noninteractive
 RUN until apt-get install -y $(cat /root/install.apt.txt) \
     ; do echo "apt-get failed, retrying in 2s"; sleep 2; done
 
