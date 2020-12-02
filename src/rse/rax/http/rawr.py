@@ -13,6 +13,8 @@ behind gunicorn + nginx
 Requires Python 2.7 and webob
 """
 
+from functools import partial
+
 import http.client
 import re
 import webob
@@ -30,23 +32,18 @@ class Rawr:
         response = Response()
 
         try:
-            for route in self.routes:
-                match = route[0].match(request.path)
-
+            for pattern, controller in self.routes:
+                match = pattern.match(request.path)
                 if match:
-                    kwargs = {k: v for k, v in match.groupdict().items()}
-                    args = None
+                    break
+            else:
+                raise HttpNotFound('URI not found: ' + request.path)
 
-                    # match.groups() includes both named and unnamed groups, so
-                    # we want to use either groups or groupdict but not both.
-                    if kwargs:
-                        args = []
-                    else:
-                        args = [s for s in match.groups()]
-
-                    return route[1](**route[2])(request, response, start_response, *args, **kwargs)
-
-            raise HttpNotFound('URI not found: ' + request.path)
+            # match.groups() includes both named and unnamed groups, so
+            # we want to use either groups or groupdict but not both.
+            kwargs = match.groupdict()
+            args = [] if kwargs else match.groups()
+            return controller()(request, response, start_response, *args, **kwargs)
 
         except HttpError as ex:
             headers = [('Content-type', 'application/json; charset=utf-8')]
@@ -58,8 +55,7 @@ class Rawr:
             kwargs = {}
         if type(pattern) is str:
             pattern = re.compile(pattern)
-
-        self.routes.append((pattern, controller, kwargs))
+        self.routes.append((pattern, partial(controller, **kwargs)))
 
 
 class Request(webob.Request):
