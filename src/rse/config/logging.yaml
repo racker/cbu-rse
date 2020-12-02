@@ -16,6 +16,17 @@ root:
   handlers:
     - console
     - file
+
+loggers:
+  # When debugging, sometimes it is useful to log full http
+  # requests/responses. Putting them in the main log would make it
+  # unreadable, so we have a special logger for the purpose that points
+  # to a separate file.
+  rse.util.httplog:
+    propagate: false
+    handlers:
+      - http
+
 handlers:
   file:
     class: logging.handlers.WatchedFileHandler
@@ -29,6 +40,11 @@ handlers:
     class: logging.handlers.SysLogHandler
     formatter: std
     facility: LOG_USER
+  http:
+    class: logging.handlers.WatchedFileHandler
+    formatter: http
+    filename: /var/log/rse/http.log
+
 formatters:
   # 'brief' is intended for the simplest useful output, suitable for
   # viewing at the console. 'std' adds the logger name (typically
@@ -57,3 +73,9 @@ formatters:
     # As above, but with PID added, for multiple-worker deployments.
     format: "%(asctime)s.%(msecs)03d\t%(process)d\t%(levelname)s\t%(name)s:%(lineno)d\t%(message)s"
     datefmt: '%Y-%m-%dT%H:%M:%S'
+
+  # For http logs, use a recordjar-style format. That way it's still
+  # technically machine parseable, even if grepping it is hard.
+  http:
+    format: "%%%%\nTimestamp: %(asctime)s.%(msecs)03d\n%(message)s\n"
+    datefmt: '%Y-%m-%d %H:%M:%S'

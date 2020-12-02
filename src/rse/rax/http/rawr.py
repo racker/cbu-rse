@@ -13,10 +13,14 @@ behind gunicorn + nginx
 Requires Python 2.7 and webob
 """
 
+from functools import partial
+
 import http.client
 import re
 import webob
 from .exceptions import *
+
+from rse.util import httplog
 
 
 class Rawr:
@@ -27,39 +31,37 @@ class Rawr:
 
     def __call__(self, environ, start_response):
         request = Request(environ)
-        response = Response()
+        httplog.trace('Request: %s', request)
 
         try:
-            for route in self.routes:
-                match = route[0].match(request.path)
-
+            for pattern, controller in self.routes:
+                match = pattern.match(request.path)
                 if match:
-                    kwargs = {k: v for k, v in match.groupdict().items()}
-                    args = None
+                    break
+            else:
+                raise HttpNotFound('URI not found: ' + request.path)
 
-                    # match.groups() includes both named and unnamed groups, so
-                    # we want to use either groups or groupdict but not both.
-                    if kwargs:
-                        args = []
-                    else:
-                        args = [s for s in match.groups()]
-
-                    return route[1](**route[2])(request, response, start_response, *args, **kwargs)
-
-            raise HttpNotFound('URI not found: ' + request.path)
+            # match.groups() includes both named and unnamed groups, so
+            # we want to use either groups or groupdict but not both.
+            kwargs = match.groupdict()
+            args = [] if kwargs else match.groups()
+            return controller()(request, Response(), start_response, *args, **kwargs)
 
         except HttpError as ex:
-            headers = [('Content-type', 'application/json; charset=utf-8')]
-            start_response(ex.status(), headers)
-            return ['{{ "message": "{}" }}'.format(ex.info).encode()]
+            response = Response()
+            response.set_status(ex.status_code)
+            response.write_header('Content-type', 'application/json; charset=utf-8')
+            response.write(f'{{ "message": "{ex.info}" }}')
+            httplog.trace('Response: %s', response)
+            start_response(response.status, response.response_headers)
+            return [response.response_body]
 
     def add_route(self, pattern, controller, kwargs=None):
         if kwargs is None:
             kwargs = {}
         if type(pattern) is str:
             pattern = re.compile(pattern)
-
-        self.routes.append((pattern, controller, kwargs))
+        self.routes.append((pattern, partial(controller, **kwargs)))
 
 
 class Request(webob.Request):
@@ -121,6 +123,11 @@ class Response:
         self.stream = None
         self.stream_length = 0
 
+    def __str__(self):
+        head = ''.join(f'{k}: {v}\n' for k, v in self.response_headers)
+        body = self.response_body.decode()
+        return f'{self.status}\n{head}\n{body}'
+
     def write(self, str):
         self.response_body += str.encode()
         pass
@@ -176,6 +183,7 @@ class Controller:
                 ('Content-Length', str(self.response.stream_length))
                 )
 
+        httplog.trace('Response: %s', self.response)
         start_response(self.response.status, self.response.response_headers)
         return self.response.stream
 

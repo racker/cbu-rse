@@ -1,6 +1,2 @@
 root:
   level: DEBUG
-
-handlers:
-  file:
-    filename: /root/rse.log  # Because /var/log/rse doesn't exist.
