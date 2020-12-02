@@ -14,6 +14,7 @@ import sys
 import time
 import logging
 import logging.config
+from functools import partial, partialmethod
 
 from . import config
 from pkg_resources import get_distribution
@@ -95,7 +96,27 @@ def versions_report():
 
 
 def initlog(path=None):
-    """ Set up logging """
+    """ Set up logging
+
+    This does some evil monkeypatching to create a "trace" loglevel and
+    make it usable like any other. The *right* way to do this is to
+    subclass Logger and use setLoggerClass, but I can't figure out a way
+    to guarantee that happens before any loggers are intantiated. This
+    does the job well enough.
+
+    Most of the method comes from this SO answer:
+    https://stackoverflow.com/a/35804945/
+    """
+
+    tracelvl = logging.DEBUG - 5
+    logcls = logging.getLoggerClass()
+    name = 'TRACE'
+
+    logging.TRACE = tracelvl
+    logging.addLevelName(tracelvl, name)
+    logging.trace = partial(logging.log, tracelvl)
+    logcls.trace = partialmethod(logcls.log, tracelvl)
+
     logconf = config.load('logging.yaml', path)
     logging.config.dictConfig(logconf)
     log.critical("LOGLEVEL ENABLED: CRITICAL")
@@ -103,3 +124,4 @@ def initlog(path=None):
     log.warn("LOGLEVEL ENABLED: WARN")
     log.info("LOGLEVEL ENABLED: INFO")
     log.debug("LOGLEVEL ENABLED: DEBUG")
+    log.trace("LOGLEVEL ENABLED: TRACE")
