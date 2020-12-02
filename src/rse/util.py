@@ -21,6 +21,7 @@ from pkg_resources import get_distribution
 
 
 log = logging.getLogger(__name__)
+httplog = logging.getLogger(__name__ + '.httplog')
 
 
 def time_id(offset_sec=0):
@@ -125,3 +126,8 @@ def initlog(path=None):
     log.info("LOGLEVEL ENABLED: INFO")
     log.debug("LOGLEVEL ENABLED: DEBUG")
     log.trace("LOGLEVEL ENABLED: TRACE")
+    if httplog.isEnabledFor(logging.TRACE):
+        msg = ('WARNING: HTTP REQUEST LOGGING ENABLED. If this message '
+               'appears more than once, you are running multiple RSE '
+               'workers and their request logs may interlace.')
+        log.warning(msg)

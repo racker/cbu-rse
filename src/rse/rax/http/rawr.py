@@ -20,6 +20,8 @@ import re
 import webob
 from .exceptions import *
 
+from rse.util import httplog
+
 
 class Rawr:
     """Responsible for routing (set in initialization as a dictionary)"""
@@ -29,7 +31,7 @@ class Rawr:
 
     def __call__(self, environ, start_response):
         request = Request(environ)
-        response = Response()
+        httplog.trace('Request: %s', request)
 
         try:
             for pattern, controller in self.routes:
@@ -43,12 +45,16 @@ class Rawr:
             # we want to use either groups or groupdict but not both.
             kwargs = match.groupdict()
             args = [] if kwargs else match.groups()
-            return controller()(request, response, start_response, *args, **kwargs)
+            return controller()(request, Response(), start_response, *args, **kwargs)
 
         except HttpError as ex:
-            headers = [('Content-type', 'application/json; charset=utf-8')]
-            start_response(ex.status(), headers)
-            return ['{{ "message": "{}" }}'.format(ex.info).encode()]
+            response = Response()
+            response.set_status(ex.status_code)
+            response.write_header('Content-type', 'application/json; charset=utf-8')
+            response.write(f'{{ "message": "{ex.info}" }}')
+            httplog.trace('Response: %s', response)
+            start_response(response.status, response.response_headers)
+            return [response.response_body]
 
     def add_route(self, pattern, controller, kwargs=None):
         if kwargs is None:
@@ -117,6 +123,11 @@ class Response:
         self.stream = None
         self.stream_length = 0
 
+    def __str__(self):
+        head = ''.join(f'{k}: {v}\n' for k, v in self.response_headers)
+        body = self.response_body.decode()
+        return f'{self.status}\n{head}\n{body}'
+
     def write(self, str):
         self.response_body += str.encode()
         pass
@@ -172,6 +183,7 @@ class Controller:
                 ('Content-Length', str(self.response.stream_length))
                 )
 
+        httplog.trace('Response: %s', self.response)
         start_response(self.response.status, self.response.response_headers)
         return self.response.stream
 

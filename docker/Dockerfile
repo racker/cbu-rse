@@ -26,6 +26,9 @@ RUN until apt-get install -y $(cat /root/install.apt.txt) \
 # Install RSE
 ADD . /root/rse
 WORKDIR /root/rse
+# It's a pain to get /var/log/rse's perms sorted out, so just symlink it
+# to root.
+RUN ln -s /root /var/log/rse
 COPY ./deps/*.pip.txt /root/deps/
 RUN dos2unix /root/deps/*.pip.txt
 RUN pip3 install -r /root/deps/docker.pip.txt
