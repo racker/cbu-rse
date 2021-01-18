@@ -85,12 +85,9 @@ configuration under `docker/nginx.rse.conf`.
 RSE is typically deployed on Ubuntu, but theoretically can run on any
 system with an appropriate Python.
 
-## External Documentation
+## Other Documentation
 
-These should be moved into the source at some point, but for now they
-are on the wiki:
-
-* [RSE Developer Guide](https://one.rackspace.com/pages/viewpage.action?spaceKey=atlanta&title=RSE+Messages+for+Cloud+Backup)
-* [RSE Messages for Cloud Backup](https://one.rackspace.com/pages/viewpage.action?spaceKey=atlanta&title=RSE+Messages+for+Cloud+Backup)
+* [RSE Developer Guide](https://github.com/racker/cbu-rse/blob/development/doc/README.md)
+* [RSE Example Data Flow](https://github.com/racker/cbu-rse/blob/development/doc/example-data-flow.pdf)
 
 [1]: http://asktog.com/basics/firstPrinciples.html#latencyReduction
