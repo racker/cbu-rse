@@ -85,6 +85,24 @@ configuration under `docker/nginx.rse.conf`.
 RSE is typically deployed on Ubuntu, but theoretically can run on any
 system with an appropriate Python.
 
+## Updating Socket Limits
+
+The maximum number of open file descriptors usually needs to be bumped early on.
+Unix/Linux-based OSes treat sockets as if they were files.
+
+```bash
+$ sudo ulimit -n 4096
+```
+
+The maximum socket backlog can also be increased. Listening sockets have an
+associated queue of incoming connections that are waiting to be accepted.
+If you happen to have a stampede of clients that fill up this queue new
+connections will eventually start getting dropped.
+
+```bash
+$ sudo sysctl -w net.core.somaxconn="4096"
+```
+
 ## Other Documentation
 
 * [RSE Developer Guide](https://github.com/racker/cbu-rse/blob/development/doc/README.md)
