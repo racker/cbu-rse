@@ -142,7 +142,7 @@ class HealthController(rawr.Controller):
 
         req = self.request
         for key, option, func in sub_reports:
-            if option is None or req.get_optional_param(option) == "true":
+            if option is None or req.get_flag(option):
                 log.debug("Running report: %s", key)
                 report[key] = dict(func())
             else:
@@ -160,7 +160,7 @@ class HealthController(rawr.Controller):
     def get(self):
         self.response.write_header(
             "Content-Type", "application/json; charset=utf-8")
-        if self.request.get_optional_param("verbose") == "true":
+        if self.request.get_flag('verbose'):
             self.response.write(self._full_report())
         elif self._basic_health_check():
             self.response.write("OK\n")
