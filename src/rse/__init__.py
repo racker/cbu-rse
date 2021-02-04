@@ -65,7 +65,7 @@ class RseApplication(rawr.Rawr):
         db_secondary = mc_secondary[dbname]
 
         log.info("Initializing events collection")
-        self._init_events(db_primary, conf['event_ttl'])
+        self._init_events(db_primary, conf['event_ttl'], conf['first_event'])
 
         log.info("Setting up routes")
         # This is ugly and I would like to find a better way.
@@ -85,12 +85,15 @@ class RseApplication(rawr.Rawr):
         self.add_route(r'/.+', controllers.MainController, args_main)
 
     @retry(stop=saa(10), wait=wait(0.5), retry=extype(AutoReconnect))
-    def _init_events(self, db, ttl):
+    def _init_events(self, db, ttl, first_event=0):
         """ Initialize the events collection if needed
 
         `db` should be a mongo database connected with readpref: primary.
         (FIXME: does it need to be? If it does, check and fail)
         `ttl` should be the event TTL from the config.
+        `first_event` is the starting event ID when initializing the DB
+            for the first time. It is ignored if the ID counter already
+            exists.
         """
 
         # Create indexes. Order matters - want exact matches first, and
@@ -112,9 +115,13 @@ class RseApplication(rawr.Rawr):
         db.events.create_index('created_at', name='ttl',
                                expireAfterSeconds=ttl)
 
-        # WARNING: Counter must start at a value greater than 0 per the
-        # RSE spec, so we set to 0 since the id generation logic always
-        # adds one to get the next id, so we will start at 1 for the
-        # first event
-        if not db.counters.find_one({'_id': 'last_known_id'}):
-            db.counters.insert({'_id': 'last_known_id', 'c': 0})
+        # NOTE: Event IDs must be >0 per the RSE spec. However, the id
+        # generation logic adds 1 to get the next ID, so starting at 0
+        # by default is fine.
+        ct_evt = db.counters.find_one({'_id': 'last_known_id'})
+        if ct_evt:
+            log.debug("fallback counter present, value: %s", ct_evt['c'])
+        else:
+            msg = "event counter not present, initializing it to %s"
+            log.info(msg, first_event)
+            db.counters.insert({'_id': 'last_known_id', 'c': first_event})

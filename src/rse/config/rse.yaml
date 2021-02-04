@@ -13,9 +13,11 @@
 test_mode: false  # Disables auth checking and enables /all debug channel
 token_prefix: ''
 
-# You are unlikely to need to change these.
+# You are unlikely to need to change anything below here.
 database: rse
-event_ttl: 120
+event_ttl: 120   # Event expiry time in seconds.
+first_event: 1   # Starting event ID when initializing a new database.
+
 token_hashing_threshold: 250
 
 mongodb:
