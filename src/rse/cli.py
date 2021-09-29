@@ -29,7 +29,10 @@ def main():
 
     conf = rse.config.load('rse.yaml', args.conf)
     if args.version:
-        from rse.version import version
+        try:
+            from rse.version import version
+        except ImportError:
+            version = 'UNKNOWN'
         print(version)
         sys.exit()
 
@@ -44,7 +47,7 @@ def main():
 
     rse.util.initlog()
 
-    log.warn("Starting RSE in standalone mode!")
+    log.warning("Starting RSE in standalone mode!")
 
     try:
         log.debug("Creating application")
@@ -53,7 +56,7 @@ def main():
         httpd = make_server('', args.port, app)
         log.info("Serving on port %s...", args.port)
         httpd.serve_forever()
-    except Exception as e:
+    except Exception as e:  # pylint: disable=broad-except
         log.critical(e)
         if args.debug:
             raise

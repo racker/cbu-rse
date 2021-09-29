@@ -122,7 +122,7 @@ def initlog(path=None):
     logging.config.dictConfig(logconf)
     log.critical("LOGLEVEL ENABLED: CRITICAL")
     log.error("LOGLEVEL ENABLED: ERROR")
-    log.warn("LOGLEVEL ENABLED: WARN")
+    log.warning("LOGLEVEL ENABLED: WARN")
     log.info("LOGLEVEL ENABLED: INFO")
     log.debug("LOGLEVEL ENABLED: DEBUG")
     log.trace("LOGLEVEL ENABLED: TRACE")
