@@ -47,6 +47,10 @@ class HealthController(rawr.Controller):
         self.shared = shared  # Shared performance counters, logging, etc.
         self.fields = fields
 
+    # def __call__(self, *args, **kwargs):
+    #     set_transaction_name('health')
+    #     super().__call__(*args, **kwargs)
+
     def _event_range(self):
         events = {'first': pymongo.ASCENDING,
                   'last': pymongo.DESCENDING, }

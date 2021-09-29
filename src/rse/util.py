@@ -23,6 +23,13 @@ from pkg_resources import get_distribution
 log = logging.getLogger(__name__)
 httplog = logging.getLogger(__name__ + '.httplog')
 
+# Provide a noop version of set_transaction_name for when newrelic isn't
+# present.
+try:
+    from newrelic.agent import set_transaction_name
+except ImportError:
+    def set_transaction_name(*args, **kwargs):
+        pass
 
 def time_id(offset_sec=0):
     """Returns a long ID based on the current POSIX time with (at least)

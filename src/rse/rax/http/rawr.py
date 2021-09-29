@@ -20,7 +20,7 @@ import re
 import webob
 from .exceptions import *
 
-from rse.util import httplog
+from rse.util import httplog, set_transaction_name
 
 
 class Rawr:
@@ -168,7 +168,14 @@ class Controller:
     # Speeds up member variable access and reduces memory usage
     __slots__ = ['request', 'response']
 
+    def _tname(self, request, response):
+        module = type(self).__module__
+        cls = type(self).__name__
+        method = request.method.lower()
+        return f'{module}:{cls}.{method}'
+
     def __call__(self, request, response, start_response, *args, **kwargs):
+        set_transaction_name(self._tname(request, response))
         self.request = request
         self.response = response
 
