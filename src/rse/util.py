@@ -23,13 +23,14 @@ from pkg_resources import get_distribution
 log = logging.getLogger(__name__)
 httplog = logging.getLogger(__name__ + '.httplog')
 
-# Provide a noop version of set_transaction_name for when newrelic isn't
-# present.
+# The intent here is that code that wants to use newrelic can just do if nr:
+# nr.whatever, rather than having to do import fallback boilerplate. Even
+# better would be a mock nr object that provides noops in place of newrelic
+# functions, so callers don't have to know or care whether it's present.
 try:
-    from newrelic.agent import set_transaction_name
+    import newrelic.agent as nr
 except ImportError:
-    def set_transaction_name(*args, **kwargs):
-        pass
+    nr = None
 
 def time_id(offset_sec=0):
     """Returns a long ID based on the current POSIX time with (at least)

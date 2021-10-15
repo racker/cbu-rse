@@ -6,7 +6,7 @@ import logging
 
 from rse import RseApplication
 from rse import config
-from rse.util import initlog
+from rse.util import initlog, nr
 
 log = logging.getLogger(__name__)
 
@@ -17,11 +17,9 @@ conf = config.load('rse.yaml')
 log.info("Creating wsgi app")
 app = RseApplication(conf)
 
-try:
-    from newrelic.agent import WSGIApplicationWrapper as wrapper
-    app = wrapper(app)
+if nr:
+    app = nr.WSGIApplicationWrapper(app)
     log.info("Newrelic custom instrumentation enabled")
-except ImportError as ex:
-    log.info("Newrelic customizations not available (%s)", ex)
-
+else:
+    log.info("Newrelic customizations not available (module not importable?)")
 log.info("App ready")

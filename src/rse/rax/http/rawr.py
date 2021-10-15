@@ -20,7 +20,7 @@ import re
 import webob
 from .exceptions import *
 
-from rse.util import httplog, set_transaction_name
+from rse.util import httplog, nr
 
 
 class Rawr:
@@ -175,7 +175,10 @@ class Controller:
         return f'{module}:{cls}.{method}'
 
     def __call__(self, request, response, start_response, *args, **kwargs):
-        set_transaction_name(self._tname(request, response))
+        if nr:
+            nr.set_transaction_name(self._tname(request, response))
+            nr.add_custom_parameter('source', request.client_addr)
+
         self.request = request
         self.response = response
 
