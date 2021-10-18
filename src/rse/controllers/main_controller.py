@@ -13,6 +13,7 @@ import time
 import re
 import random
 import logging
+import json
 
 import pymongo
 
@@ -267,6 +268,24 @@ class MainController(rawr.Controller):
 
         return event_insert_succeeded
 
+    def _evt_type(self, data):
+        """ Get the event type of a posted json event
+
+        Currently used for newrelic reporting, but might also be useful for
+        logging down the line."""
+        # The ERR fallback values are here (instead of raising an
+        # exception) because I don't want the newrelic stuff to alter rse's
+        # visible behavior.
+        try:
+            content = json.loads(data)
+            return (content.get('Event', '')
+                    if isinstance(content, dict)
+                    else 'ERR_NOT_A_DICT')
+        except json.JSONDecodeError:
+            # As currently written, validity is checked before we get here, so
+            # this shouldn't happen.
+            return 'ERR_BAD_PAYLOAD'
+
     def _post(self, channel_name, data):
         """Handles a client submitting a new event (the data parameter)"""
         user_agent = self.request.get_header("User-Agent")
@@ -283,6 +302,10 @@ class MainController(rawr.Controller):
             self._is_safe_user_agent(user_agent)
         ):
             raise exceptions.HttpBadRequest('Invalid JSON')
+
+        if nr:
+            etype = self._evt_type(data)
+            nr.set_transaction_name(f"events/post/{etype:.30}")
 
         # Insert the new event into the DB
         num_retries = 10  # 5 seconds
