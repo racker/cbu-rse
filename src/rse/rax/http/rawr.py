@@ -169,6 +169,7 @@ class Controller:
     __slots__ = ['request', 'response']
 
     def _tname(self, request, response):
+        """ Get transaction name for newrelic """
         module = type(self).__module__
         cls = type(self).__name__
         method = request.method.lower()
@@ -177,7 +178,6 @@ class Controller:
     def __call__(self, request, response, start_response, *args, **kwargs):
         if nr:
             nr.set_transaction_name(self._tname(request, response))
-            nr.add_custom_parameter('source', request.client_addr)
 
         self.request = request
         self.response = response
