@@ -21,6 +21,7 @@ from . import json_validator
 
 from ..rax.http import exceptions
 from ..rax.http import rawr
+from ..util import nr
 
 
 log = logging.getLogger(__name__)
@@ -47,6 +48,11 @@ class MainController(rawr.Controller):
         self.token_hashing_threshold = token_hashing_threshold
         self.test_mode = shared.test_mode  # relaxes auth/uuid requirements
         self.shared = shared  # Shared performance counters, logging, etc.
+
+    def __call__(self, request, *args, **kwargs):
+        if nr:
+            nr.set_transaction_name("events/" + request.method.lower())
+        return super().__call__(request, *args, **kwargs)
 
     def _format_key(self, auth_token):
         key = self.authtoken_prefix + auth_token
