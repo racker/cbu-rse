@@ -8,6 +8,7 @@ dependencies = [
     "pyyaml",
     "tenacity",
     "setuptools",
+    "jsonschema",
 ]
 
 scm_version_options = {

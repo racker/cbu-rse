@@ -16,6 +16,8 @@ import logging
 import json
 
 import pymongo
+from jsonschema import validate
+from jsonschema.exceptions import ValidationError
 
 # We got this off the web somewhere
 from . import json_validator
@@ -268,23 +270,23 @@ class MainController(rawr.Controller):
 
         return event_insert_succeeded
 
-    def _evt_type(self, data):
+    def _evt_type(self, data, fallback=None):
         """ Get the event type of a posted json event
 
         Currently used for newrelic reporting, but might also be useful for
-        logging down the line."""
-        # The ERR fallback values are here (instead of raising an
-        # exception) because I don't want the newrelic stuff to alter rse's
-        # visible behavior.
+        logging down the line.
+        """
+
+        schema = {'type': 'object',
+                  'properties': {
+                      'Event': {'type': 'string'}}}
         try:
             content = json.loads(data)
-            return (content.get('Event', '')
-                    if isinstance(content, dict)
-                    else 'ERR_NOT_A_DICT')
-        except json.JSONDecodeError:
-            # As currently written, validity is checked before we get here, so
-            # this shouldn't happen.
-            return 'ERR_BAD_PAYLOAD'
+            validate(content, schema)
+        except (json.JSONDecodeError, ValidationError) as ex:
+            log.warning("Error looking up event type: %s", ex)
+            return fallback
+        return content.get('Event', fallback)
 
     def _post(self, channel_name, data):
         """Handles a client submitting a new event (the data parameter)"""
@@ -304,8 +306,9 @@ class MainController(rawr.Controller):
             raise exceptions.HttpBadRequest('Invalid JSON')
 
         if nr:
-            etype = self._evt_type(data)
-            nr.set_transaction_name(f"events/post/{etype:.30}")
+            etype = self._evt_type(data, 'unknown')
+            method = self.request.method.lower()
+            nr.set_transaction_name(f"events/{method}/{etype:.30}")
 
         # Insert the new event into the DB
         num_retries = 10  # 5 seconds
