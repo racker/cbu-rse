@@ -13,14 +13,18 @@ import time
 import re
 import random
 import logging
+import json
 
 import pymongo
+from jsonschema import validate
+from jsonschema.exceptions import ValidationError
 
 # We got this off the web somewhere
 from . import json_validator
 
 from ..rax.http import exceptions
 from ..rax.http import rawr
+from ..util import nr
 
 
 log = logging.getLogger(__name__)
@@ -47,6 +51,11 @@ class MainController(rawr.Controller):
         self.token_hashing_threshold = token_hashing_threshold
         self.test_mode = shared.test_mode  # relaxes auth/uuid requirements
         self.shared = shared  # Shared performance counters, logging, etc.
+
+    def __call__(self, request, *args, **kwargs):
+        if nr:
+            nr.set_transaction_name("events/" + request.method.lower())
+        return super().__call__(request, *args, **kwargs)
 
     def _format_key(self, auth_token):
         key = self.authtoken_prefix + auth_token
@@ -261,6 +270,24 @@ class MainController(rawr.Controller):
 
         return event_insert_succeeded
 
+    def _evt_type(self, data, fallback=None):
+        """ Get the event type of a posted json event
+
+        Currently used for newrelic reporting, but might also be useful for
+        logging down the line.
+        """
+
+        schema = {'type': 'object',
+                  'properties': {
+                      'Event': {'type': 'string'}}}
+        try:
+            content = json.loads(data)
+            validate(content, schema)
+        except (json.JSONDecodeError, ValidationError) as ex:
+            log.warning("Error looking up event type: %s", ex)
+            return fallback
+        return content.get('Event', fallback)
+
     def _post(self, channel_name, data):
         """Handles a client submitting a new event (the data parameter)"""
         user_agent = self.request.get_header("User-Agent")
@@ -277,6 +304,11 @@ class MainController(rawr.Controller):
             self._is_safe_user_agent(user_agent)
         ):
             raise exceptions.HttpBadRequest('Invalid JSON')
+
+        if nr:
+            etype = self._evt_type(data, 'unknown')
+            method = self.request.method.lower()
+            nr.set_transaction_name(f"events/{method}/{etype:.30}")
 
         # Insert the new event into the DB
         num_retries = 10  # 5 seconds

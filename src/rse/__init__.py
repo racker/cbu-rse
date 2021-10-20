@@ -33,6 +33,7 @@ from .rax.http import rawr
 from . import config
 from . import controllers
 from . import util
+from .util import nr
 
 log = logging.getLogger(__name__)
 
@@ -49,7 +50,7 @@ class RseApplication(rawr.Rawr):
             return [util.splitport(n, 11211) for n in nodes]
 
         conf_converters = {'memcached:servers': split_mc_nodes}
-        conf = config.process(conf, conf_converters)
+        self.conf = conf = config.process(conf, conf_converters)
 
         log.info("Connecting to memcache")
         cache = moecache.Client(**conf['memcached'])
@@ -83,6 +84,16 @@ class RseApplication(rawr.Rawr):
                 }
         self.add_route(r'/health$', controllers.HealthController, args_health)
         self.add_route(r'/.+', controllers.MainController, args_main)
+
+    def __call__(self, environ, start_response):
+        if nr:
+            req = rawr.Request(environ)
+            if self.conf['newrelic']['record_ip']:
+                nr.add_custom_parameter('source', req.client_addr)
+            for header in self.conf['newrelic']['record_headers']:
+                value = req.headers.get(header, 'unknown')
+                nr.add_custom_parameter('request.headers.' + header, value)
+        return super().__call__(environ, start_response)
 
     @retry(stop=saa(10), wait=wait(0.5), retry=extype(AutoReconnect))
     def _init_events(self, db, ttl, first_event=0):
