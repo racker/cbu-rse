@@ -24,8 +24,7 @@ from . import json_validator
 
 from ..rax.http import exceptions
 from ..rax.http import rawr
-from ..util import nr
-
+from ..util import apm, nr
 
 log = logging.getLogger(__name__)
 
@@ -55,6 +54,8 @@ class MainController(rawr.Controller):
     def __call__(self, request, *args, **kwargs):
         if nr:
             nr.set_transaction_name("events/" + request.method.lower())
+        if apm:
+            apm.begin_transaction('request')
         return super().__call__(request, *args, **kwargs)
 
     def _format_key(self, auth_token):
@@ -354,6 +355,12 @@ class MainController(rawr.Controller):
         else:
             # POST succeeded, i.e., new event was created
             self.response.set_status(201)
+        if apm:
+            apm.end_transaction(
+                name=f"{self.request.method.upper()} /events/"
+                     f"{self._evt_type(data, 'unknown'):.30}",
+                result=self.response.status
+                )
 
     def _get_events(
         self,
@@ -491,6 +498,11 @@ class MainController(rawr.Controller):
                     "Content-Type", "application/json; charset=utf-8")
                 self.response.write("{\"channel\":\"%s\",\"events\":[%s]}" % (
                     channel_name, entries_serialized))
+        if apm:
+            apm.end_transaction(
+                f"{self.request.method.upper()} /events",
+                result=self.response.status
+            )
 
     def post(self):
         """Handle a true HTTP POST event"""

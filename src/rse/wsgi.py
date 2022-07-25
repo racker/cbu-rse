@@ -6,7 +6,7 @@ import logging
 
 from rse import RseApplication
 from rse import config
-from rse.util import initlog, nr
+from rse.util import elasticapm, initlog, nr
 
 log = logging.getLogger(__name__)
 
@@ -22,4 +22,10 @@ if nr:
     log.info("Newrelic custom instrumentation enabled")
 else:
     log.info("Newrelic customizations not available (module not importable?)")
+
+if elasticapm:
+    elasticapm.instrument()
+    log.info("ElasticAPM custom instrumentation enabled")
+else:
+    log.info("ElasticAPM not available (module not importable?)")
 log.info("App ready")
