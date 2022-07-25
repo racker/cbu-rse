@@ -32,6 +32,17 @@ try:
 except ImportError:
     nr = None
 
+# For elasticapm we need to instantiate the client object and pass it around
+# as needed to begin and end transactions. Some functionality requires calling
+# methods of elasticapm directly, so we make both the base module and the
+# client object available to import from rse.util.
+try:
+    import elasticapm
+    apm = elasticapm.Client()
+except ImportError:
+    elasticapm, apm = None, None
+
+
 def time_id(offset_sec=0):
     """Returns a long ID based on the current POSIX time with (at least)
      microsecond precision"""
