@@ -20,9 +20,9 @@ from tenacity import wait_fixed as wait
 from tenacity import retry_if_exception_type as extype
 
 from .. import util
-from ..util import nr
 from ..rax.http import exceptions
 from ..rax.http import rawr
+from ..instrumentation import Transaction
 
 log = logging.getLogger(__name__)
 utcnow = datetime.utcnow  # Convenience
@@ -49,9 +49,8 @@ class HealthController(rawr.Controller):
         self.fields = fields
 
     def __call__(self, *args, **kwargs):
-        if nr:
-            nr.set_transaction_name('health')
-        return super().__call__(*args, **kwargs)
+        with Transaction('health', self) as t:
+            return super().__call__(*args, **kwargs)
 
     def _event_range(self):
         events = {'first': pymongo.ASCENDING,

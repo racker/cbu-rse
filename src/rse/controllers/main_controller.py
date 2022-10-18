@@ -24,7 +24,7 @@ from . import json_validator
 
 from ..rax.http import exceptions
 from ..rax.http import rawr
-from ..util import apm, nr
+from ..instrumentation import Transaction
 
 log = logging.getLogger(__name__)
 
@@ -52,11 +52,10 @@ class MainController(rawr.Controller):
         self.shared = shared  # Shared performance counters, logging, etc.
 
     def __call__(self, request, *args, **kwargs):
-        if nr:
-            nr.set_transaction_name("events/" + request.method.lower())
-        if apm:
-            apm.begin_transaction('request')
-        return super().__call__(request, *args, **kwargs)
+        # I feel like this should be in RSEApplication, not here, but I can't
+        # figure out how to get the response status from there.
+        with Transaction(f"events/{request.method.lower()}", self) as t:
+            return super().__call__(request, *args, **kwargs)
 
     def _format_key(self, auth_token):
         key = self.authtoken_prefix + auth_token
@@ -306,10 +305,9 @@ class MainController(rawr.Controller):
         ):
             raise exceptions.HttpBadRequest('Invalid JSON')
 
-        if nr:
-            etype = self._evt_type(data, 'unknown')
-            method = self.request.method.lower()
-            nr.set_transaction_name(f"events/{method}/{etype:.30}")
+        etype = self._evt_type(data, 'unknown')
+        method = self.request.method.lower()
+        Transaction.set_name(f"events/{method}/{etype:.30}")
 
         # Insert the new event into the DB
         num_retries = 10  # 5 seconds
@@ -355,12 +353,6 @@ class MainController(rawr.Controller):
         else:
             # POST succeeded, i.e., new event was created
             self.response.set_status(201)
-        if apm:
-            apm.end_transaction(
-                name=f"{self.request.method.upper()} /events/"
-                     f"{self._evt_type(data, 'unknown'):.30}",
-                result=self.response.status
-                )
 
     def _get_events(
         self,
@@ -498,11 +490,6 @@ class MainController(rawr.Controller):
                     "Content-Type", "application/json; charset=utf-8")
                 self.response.write("{\"channel\":\"%s\",\"events\":[%s]}" % (
                     channel_name, entries_serialized))
-        if apm:
-            apm.end_transaction(
-                f"{self.request.method.upper()} /events",
-                result=self.response.status
-            )
 
     def post(self):
         """Handle a true HTTP POST event"""
