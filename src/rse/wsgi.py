@@ -16,7 +16,7 @@ initlog()
 log.info("Loading configuration")
 conf = config.load('rse.yaml')
 log.info("Creating wsgi app")
-app = instrument(RseApplication(conf))
+app = instrument(RseApplication(conf), conf)
 
 
 log.info("App ready")

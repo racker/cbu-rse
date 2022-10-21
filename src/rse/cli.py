@@ -7,6 +7,7 @@ import argparse
 from wsgiref.simple_server import make_server
 
 import rse
+from rse.instrumentation import instrument
 import yaml
 
 log = logging.getLogger(__name__)
@@ -51,7 +52,7 @@ def main():
 
     try:
         log.debug("Creating application")
-        app = rse.RseApplication(conf)
+        app = instrument(rse.RseApplication(conf), conf)
         log.debug("Making server")
         httpd = make_server('', args.port, app)
         log.info("Serving on port %s...", args.port)

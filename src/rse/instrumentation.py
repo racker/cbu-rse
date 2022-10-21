@@ -18,16 +18,14 @@ except ImportError:
     add_custom_parameter = noop  # pylint: disable=invalid-name
 try:
     import elasticapm
-    eclient = elasticapm.get_client()  # pylint: disable=invalid-name
 except ImportError:
     elasticapm = None
-    eclient = None  # pylint: disable=invalid-name
 
 
 log = logging.getLogger(__name__)
 
 
-def instrument(app):
+def instrument(app, conf):
     """ Instrument a WSGI application
 
     Returns the app object, possibly wrapped for instrumentation.
@@ -39,13 +37,15 @@ def instrument(app):
     for name, available in modules.items():
         log.info(msg_ok if available else msg_bad, name)
     if elasticapm:
+        elasticapm.Client(**conf.get('elasticapm') or {})
         elasticapm.instrument()
     return nr.WSGIApplicationWrapper(app) if nr else app
 
 
 def begin_transaction(name):
     """ Start a transaction """
-    if elasticapm:
+    eclient = elasticapm and elasticapm.get_client()  # sic
+    if elasticapm and eclient:
         eclient.begin_transaction('request')
         elasticapm.set_transaction_name(name)
 
@@ -62,5 +62,6 @@ def end_transaction(result):
 
     `result` should be the status code of the response.
     """
+    eclient = elasticapm and elasticapm.get_client()
     if eclient:
         eclient.end_transaction(result=result)
