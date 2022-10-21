@@ -47,7 +47,7 @@ def begin_transaction(name):
     eclient = elasticapm and elasticapm.get_client()  # sic
     if elasticapm and eclient:
         eclient.begin_transaction('request')
-        elasticapm.set_transaction_name(name)
+    set_transaction_name(name)
 
 
 def set_transaction_name(name):
