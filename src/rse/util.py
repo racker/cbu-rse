@@ -23,6 +23,10 @@ from pkg_resources import get_distribution
 log = logging.getLogger(__name__)
 httplog = logging.getLogger(__name__ + '.httplog')
 
+
+def noop(*args, **kwargs):
+    """ Do nothing and return None """
+
 def time_id(offset_sec=0):
     """Returns a long ID based on the current POSIX time with (at least)
      microsecond precision"""

@@ -1,9 +1,12 @@
 import logging
+from .util import noop
 
 try:
     import newrelic.agent as nr
+    add_custom_parameter = nr.add_custom_parameter
 except ImportError:
     nr = None
+    add_custom_parameter = noop
 try:
     import elasticapm
     eclient = elasticapm.get_client()
