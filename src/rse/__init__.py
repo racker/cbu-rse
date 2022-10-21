@@ -34,7 +34,7 @@ from .rax.http import rawr
 from . import config
 from . import controllers
 from . import util
-from .util import nr
+from .instrumentation import add_custom_parameter
 
 log = logging.getLogger(__name__)
 
@@ -94,13 +94,12 @@ class RseApplication(rawr.Rawr):
                 for pref in ['primary', 'secondary']]
 
     def __call__(self, environ, start_response):
-        if nr:
-            req = rawr.Request(environ)
-            if self.conf['newrelic']['record_ip']:
-                nr.add_custom_parameter('source', req.client_addr)
-            for header in self.conf['newrelic']['record_headers']:
-                value = req.headers.get(header, 'unknown')
-                nr.add_custom_parameter('request.headers.' + header, value)
+        req = rawr.Request(environ)
+        if self.conf['newrelic']['record_ip']:
+            add_custom_parameter('source', req.client_addr)
+        for header in self.conf['newrelic']['record_headers']:
+            value = req.headers.get(header, 'unknown')
+            add_custom_parameter('request.headers.' + header, value)
         return super().__call__(environ, start_response)
 
     @retry(stop=saa(10), wait=wait(0.5), retry=extype(AutoReconnect))

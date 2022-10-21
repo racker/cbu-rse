@@ -6,7 +6,8 @@ import logging
 
 from rse import RseApplication
 from rse import config
-from rse.util import elasticapm, initlog, nr
+from rse.util import initlog
+from rse.instrumentation import instrument
 
 log = logging.getLogger(__name__)
 
@@ -15,17 +16,7 @@ initlog()
 log.info("Loading configuration")
 conf = config.load('rse.yaml')
 log.info("Creating wsgi app")
-app = RseApplication(conf)
+app = instrument(RseApplication(conf), conf)
 
-if nr:
-    app = nr.WSGIApplicationWrapper(app)
-    log.info("Newrelic custom instrumentation enabled")
-else:
-    log.info("Newrelic customizations not available (module not importable?)")
 
-if elasticapm:
-    elasticapm.instrument()
-    log.info("ElasticAPM custom instrumentation enabled")
-else:
-    log.info("ElasticAPM not available (module not importable?)")
 log.info("App ready")

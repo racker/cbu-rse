@@ -23,25 +23,9 @@ from pkg_resources import get_distribution
 log = logging.getLogger(__name__)
 httplog = logging.getLogger(__name__ + '.httplog')
 
-# The intent here is that code that wants to use newrelic can just do if nr:
-# nr.whatever, rather than having to do import fallback boilerplate. Even
-# better would be a mock nr object that provides noops in place of newrelic
-# functions, so callers don't have to know or care whether it's present.
-try:
-    import newrelic.agent as nr
-except ImportError:
-    nr = None
 
-# For elasticapm we need to instantiate the client object and pass it around
-# as needed to begin and end transactions. Some functionality requires calling
-# methods of elasticapm directly, so we make both the base module and the
-# client object available to import from rse.util.
-try:
-    import elasticapm
-    apm = elasticapm.Client()
-except ImportError:
-    elasticapm, apm = None, None
-
+def noop(*args, **kwargs):
+    """ Do nothing and return None """
 
 def time_id(offset_sec=0):
     """Returns a long ID based on the current POSIX time with (at least)

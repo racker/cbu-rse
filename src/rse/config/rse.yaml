@@ -36,6 +36,15 @@ newrelic:
     - X-Agent-Id
     - X-Project-Id
 
+elasticapm:
+  # This only lists the options you are likely to want to set; anything
+  # here gets splatted into the elasticapm.Client() constructor. With the
+  # exception of service_name, these values are the upstream defaults.
+  service_name: rse
+  server_url: http://localhost:8200
+  environment: null
+  secret_token: null
+
 health_fields:
   # Fields returned by the verbose health check. You probably don't need
   # to change these unless you're doing some serious debugging.
