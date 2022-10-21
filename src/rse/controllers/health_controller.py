@@ -20,9 +20,9 @@ from tenacity import wait_fixed as wait
 from tenacity import retry_if_exception_type as extype
 
 from .. import util
+from ..instrumentation import begin_transaction
 from ..rax.http import exceptions
 from ..rax.http import rawr
-from ..instrumentation import Transaction
 
 log = logging.getLogger(__name__)
 utcnow = datetime.utcnow  # Convenience
@@ -48,9 +48,10 @@ class HealthController(rawr.Controller):
         self.shared = shared  # Shared performance counters, logging, etc.
         self.fields = fields
 
-    def __call__(self, *args, **kwargs):
-        with Transaction('health', self) as t:
-            return super().__call__(*args, **kwargs)
+    def __call__(self, request, *args, **kwargs):
+        method = request.method.upper()
+        begin_transaction(f'{method}:/health')
+        return super().__call__(request, *args, **kwargs)
 
     def _event_range(self):
         events = {'first': pymongo.ASCENDING,

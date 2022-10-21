@@ -24,7 +24,11 @@ from . import json_validator
 
 from ..rax.http import exceptions
 from ..rax.http import rawr
-from ..instrumentation import Transaction
+from ..instrumentation import (
+    begin_transaction,
+    set_transaction_name,
+    end_transaction
+    )
 
 log = logging.getLogger(__name__)
 
@@ -54,8 +58,9 @@ class MainController(rawr.Controller):
     def __call__(self, request, *args, **kwargs):
         # I feel like this should be in RSEApplication, not here, but I can't
         # figure out how to get the response status from there.
-        with Transaction(f"events/{request.method.lower()}", self) as t:
-            return super().__call__(request, *args, **kwargs)
+        method = request.method.upper()
+        begin_transaction(f"{method}:/events")
+        return super().__call__(request, *args, **kwargs)
 
     def _format_key(self, auth_token):
         key = self.authtoken_prefix + auth_token
@@ -306,8 +311,8 @@ class MainController(rawr.Controller):
             raise exceptions.HttpBadRequest('Invalid JSON')
 
         etype = self._evt_type(data, 'unknown')
-        method = self.request.method.lower()
-        Transaction.set_name(f"events/{method}/{etype:.30}")
+        method = self.request.method.upper()
+        set_transaction_name(f"{method}:/events:{etype:.30}")
 
         # Insert the new event into the DB
         num_retries = 10  # 5 seconds
@@ -353,6 +358,7 @@ class MainController(rawr.Controller):
         else:
             # POST succeeded, i.e., new event was created
             self.response.set_status(201)
+        end_transaction(self.response.status)
 
     def _get_events(
         self,
@@ -490,6 +496,7 @@ class MainController(rawr.Controller):
                     "Content-Type", "application/json; charset=utf-8")
                 self.response.write("{\"channel\":\"%s\",\"events\":[%s]}" % (
                     channel_name, entries_serialized))
+        end_transaction(self.response.status)
 
     def post(self):
         """Handle a true HTTP POST event"""
