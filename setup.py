@@ -4,8 +4,8 @@ from setuptools import setup, find_packages
 dependencies = [
     "moecache>=1,<2",
     "pymongo>=2,<4",
-    "webob",
-    "pyyaml",
+    "webob>=1.8.6",
+    "pyyaml>=3.12",
     "tenacity>=5",
     "setuptools",
     "jsonschema",
